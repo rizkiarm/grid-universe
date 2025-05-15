@@ -190,7 +190,7 @@ class ECSMazeEnv(gym.Env[ObsType, np.integer]):
         info = self._get_info()
         return obs, reward, terminated, truncated, info
 
-    def render(self, mode: Optional[str] = None) -> Optional[PILImage]: # type: ignore
+    def render(self, mode: Optional[str] = None) -> Optional[PILImage]:  # type: ignore
         render_mode = mode or self._render_mode
         assert self.state is not None
         if self._texture_renderer is None:
