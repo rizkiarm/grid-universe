@@ -1,0 +1,10 @@
+{
+    "name": "Python Devcontainer",
+    "image": "mcr.microsoft.com/devcontainers/python:3.13",
+    "postCreateCommand": ".devcontainer/setup.sh",
+    "settings": {
+        "python.pythonPath": "${workspaceFolder}/.venv/bin/python"
+    },
+    "remoteUser": "vscode",
+    "forwardPorts": [8501]
+}

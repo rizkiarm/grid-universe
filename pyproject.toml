@@ -1,0 +1,50 @@
+[project]
+name = "ecs-maze"
+version = "0.1.0"
+description = "A modular, extensible, entity-component-system (ECS) gridworld environment"
+authors = [{ name = "Muhammad Rizki Maulana", email = "rizki@rizkiarm.com" }]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+
+dependencies = [
+    "streamlit>=1.45.0",
+    "streamlit-keyup>=0.3.0", # for WASD keyboard support
+    "pyrsistent>=0.20.0",     # for immutable dicts/sets
+    "Pillow>=11.2.1",         # for image loading/rendering
+    "gymnasium>=1.1.1",       # for RL env interface
+    "numpy>=2.2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-Pillow"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ecs_maze*"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+addopts = "--cov=ecs_maze --cov-report=term-missing"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["ecs_maze"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+files = "ecs_maze"
+strict = true
+pretty = true
