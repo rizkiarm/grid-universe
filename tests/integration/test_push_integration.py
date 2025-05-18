@@ -2,9 +2,9 @@ from dataclasses import replace
 from typing import Tuple, List, Dict
 from pyrsistent import pmap, pset
 
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
-from ecs_maze.components import (
+from grid_universe.state import State
+from grid_universe.types import EntityID
+from grid_universe.components import (
     Agent,
     Inventory,
     Box,
@@ -15,8 +15,8 @@ from ecs_maze.components import (
     Collectible,
     Exit,
 )
-from ecs_maze.actions import MoveAction, Direction
-from ecs_maze.step import step
+from grid_universe.actions import MoveAction, Direction
+from grid_universe.step import step
 
 
 def make_push_state(

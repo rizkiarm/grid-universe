@@ -4,10 +4,10 @@ from typing import Callable, Tuple, List, Type
 import pytest
 from pyrsistent import pmap, PMap
 
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
-from ecs_maze.components import Collidable, Position, Agent, Box, Pushable, Portal
-from ecs_maze.systems.portal import portal_system
+from grid_universe.state import State
+from grid_universe.types import EntityID
+from grid_universe.components import Collidable, Position, Agent, Box, Pushable, Portal
+from grid_universe.systems.portal import portal_system
 
 # --- Utility function for state creation ---
 

@@ -2,8 +2,8 @@ from typing import Tuple, Sequence
 import pytest
 
 from pyrsistent import pmap
-from ecs_maze.actions import MoveAction, Direction
-from ecs_maze.components import (
+from grid_universe.actions import MoveAction, Direction
+from grid_universe.components import (
     Box,
     Pushable,
     Exit,
@@ -16,9 +16,9 @@ from ecs_maze.components import (
     Hazard,
     HazardType,
 )
-from ecs_maze.types import EntityID
-from ecs_maze.step import step
-from ecs_maze.moves import default_move_fn
+from grid_universe.types import EntityID
+from grid_universe.step import step
+from grid_universe.moves import default_move_fn
 from tests.test_utils import make_agent_state
 
 

@@ -1,7 +1,7 @@
 from typing import Tuple
 import pytest
-from ecs_maze.actions import MoveAction, Direction
-from ecs_maze.components import (
+from grid_universe.actions import MoveAction, Direction
+from grid_universe.components import (
     Box,
     Pushable,
     Wall,
@@ -11,14 +11,14 @@ from ecs_maze.components import (
     HazardType,
     LethalDamage,
 )
-from ecs_maze.types import EntityID
-from ecs_maze.moves import (
+from grid_universe.types import EntityID
+from grid_universe.moves import (
     wrap_around_move_fn,
     slippery_move_fn,
     windy_move_fn,
     gravity_move_fn,
 )
-from ecs_maze.step import step
+from grid_universe.step import step
 from tests.test_utils import make_agent_state
 
 # --- WRAP-AROUND UNIQUE TESTS ---
@@ -229,7 +229,7 @@ def test_slippery_slide_lose_on_hazard() -> None:
 
 def test_windy_random_move(monkeypatch) -> None:
     # Monkeypatch random to always trigger wind to the right
-    import ecs_maze.moves as moves_mod
+    import grid_universe.moves as moves_mod
 
     monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
     monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
@@ -245,7 +245,7 @@ def test_windy_random_move(monkeypatch) -> None:
 
 def test_windy_blocked_by_wall(monkeypatch) -> None:
     wall_id: EntityID = 2
-    import ecs_maze.moves as moves_mod
+    import grid_universe.moves as moves_mod
 
     monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
     monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
@@ -264,7 +264,7 @@ def test_windy_blocked_by_wall(monkeypatch) -> None:
 
 def test_windy_win_on_exit(monkeypatch) -> None:
     exit_id: EntityID = 5
-    import ecs_maze.moves as moves_mod
+    import grid_universe.moves as moves_mod
 
     monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
     monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
@@ -286,7 +286,7 @@ def test_windy_win_on_exit(monkeypatch) -> None:
 
 def test_windy_lose_on_hazard(monkeypatch) -> None:
     hazard_id: EntityID = 20
-    import ecs_maze.moves as moves_mod
+    import grid_universe.moves as moves_mod
 
     monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
     monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))

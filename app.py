@@ -5,18 +5,22 @@ import streamlit as st
 import numpy as np
 from typing import List, Tuple, Dict, Optional
 from st_keyup import st_keyup  # type: ignore
-from ecs_maze.components import (
+from grid_universe.components import (
     Inventory,
     PowerUp,
     PowerUpType,
     PowerUpLimit,
 )
-from ecs_maze.gym_env import ECSMazeEnv, MazeEnvAction, ObsType
-from ecs_maze.levels.generator import DEFAULT_HAZARDS, DEFAULT_POWERUPS, DEFAULT_ENEMIES
-from ecs_maze.moves import MOVE_FN_REGISTRY, default_move_fn
-from ecs_maze.state import State
-from ecs_maze.types import EnemySpec, HazardSpec, MoveFn, PowerupSpec, RenderType
-from ecs_maze.utils.render import eid_to_render_type
+from grid_universe.gym_env import ECSMazeEnv, MazeEnvAction, ObsType
+from grid_universe.levels.generator import (
+    DEFAULT_HAZARDS,
+    DEFAULT_POWERUPS,
+    DEFAULT_ENEMIES,
+)
+from grid_universe.moves import MOVE_FN_REGISTRY, default_move_fn
+from grid_universe.state import State
+from grid_universe.types import EnemySpec, HazardSpec, MoveFn, PowerupSpec, RenderType
+from grid_universe.utils.render import eid_to_render_type
 
 ITEM_ICONS: Dict[RenderType, str] = {
     RenderType.KEY: "🔑",
@@ -32,7 +36,7 @@ POWERUP_ICONS: Dict[PowerUpType, str] = {
     PowerUpType.DOUBLE_SPEED: "⚡",
 }
 
-st.set_page_config(layout="wide", page_title="ECS Maze")
+st.set_page_config(layout="wide", page_title="Grid Universe")
 st.markdown(
     """
     <style>

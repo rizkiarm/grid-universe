@@ -3,9 +3,9 @@ from typing import Dict, List, Tuple
 from pyrsistent import pmap, pset
 from pyrsistent.typing import PMap
 
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
-from ecs_maze.components import (
+from grid_universe.state import State
+from grid_universe.types import EntityID
+from grid_universe.components import (
     Agent,
     Required,
     Collectible,
@@ -15,8 +15,8 @@ from ecs_maze.components import (
     Dead,
     Position,
 )
-from ecs_maze.actions import MoveAction, Direction
-from ecs_maze.step import step
+from grid_universe.actions import MoveAction, Direction
+from grid_universe.step import step
 
 
 def make_terminal_state(

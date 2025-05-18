@@ -1,5 +1,5 @@
 [project]
-name = "ecs-maze"
+name = "grid-universe"
 version = "0.1.0"
 description = "A modular, extensible, entity-component-system (ECS) gridworld environment"
 authors = [{ name = "Muhammad Rizki Maulana", email = "rizki@rizkiarm.com" }]
@@ -21,19 +21,19 @@ dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-Pillow"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ecs_maze*"]
+include = ["grid_universe*"]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
-addopts = "--cov=ecs_maze --cov-report=term-missing"
+addopts = "--cov=grid_universe --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["ecs_maze"]
+source = ["grid_universe"]
 
 [tool.coverage.report]
 show_missing = true
@@ -45,6 +45,6 @@ target-version = "py310"
 
 [tool.mypy]
 python_version = "3.10"
-files = "ecs_maze"
+files = "grid_universe"
 strict = true
 pretty = true

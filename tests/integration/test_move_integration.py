@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from ecs_maze.components import (
+from grid_universe.components import (
     Damage,
     Position,
     PowerUp,
@@ -16,9 +16,9 @@ from ecs_maze.components import (
     Cost,
     Collectible,
 )
-from ecs_maze.step import step
-from ecs_maze.state import State
-from ecs_maze.actions import MoveAction, Direction, Action
+from grid_universe.step import step
+from grid_universe.state import State
+from grid_universe.actions import MoveAction, Direction, Action
 from pyrsistent import pmap
 from tests.test_utils import (
     make_agent_box_wall_state,
@@ -83,7 +83,7 @@ def test_move_pushes_box_out_of_bounds() -> None:
 
 
 def test_move_wrapping_enabled() -> None:
-    from ecs_maze.moves import wrap_around_move_fn
+    from grid_universe.moves import wrap_around_move_fn
 
     state, agent_id, _, _ = make_agent_box_wall_state(
         agent_pos=(4, 0), width=5, height=1
@@ -331,7 +331,7 @@ def test_move_agent_not_in_agent_map() -> None:
 
 def test_move_with_minimal_state() -> None:
     # Defensive: state with only map fields, no agents
-    from ecs_maze.state import State
+    from grid_universe.state import State
     from pyrsistent import pmap
 
     state = State(

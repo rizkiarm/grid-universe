@@ -4,7 +4,7 @@ import pytest
 from typing import List, Sequence, Tuple, Dict
 from dataclasses import replace
 
-from ecs_maze.moves import (
+from grid_universe.moves import (
     default_move_fn,
     wrap_around_move_fn,
     mirror_move_fn,
@@ -12,9 +12,9 @@ from ecs_maze.moves import (
     windy_move_fn,
     gravity_move_fn,
 )
-from ecs_maze.actions import Direction
-from ecs_maze.components import Position, Wall, Blocking
-from ecs_maze.types import EntityID, MoveFn
+from grid_universe.actions import Direction
+from grid_universe.components import Position, Wall, Blocking
+from grid_universe.types import EntityID, MoveFn
 from tests.test_utils import make_agent_state
 
 
@@ -214,7 +214,7 @@ def test_windy_move_fn(
     blockers: List[Tuple[int, int]],
     expected: List[Tuple[int, int]],
 ) -> None:
-    import ecs_maze.moves as moves_mod
+    import grid_universe.moves as moves_mod
 
     def fake_random() -> float:
         return wind_first

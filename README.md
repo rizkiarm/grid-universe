@@ -1,4 +1,4 @@
-# ECS Maze
+# Grid Universe
 
 A modular, extensible, entity-component-system (ECS) gridworld environment for research & teaching in RL, puzzle games, and agent-based AI.
 
@@ -58,7 +58,7 @@ The project includes a `.devcontainer` directory supporting [Dev Containers](htt
 Render and interact with a random maze in Python:
 
 ```
-from ecs_maze.gym_env import ECSMazeEnv
+from grid_universe.gym_env import ECSMazeEnv
 import numpy as np
 
 env = ECSMazeEnv(render_mode="texture", width=7, height=7)
@@ -74,7 +74,7 @@ env.render(mode="human")
 
 ## Project Structure
 ```
-ecs_maze/
+grid_universe/
     actions.py         # Action types (Move, PickUp, UseKey, etc.)
     components/        # ECS component classes (Agent, Position, Wall, etc.)
     entity.py          # EntityID generator
@@ -133,7 +133,7 @@ Customizable procedurally-generated mazes:
 ---
 
 ## Streamlit Demo App (`app.py`)
-The `app.py` file provides an interactive web interface for ECS Maze using [Streamlit](https://streamlit.io/).
+The `app.py` file provides an interactive web interface for Grid Universe using [Streamlit](https://streamlit.io/).
 **Features:**
 - Play and visualize the maze directly in your browser.
 - Configure maze size, objects, items, movement rules, powerups, hazards, and more via sidebar controls.

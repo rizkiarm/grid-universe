@@ -1,7 +1,7 @@
 from dataclasses import replace
 from typing import Optional
-from ecs_maze.systems.hazard import hazard_system
-from ecs_maze.components import (
+from grid_universe.systems.hazard import hazard_system
+from grid_universe.components import (
     Agent,
     Inventory,
     Health,
@@ -15,8 +15,8 @@ from ecs_maze.components import (
     LethalDamage,
     PowerUpLimit,
 )
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
+from grid_universe.state import State
+from grid_universe.types import EntityID
 from pyrsistent import PMap, pmap, pset
 
 

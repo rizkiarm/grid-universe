@@ -3,9 +3,9 @@ from typing import Dict, Tuple, Optional
 from pyrsistent import pmap, pset, PMap
 import pytest
 
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
-from ecs_maze.components import (
+from grid_universe.state import State
+from grid_universe.types import EntityID
+from grid_universe.components import (
     Agent,
     Inventory,
     Health,
@@ -19,8 +19,8 @@ from ecs_maze.components import (
     Damage,
     LethalDamage,
 )
-from ecs_maze.actions import MoveAction, Direction
-from ecs_maze.step import step
+from grid_universe.actions import MoveAction, Direction
+from grid_universe.step import step
 
 
 # --- Utility: Setup agent + hazard state ---
@@ -271,7 +271,7 @@ def test_hazard_with_negative_damage_raises_error() -> None:
 
 
 def test_hazard_and_enemy_on_same_tile() -> None:
-    from ecs_maze.components import Enemy
+    from grid_universe.components import Enemy
 
     state, agent_id, hazard_id = make_agent_hazard_state(hazard_damage=2)
     enemy_id: EntityID = 9

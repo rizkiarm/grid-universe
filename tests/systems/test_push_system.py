@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Tuple
 from dataclasses import replace
-from ecs_maze.systems.push import push_system
-from ecs_maze.components import (
+from grid_universe.systems.push import push_system
+from grid_universe.components import (
     Agent,
     Box,
     Pushable,
@@ -13,8 +13,8 @@ from ecs_maze.components import (
     Exit,
     Collectible,
 )
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
+from grid_universe.state import State
+from grid_universe.types import EntityID
 from pyrsistent import PMap, pmap
 
 

@@ -1,8 +1,8 @@
 from typing import Dict, Tuple, List, Optional, Type, TypeVar, TypedDict
 from pyrsistent import pmap, pset
 from pyrsistent.typing import PMap
-from ecs_maze.state import State
-from ecs_maze.components import (
+from grid_universe.state import State
+from grid_universe.components import (
     Position,
     Agent,
     Inventory,
@@ -32,9 +32,9 @@ from ecs_maze.components import (
     Required,
     Rewardable,
 )
-from ecs_maze.entity import new_entity_id
-from ecs_maze.types import EntityID, MoveFn
-from ecs_maze.moves import default_move_fn
+from grid_universe.entity import new_entity_id
+from grid_universe.types import EntityID, MoveFn
+from grid_universe.moves import default_move_fn
 
 
 class MinimalEntities(TypedDict):

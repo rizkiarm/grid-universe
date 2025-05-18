@@ -1,8 +1,8 @@
 from dataclasses import replace
-from ecs_maze.systems.locked import unlock_system
-from ecs_maze.types import EntityID
-from ecs_maze.state import State
-from ecs_maze.components import Position, Blocking, Key, Locked, Door, Inventory
+from grid_universe.systems.locked import unlock_system
+from grid_universe.types import EntityID
+from grid_universe.state import State
+from grid_universe.components import Position, Blocking, Key, Locked, Door, Inventory
 from pyrsistent import PSet, pset
 from tests.test_utils import make_minimal_key_door_state
 

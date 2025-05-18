@@ -1,7 +1,7 @@
 from typing import Tuple
 from pyrsistent.typing import PMap
-from ecs_maze.systems.collectible import collectible_system
-from ecs_maze.components import (
+from grid_universe.systems.collectible import collectible_system
+from grid_universe.components import (
     Agent,
     Inventory,
     Collectible,
@@ -13,9 +13,9 @@ from ecs_maze.components import (
     Position,
     Required,
 )
-from ecs_maze.types import EntityID
+from grid_universe.types import EntityID
 from pyrsistent import pmap, pset
-from ecs_maze.state import State
+from grid_universe.state import State
 
 
 def make_collectible_state(

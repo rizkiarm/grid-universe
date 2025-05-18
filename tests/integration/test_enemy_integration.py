@@ -1,9 +1,9 @@
 from typing import Tuple, Dict
 from dataclasses import replace
 from pyrsistent import pmap, pset, PMap
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
-from ecs_maze.components import (
+from grid_universe.state import State
+from grid_universe.types import EntityID
+from grid_universe.components import (
     Agent,
     Enemy,
     Inventory,
@@ -20,8 +20,8 @@ from ecs_maze.components import (
     Collectible,
     Item,
 )
-from ecs_maze.actions import MoveAction, PickUpAction, Direction
-from ecs_maze.step import step
+from grid_universe.actions import MoveAction, PickUpAction, Direction
+from grid_universe.step import step
 
 
 def make_agent_enemy_state(
@@ -334,7 +334,7 @@ def test_enemy_with_negative_damage() -> None:
 
 
 def test_agent_collides_with_enemy_and_hazard() -> None:
-    from ecs_maze.components import Hazard, HazardType
+    from grid_universe.components import Hazard, HazardType
 
     state, agent_id, enemy_id = make_agent_enemy_state()
     hazard_id: EntityID = 5

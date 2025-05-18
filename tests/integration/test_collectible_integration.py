@@ -2,8 +2,8 @@ from dataclasses import replace
 from typing import Tuple, Dict
 from pyrsistent.typing import PMap
 from pyrsistent import pmap, pset
-from ecs_maze.state import State
-from ecs_maze.components import (
+from grid_universe.state import State
+from grid_universe.components import (
     Agent,
     Collectible,
     Rewardable,
@@ -15,9 +15,9 @@ from ecs_maze.components import (
     Required,
     Position,
 )
-from ecs_maze.types import EntityID
-from ecs_maze.actions import MoveAction, PickUpAction, Direction
-from ecs_maze.step import step
+from grid_universe.types import EntityID
+from grid_universe.actions import MoveAction, PickUpAction, Direction
+from grid_universe.step import step
 
 
 def make_agent_with_collectible_state(
@@ -309,7 +309,7 @@ def test_pickup_inventory_not_duplicated() -> None:
 
 
 def test_pickup_collectible_with_score_cost() -> None:
-    from ecs_maze.components import Cost
+    from grid_universe.components import Cost
 
     agent_id = 1
     collectible_id = 2

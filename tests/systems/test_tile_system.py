@@ -1,6 +1,6 @@
 from dataclasses import replace
-from ecs_maze.systems.tile import tile_reward_system, tile_cost_system
-from ecs_maze.components import (
+from grid_universe.systems.tile import tile_reward_system, tile_cost_system
+from grid_universe.components import (
     Agent,
     Rewardable,
     Cost,
@@ -9,8 +9,8 @@ from ecs_maze.components import (
     Dead,
     Position,
 )
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
+from grid_universe.state import State
+from grid_universe.types import EntityID
 from pyrsistent import pmap, pset
 
 

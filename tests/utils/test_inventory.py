@@ -1,13 +1,13 @@
 # tests/utils/test_inventory.py
 
-from ecs_maze.components import Inventory, Key
-from ecs_maze.utils.inventory import (
+from grid_universe.components import Inventory, Key
+from grid_universe.utils.inventory import (
     has_key_with_id,
     add_item,
     remove_item,
     all_keys_with_id,
 )
-from ecs_maze.types import EntityID
+from grid_universe.types import EntityID
 from pyrsistent import pset
 
 

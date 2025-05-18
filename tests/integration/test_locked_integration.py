@@ -1,11 +1,19 @@
 from dataclasses import replace
 from pyrsistent import pset, PSet
 
-from ecs_maze.state import State
-from ecs_maze.step import step
-from ecs_maze.types import EntityID
-from ecs_maze.components import Position, Agent, Inventory, Key, Door, Locked, Blocking
-from ecs_maze.actions import UseKeyAction
+from grid_universe.state import State
+from grid_universe.step import step
+from grid_universe.types import EntityID
+from grid_universe.components import (
+    Position,
+    Agent,
+    Inventory,
+    Key,
+    Door,
+    Locked,
+    Blocking,
+)
+from grid_universe.actions import UseKeyAction
 from tests.test_utils import make_minimal_key_door_state
 
 
@@ -183,7 +191,7 @@ def test_unlock_with_key_not_in_key_store() -> None:
 
 
 def test_unlock_with_nonkey_item_in_inventory() -> None:
-    from ecs_maze.components import Item
+    from grid_universe.components import Item
 
     state, entities = make_minimal_key_door_state()
     agent_id: EntityID = entities["agent_id"]

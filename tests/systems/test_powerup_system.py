@@ -1,12 +1,18 @@
 from dataclasses import replace
 from typing import Optional
-from ecs_maze.systems.powerup import powerup_tick_system
-from ecs_maze.components import Agent, PowerUp, PowerUpType, PowerUpLimit, Inventory
-from ecs_maze.types import EntityID
+from grid_universe.systems.powerup import powerup_tick_system
+from grid_universe.components import (
+    Agent,
+    PowerUp,
+    PowerUpType,
+    PowerUpLimit,
+    Inventory,
+)
+from grid_universe.types import EntityID
 from pyrsistent import PMap, pmap, pset
-from ecs_maze.state import State
-from ecs_maze.utils.powerup import use_powerup_if_present, is_powerup_active
-from ecs_maze.utils.collectible import grant_powerups_on_collect
+from grid_universe.state import State
+from grid_universe.utils.powerup import use_powerup_if_present, is_powerup_active
+from grid_universe.utils.collectible import grant_powerups_on_collect
 
 
 def make_powerup_state(

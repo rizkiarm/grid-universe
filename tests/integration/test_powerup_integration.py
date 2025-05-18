@@ -2,10 +2,10 @@ from dataclasses import replace
 from typing import Dict, Tuple, Optional
 from pyrsistent import pmap, pset, PMap
 
-from ecs_maze.moves import default_move_fn
-from ecs_maze.state import State
-from ecs_maze.types import EntityID
-from ecs_maze.components import (
+from grid_universe.moves import default_move_fn
+from grid_universe.state import State
+from grid_universe.types import EntityID
+from grid_universe.components import (
     Agent,
     Inventory,
     PowerUp,
@@ -21,8 +21,8 @@ from ecs_maze.components import (
     Dead,
     Damage,
 )
-from ecs_maze.actions import PickUpAction, MoveAction, Direction, WaitAction
-from ecs_maze.step import step
+from grid_universe.actions import PickUpAction, MoveAction, Direction, WaitAction
+from grid_universe.step import step
 
 
 def make_agent_with_powerup_collectible(

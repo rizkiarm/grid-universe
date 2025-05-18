@@ -31,7 +31,7 @@ jobs:
               run: ruff check .
 
             - name: Type check with mypy
-              run: mypy ecs_maze
+              run: mypy grid_universe
 
             - name: Run tests
-              run: pytest --cov=ecs_maze --cov-report=term-missing
+              run: pytest --cov=grid_universe --cov-report=term-missing
