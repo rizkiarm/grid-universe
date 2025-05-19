@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pyrsistent import pmap, pset
 from pyrsistent.typing import PSet
+from grid_universe.objectives import default_objective_fn
 from grid_universe.systems.locked import unlock_system
 from grid_universe.state import State
 from grid_universe.types import EntityID
@@ -86,6 +87,7 @@ def make_minimal_key_door_state() -> tuple[State, dict]:
         width=3,
         height=3,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),

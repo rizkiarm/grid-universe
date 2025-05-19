@@ -33,7 +33,7 @@ from grid_universe.components.properties import (
     Rewardable,
     Status,
 )
-from grid_universe.types import EntityID, MoveFn
+from grid_universe.types import EntityID, MoveFn, ObjectiveFn
 
 
 @dataclass(frozen=True)
@@ -42,6 +42,7 @@ class State:
     width: int
     height: int
     move_fn: "MoveFn"
+    objective_fn: "ObjectiveFn"
 
     # Entity
     entity: PMap[EntityID, Entity]
@@ -86,12 +87,15 @@ class State:
     message: Optional[str] = None
 
 
-def create_empty_state(width: int, height: int, move_fn: MoveFn) -> State:
+def create_empty_state(
+    width: int, height: int, move_fn: MoveFn, objective_fn: ObjectiveFn
+) -> State:
     return State(
         # Level
         width=width,
         height=height,
         move_fn=move_fn,
+        objective_fn=objective_fn,
         # Entity
         entity=pmap(),
         # Components

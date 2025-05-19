@@ -9,6 +9,7 @@ from grid_universe.components import (
     LethalDamage,
     Health,
 )
+from grid_universe.objectives import default_objective_fn
 from grid_universe.types import EntityID
 from grid_universe.moves import (
     wrap_around_move_fn,
@@ -125,6 +126,7 @@ def test_wrap_around_lose_on_hazard() -> None:
         agent_pos=(4, 2),
         extra_components=extra,
         move_fn=wrap_around_move_fn,
+        objective_fn=default_objective_fn,
         width=5,
         agent_id=agent_id,
     )
@@ -217,6 +219,7 @@ def test_slippery_slide_lose_on_hazard() -> None:
         agent_pos=(1, 2),
         extra_components=extra,
         move_fn=slippery_move_fn,
+        objective_fn=default_objective_fn,
         width=5,
         agent_id=agent_id,
     )
@@ -305,6 +308,7 @@ def test_windy_lose_on_hazard(monkeypatch) -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=windy_move_fn,
+        objective_fn=default_objective_fn,
         agent_id=agent_id,
     )
     state2 = step(
@@ -377,6 +381,7 @@ def test_gravity_lose_by_falling_on_hazard() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=gravity_move_fn,
+        objective_fn=default_objective_fn,
         height=5,
         agent_id=agent_id,
     )

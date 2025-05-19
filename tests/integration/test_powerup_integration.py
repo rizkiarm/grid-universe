@@ -2,6 +2,7 @@ from dataclasses import replace
 from typing import Dict, Set, Tuple, Optional
 
 from pyrsistent import pmap, pset
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.components import (
     Agent,
@@ -95,6 +96,7 @@ def make_agent_and_powerup_state(
                 + (1 if d == Direction.DOWN else -1 if d == Direction.UP else 0),
             )
         ],
+        objective_fn=default_objective_fn,
         entity=pmap({agent_id: Entity(), powerup_id: Entity()}),
         position=pmap(pos),
         agent=pmap(agent),

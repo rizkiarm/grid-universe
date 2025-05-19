@@ -2,6 +2,7 @@ from dataclasses import replace
 from typing import Tuple, List, Dict
 from pyrsistent import pmap, pset
 
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.components import (
@@ -76,6 +77,7 @@ def make_push_state(
                 + (1 if dir == Direction.DOWN else -1 if dir == Direction.UP else 0),
             )
         ],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),

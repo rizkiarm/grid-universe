@@ -1,6 +1,7 @@
 from dataclasses import replace
 from typing import Dict, Tuple, Set, Optional
 from pyrsistent import pmap, pset, PSet
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.components import (
     Agent,
@@ -73,6 +74,7 @@ def make_agent_with_collectible_state(
         width=3,
         height=1,
         move_fn=lambda s, eid, dir: [Position(position_map[eid].x + 1, 0)],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(position_map),
         agent=pmap(agent_map),
@@ -248,6 +250,7 @@ def test_agent_picks_up_multiple_types() -> None:
         width=3,
         height=2,
         move_fn=lambda s, eid, dir: [Position(0, 1)],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
@@ -367,6 +370,7 @@ def test_pickup_collectible_with_score_cost() -> None:
         width=2,
         height=1,
         move_fn=lambda s, eid, dir: [Position(1, 0)],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),

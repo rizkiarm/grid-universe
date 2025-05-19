@@ -10,7 +10,8 @@ if TYPE_CHECKING:
 
 EntityID = int
 
-MoveFn = Callable[["State", int, "Direction"], Sequence["Position"]]
+MoveFn = Callable[["State", "EntityID", "Direction"], Sequence["Position"]]
+ObjectiveFn = Callable[["State", "EntityID"], bool]
 
 
 class EffectType(StrEnum):

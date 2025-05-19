@@ -17,6 +17,7 @@ from grid_universe.levels.maze import (
     PowerupSpec,
 )
 from grid_universe.moves import MOVE_FN_REGISTRY, default_move_fn
+from grid_universe.objectives import OBJECTIVE_FN_REGISTRY, default_objective_fn
 from grid_universe.state import State
 from grid_universe.types import (
     EffectType,
@@ -24,6 +25,7 @@ from grid_universe.types import (
     EffectLimitAmount,
     EntityID,
     MoveFn,
+    ObjectiveFn,
 )
 
 ITEM_ICONS: Dict[AppearanceName, str] = {
@@ -72,6 +74,7 @@ class MazeConfig:
     enemies: List[EnemySpec]
     wall_percentage: float
     move_fn: MoveFn
+    objective_fn: ObjectiveFn
     seed: Optional[int]
 
 
@@ -95,6 +98,7 @@ def set_default_config() -> None:
             enemies=list(DEFAULT_ENEMIES),
             wall_percentage=0.8,
             move_fn=default_move_fn,
+            objective_fn=default_objective_fn,
             seed=None,
         )
         st.session_state["maze_seed_counter"] = 0
@@ -278,6 +282,22 @@ def get_config_from_widgets() -> MazeConfig:
     )
     move_fn: MoveFn = MOVE_FN_REGISTRY[move_fn_label]
 
+    st.subheader("Gameplay Objective")
+    objective_fn_names: List[str] = list(OBJECTIVE_FN_REGISTRY.keys())
+    objective_fn_label: str = st.selectbox(
+        "Objective",
+        objective_fn_names,
+        index=objective_fn_names.index(
+            next(
+                k
+                for k, v in OBJECTIVE_FN_REGISTRY.items()
+                if v is maze_config.objective_fn
+            )
+        ),
+        key="objective_fn",
+    )
+    objective_fn: ObjectiveFn = OBJECTIVE_FN_REGISTRY[objective_fn_label]
+
     st.subheader("Random seed")
     seed: int = st.number_input("Random seed", min_value=0, key="maze_seed")
 
@@ -299,6 +319,7 @@ def get_config_from_widgets() -> MazeConfig:
         enemies=enemies,
         wall_percentage=wall_percentage,
         move_fn=move_fn,
+        objective_fn=objective_fn,
         seed=seed,
     )
 
@@ -383,7 +404,7 @@ def get_effect_limits(
 
 def display_powerup_status(state: State, status: Status) -> None:
     st.text("PowerUp")
-    with st.container(height=200):
+    with st.container(height=250):
         if len(status.effect_ids) == 0:
             st.error("No active powerups")
         for effect_id in status.effect_ids:
@@ -401,7 +422,7 @@ def display_powerup_status(state: State, status: Status) -> None:
 
 def display_inventory(state: State, inventory: Inventory) -> None:
     st.text("Inventory")
-    with st.container(height=200):
+    with st.container(height=250):
         if len(inventory.item_ids) == 0:
             st.error("No items")
         for item_id in inventory.item_ids:
@@ -452,6 +473,21 @@ with tab_game:
         obs: ObsType = st.session_state["obs"]
         info: Dict[str, object] = st.session_state["info"]
 
+        if env.state:
+            maze_rule = (
+                env.state.move_fn.__name__.replace("_", " ")
+                .replace("fn", "")
+                .capitalize()
+            )
+            st.info(f"{maze_rule}", icon="🚶")
+
+            objective = (
+                env.state.objective_fn.__name__.replace("_", " ")
+                .replace("fn", "")
+                .capitalize()
+            )
+            st.info(f"{objective}", icon="🎯")
+
         st.divider()
 
         action_idx: Optional[int] = get_keyboard_action()
@@ -486,14 +522,7 @@ with tab_game:
 
     with left_col:
         state = env.state
-
         if state is not None:
-            move_rule = state.move_fn
-            maze_rule = (
-                move_rule.__name__.replace("_", " ").replace("fn", "").capitalize()
-            )
-            st.info(f"{maze_rule}", icon="🚶")
-
             st.info(f"**Total Reward:** {st.session_state['total_reward']}", icon="🏅")
 
             agent_id = env.agent_id

@@ -4,6 +4,7 @@ import random
 
 from pyrsistent import pset
 
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State, create_empty_state
 from grid_universe.entity import Entity, new_entity_id
 from grid_universe.moves import default_move_fn
@@ -13,6 +14,7 @@ from grid_universe.types import (
     EffectType,
     EntityID,
     MoveFn,
+    ObjectiveFn,
 )
 from grid_universe.components.effects import (
     Immunity,
@@ -525,13 +527,14 @@ def generate(
     enemies: List[EnemySpec] = DEFAULT_ENEMIES,
     wall_percentage: float = 0.8,
     move_fn: MoveFn = default_move_fn,
+    objective_fn: ObjectiveFn = default_objective_fn,
     seed: Optional[int] = None,
 ) -> State:
     rng: random.Random = random.Random(seed)
     maze_grid: Dict[Tuple[int, int], bool] = generate_perfect_maze(width, height, rng)
     maze_grid = adjust_maze_wall_percentage(maze_grid, wall_percentage, rng)
 
-    state = create_empty_state(width, height, move_fn)
+    state = create_empty_state(width, height, move_fn, objective_fn)
 
     # Tiles setup
     empty_positions: List[Tuple[int, int]] = [

@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Optional
 from pyrsistent import pmap, PMap, pset
 import pytest
 
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.components import (
     Position,
@@ -77,6 +78,7 @@ def build_agent_with_sources(
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(position),
         agent=pmap(agent_map),
@@ -285,6 +287,7 @@ def test_multiple_agents_each_take_appropriate_damage() -> None:
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(position),
         agent=pmap(agent_map),

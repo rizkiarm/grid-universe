@@ -11,16 +11,7 @@ def win_system(state: State, agent_id: EntityID) -> State:
     if agent_pos is None or state.win:
         return state
 
-    # Agent must be at an exit
-    at_exit = any(
-        pos == agent_pos for eid, pos in state.position.items() if eid in state.exit
-    )
-    # All required items collected? (i.e., no RequiredItem entities left on the map)
-    all_required_collected = all(
-        (eid not in state.collectible) for eid in state.required
-    )
-
-    if at_exit and all_required_collected:
+    if state.objective_fn(state, agent_id):
         return replace(state, win=True)
     return state
 

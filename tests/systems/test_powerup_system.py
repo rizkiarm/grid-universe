@@ -1,6 +1,7 @@
 from dataclasses import replace
 from typing import List, Dict, Tuple, Optional, TypedDict, Literal
 from pyrsistent import pmap, pset, PMap, PSet
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.components import (
     Status,
@@ -85,6 +86,7 @@ def build_agent_with_effects(
         width=3,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap({agent_id: Position(0, 0)}),
         agent=pmap(agent),
@@ -259,6 +261,7 @@ def test_status_system_no_agents() -> None:
         width=1,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap(),
         position=pmap(),
         agent=pmap(),
@@ -335,6 +338,7 @@ def test_status_cleanup_for_missing_effect() -> None:
         width=1,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap({agent_id: Entity()}),
         position=pmap({agent_id: Position(0, 0)}),
         agent=pmap({agent_id: Agent()}),

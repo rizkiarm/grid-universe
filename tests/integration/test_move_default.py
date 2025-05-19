@@ -14,6 +14,7 @@ from grid_universe.components import (
     Status,
     Phasing,
 )
+from grid_universe.objectives import default_objective_fn
 from grid_universe.types import EntityID
 from grid_universe.step import step
 from grid_universe.moves import default_move_fn
@@ -84,6 +85,7 @@ def test_agent_blocked_by_wall() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
     )
     state2 = step(
         state,
@@ -105,6 +107,7 @@ def test_agent_pushes_single_box() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
     )
     state2 = step(
         state,
@@ -128,6 +131,7 @@ def test_agent_blocked_by_chain_of_boxes() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
     )
     state2 = step(
         state,
@@ -154,6 +158,7 @@ def test_agent_with_ghost_moves_through_wall() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
     )
     state2 = step(
         state,
@@ -175,6 +180,7 @@ def test_agent_with_double_speed_moves_two_steps() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
     )
     state2 = step(
         state,
@@ -196,6 +202,7 @@ def test_agent_wins_on_exit() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
     )
     state2 = step(
         state,
@@ -219,6 +226,7 @@ def test_agent_loses_on_hazard() -> None:
         agent_pos=(1, 1),
         extra_components=extra,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
     )
     state2 = step(
         state,

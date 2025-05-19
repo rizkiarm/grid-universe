@@ -1,6 +1,7 @@
 from typing import Dict, Tuple, List, Optional, Type, TypeVar, TypedDict
 from pyrsistent import pmap, pset
 from pyrsistent.typing import PMap
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.components import (
     Position,
@@ -32,7 +33,7 @@ from grid_universe.components import (
     Status,
 )
 from grid_universe.entity import new_entity_id, Entity
-from grid_universe.types import EntityID, MoveFn
+from grid_universe.types import EntityID, MoveFn, ObjectiveFn
 from grid_universe.moves import default_move_fn
 
 
@@ -85,6 +86,7 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
         width=3,
         height=3,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
@@ -191,6 +193,7 @@ def make_agent_box_wall_state(
         width=width,
         height=height,
         move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
@@ -259,6 +262,7 @@ def make_agent_state(
     *,
     agent_pos: Tuple[int, int],
     move_fn: Optional[MoveFn] = None,
+    objective_fn: Optional[ObjectiveFn] = None,
     extra_components: Optional[Dict[str, Dict[EntityID, object]]] = None,
     width: int = 5,
     height: int = 5,
@@ -280,6 +284,9 @@ def make_agent_state(
         width=width,
         height=height,
         move_fn=move_fn if move_fn is not None else default_move_fn,
+        objective_fn=(
+            objective_fn if objective_fn is not None else default_objective_fn
+        ),
         entity=pmap(entity),
         position=pmap(positions),
         agent=pmap(agent_map),

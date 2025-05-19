@@ -3,6 +3,7 @@ from typing import Any, List, Dict, Tuple
 import pytest
 from pyrsistent import pmap, pset
 from grid_universe.entity import Entity
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.actions import MoveAction, WaitAction, Direction
 from grid_universe.components import (
@@ -97,6 +98,7 @@ def make_damage_state(
     state, _agent_id = make_agent_state(
         agent_pos=agent_pos,
         move_fn=None,
+        objective_fn=default_objective_fn,
         extra_components=extra,
         width=width,
         height=height,

@@ -4,6 +4,7 @@ from typing import Tuple, List
 import pytest
 from pyrsistent import pmap
 
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.components import (
@@ -57,6 +58,7 @@ def make_entity_on_portal_state(
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(position),
         agent=pmap(agent),
@@ -220,6 +222,7 @@ def test_portal_pair_missing_does_not_crash() -> None:
         width=5,
         height=5,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(position),
         agent=pmap({agent_id: Agent()}),
@@ -300,6 +303,7 @@ def test_multiple_entities_on_portal_all_teleported_on_entry() -> None:
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(position),
         prev_position=pmap(prev_position),
@@ -395,6 +399,7 @@ def test_entity_chained_portals_no_infinite_teleport() -> None:
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(position),
         prev_position=pmap(prev_position),

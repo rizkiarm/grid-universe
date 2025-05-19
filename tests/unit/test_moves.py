@@ -14,6 +14,7 @@ from grid_universe.moves import (
 )
 from grid_universe.actions import Direction
 from grid_universe.components import Position, Blocking
+from grid_universe.objectives import default_objective_fn
 from grid_universe.types import EntityID, MoveFn
 from tests.test_utils import make_agent_state
 
@@ -138,6 +139,7 @@ def test_slippery_move_fn(
     state, agent_id = make_agent_state(
         agent_pos=start,
         move_fn=slippery_move_fn,
+        objective_fn=default_objective_fn,
         width=width,
         height=height,
         extra_components=extra,
@@ -176,6 +178,7 @@ def test_gravity_move_fn(
     state, agent_id = make_agent_state(
         agent_pos=start,
         move_fn=gravity_move_fn,
+        objective_fn=default_objective_fn,
         width=width,
         height=height,
         extra_components=extra,
@@ -233,6 +236,7 @@ def test_windy_move_fn(
     state, agent_id = make_agent_state(
         agent_pos=start,
         move_fn=windy_move_fn,
+        objective_fn=default_objective_fn,
         width=width,
         height=height,
         extra_components=extra,

@@ -1,5 +1,6 @@
 from typing import Tuple, Dict
 from pyrsistent.typing import PMap
+from grid_universe.objectives import default_objective_fn
 from grid_universe.systems.collectible import collectible_system
 from grid_universe.components import (
     Agent,
@@ -58,6 +59,7 @@ def make_collectible_state(
         width=3,
         height=1,
         move_fn=lambda s, eid, dir: [Position(pos[eid].x + 1, 0)],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
@@ -156,6 +158,7 @@ def test_pickup_multiple_collectibles_all_types() -> None:
         width=3,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
@@ -222,6 +225,7 @@ def test_pickup_no_inventory_does_nothing() -> None:
         width=2,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
@@ -274,6 +278,7 @@ def test_pickup_nothing_present_does_nothing() -> None:
         width=1,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap({agent_id: Position(0, 0)}),
         agent=agent,
@@ -333,6 +338,7 @@ def test_pickup_required_collectible() -> None:
         width=2,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
@@ -385,6 +391,7 @@ def test_pickup_after_collectible_already_removed() -> None:
         width=1,
         height=1,
         move_fn=lambda s, eid, dir: [],
+        objective_fn=default_objective_fn,
         entity=pmap(entity),
         position=pmap({agent_id: Position(0, 0)}),
         agent=agent,

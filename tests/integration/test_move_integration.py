@@ -13,6 +13,7 @@ from grid_universe.components import (
     Speed,
     Phasing,
 )
+from grid_universe.objectives import default_objective_fn
 from grid_universe.step import step
 from grid_universe.actions import MoveAction, Direction, Action
 from pyrsistent import pmap, pset
@@ -296,6 +297,7 @@ def test_move_with_minimal_state() -> None:
         width=2,
         height=2,
         move_fn=lambda s, eid, d: [],
+        objective_fn=default_objective_fn,
         entity=pmap(),
         position=pmap(),
         agent=pmap(),
