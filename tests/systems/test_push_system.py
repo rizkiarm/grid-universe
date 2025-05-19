@@ -1,28 +1,118 @@
-from typing import Optional, Dict, Tuple
 from dataclasses import replace
-from grid_universe.systems.push import push_system
-from grid_universe.components import (
-    Agent,
-    Box,
-    Pushable,
-    Blocking,
-    Collidable,
-    Wall,
-    Position,
-    Portal,
-    Exit,
-    Collectible,
-)
+from typing import Dict, List, Tuple, Optional
+from pyrsistent import pmap, pset
 from grid_universe.state import State
 from grid_universe.types import EntityID
-from pyrsistent import PMap, pmap
+from grid_universe.components import (
+    Position,
+    Agent,
+    Inventory,
+    Collidable,
+    Pushable,
+    Blocking,
+    Appearance,
+    AppearanceName,
+    Exit,
+    Collectible,
+    Portal,
+)
+from grid_universe.systems.push import push_system
+from grid_universe.entity import new_entity_id, Entity
+from grid_universe.actions import Direction
 
 
-def with_positions(state: State, positions: Dict[EntityID, Position]) -> State:
-    pos = state.position
-    for eid, newpos in positions.items():
-        pos = pos.set(eid, newpos)
-    return replace(state, position=pos)
+def make_push_state(
+    agent_pos: Tuple[int, int],
+    box_positions: Optional[List[Tuple[int, int]]] = None,
+    wall_positions: Optional[List[Tuple[int, int]]] = None,
+    width: int = 5,
+    height: int = 5,
+) -> Tuple[State, EntityID, List[EntityID], List[EntityID]]:
+    entity: Dict[EntityID, Entity] = {}
+    pos: Dict[EntityID, Position] = {}
+    agent: Dict[EntityID, Agent] = {}
+    inventory: Dict[EntityID, Inventory] = {}
+    pushable: Dict[EntityID, Pushable] = {}
+    blocking: Dict[EntityID, Blocking] = {}
+    collidable: Dict[EntityID, Collidable] = {}
+    appearance: Dict[EntityID, Appearance] = {}
+
+    agent_id: EntityID = new_entity_id()
+    entity[agent_id] = Entity()
+    pos[agent_id] = Position(*agent_pos)
+    agent[agent_id] = Agent()
+    inventory[agent_id] = Inventory(pset())
+    collidable[agent_id] = Collidable()
+    appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
+
+    box_ids: List[EntityID] = []
+    if box_positions:
+        for bpos in box_positions:
+            bid: EntityID = new_entity_id()
+            entity[bid] = Entity()
+            pos[bid] = Position(*bpos)
+            pushable[bid] = Pushable()
+            collidable[bid] = Collidable()
+            appearance[bid] = Appearance(name=AppearanceName.BOX)
+            box_ids.append(bid)
+
+    wall_ids: List[EntityID] = []
+    if wall_positions:
+        for wpos in wall_positions:
+            wid: EntityID = new_entity_id()
+            entity[wid] = Entity()
+            pos[wid] = Position(*wpos)
+            blocking[wid] = Blocking()
+            collidable[wid] = Collidable()
+            appearance[wid] = Appearance(name=AppearanceName.WALL)
+            wall_ids.append(wid)
+
+    state: State = State(
+        width=width,
+        height=height,
+        move_fn=lambda s, eid, dir: [
+            Position(
+                s.position[eid].x
+                + (1 if dir == Direction.RIGHT else -1 if dir == Direction.LEFT else 0),
+                s.position[eid].y
+                + (1 if dir == Direction.DOWN else -1 if dir == Direction.UP else 0),
+            )
+        ],
+        entity=pmap(entity),
+        position=pmap(pos),
+        agent=pmap(agent),
+        pushable=pmap(pushable),
+        locked=pmap(),
+        portal=pmap(),
+        exit=pmap(),
+        key=pmap(),
+        collectible=pmap(),
+        rewardable=pmap(),
+        cost=pmap(),
+        required=pmap(),
+        inventory=pmap(inventory),
+        health=pmap(),
+        appearance=pmap(appearance),
+        blocking=pmap(blocking),
+        dead=pmap(),
+        moving=pmap(),
+        collidable=pmap(collidable),
+        damage=pmap(),
+        lethal_damage=pmap(),
+        immunity=pmap(),
+        speed=pmap(),
+        phasing=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
+        turn=0,
+        score=0,
+        win=False,
+        lose=False,
+        message=None,
+    )
+    return state, agent_id, box_ids, wall_ids
 
 
 def check_positions(state: State, expected: Dict[EntityID, Position]) -> None:
@@ -30,396 +120,326 @@ def check_positions(state: State, expected: Dict[EntityID, Position]) -> None:
         assert state.position[eid] == pos
 
 
-def make_push_state(
-    box_blocked: bool = False, blocker_is_box: bool = False
-) -> Tuple[State, EntityID, EntityID, Optional[EntityID]]:
-    agent_id: EntityID = 1
-    box_id: EntityID = 2
-    pos = {agent_id: Position(0, 0), box_id: Position(1, 0)}
-    wall: PMap[EntityID, Wall] = pmap()
-    blocker_id: Optional[EntityID] = None
-
-    agent = pmap({agent_id: Agent()})
-    box_map = pmap({box_id: Box()})
-    pushable = pmap({box_id: Pushable()})
-    blocking = pmap({box_id: Blocking()})
-    collidable = pmap({agent_id: Collidable(), box_id: Collidable()})
-
-    if box_blocked:
-        blocker_id = 3
-        pos[blocker_id] = Position(2, 0)
-        if blocker_is_box:
-            box_map = box_map.set(blocker_id, Box())
-            pushable = pushable.set(blocker_id, Pushable())
-            blocking = blocking.set(blocker_id, Blocking())
-            collidable = collidable.set(blocker_id, Collidable())
-        else:
-            wall = wall.set(blocker_id, Wall())
-            collidable = collidable.set(blocker_id, Collidable())
-
-    state = State(
-        width=3,
-        height=1,
-        move_fn=lambda s, eid, dir: [Position(s.position[eid].x + 1, 0)],
-        position=pmap(pos),
-        agent=agent,
-        enemy=pmap(),
-        box=box_map,
-        pushable=pushable,
-        wall=wall,
-        door=pmap(),
-        locked=pmap(),
-        portal=pmap(),
-        exit=pmap(),
-        key=pmap(),
-        collectible=pmap(),
-        rewardable=pmap(),
-        cost=pmap(),
-        item=pmap(),
-        required=pmap(),
-        inventory=pmap(),
-        health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
-        blocking=blocking,
-        dead=pmap(),
-        moving=pmap(),
-        hazard=pmap(),
-        collidable=collidable,
-        damage=pmap(),
-        lethal_damage=pmap(),
-        turn=0,
-        score=0,
-        win=False,
-        lose=False,
-        message=None,
+def test_agent_pushes_box_successfully() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
     )
-    return state, agent_id, box_id, blocker_id
-
-
-def test_push_box_success() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    new_state = push_system(state, agent_id, Position(1, 0))
+    next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
-        new_state,
-        {
-            box_id: Position(2, 0),
-            agent_id: Position(1, 0),
-        },
-    )
-
-
-def test_push_box_blocked_by_wall() -> None:
-    state, agent_id, box_id, _ = make_push_state(box_blocked=True, blocker_is_box=False)
-    new_state = push_system(state, agent_id, Position(1, 0))
-    check_positions(
-        new_state,
-        {
-            box_id: Position(1, 0),
-            agent_id: Position(0, 0),
-        },
-    )
-
-
-def test_push_box_blocked_by_another_box() -> None:
-    state, agent_id, box_id, _ = make_push_state(box_blocked=True, blocker_is_box=True)
-    new_state = push_system(state, agent_id, Position(1, 0))
-    check_positions(
-        new_state,
-        {
-            box_id: Position(1, 0),
-            agent_id: Position(0, 0),
-        },
-    )
-
-
-def test_push_out_of_bounds() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    state = with_positions(
-        state,
+        next_state,
         {
             agent_id: Position(1, 0),
-            box_id: Position(2, 0),
+            box_ids[0]: Position(2, 0),
         },
     )
-    new_state = push_system(state, agent_id, Position(2, 0))
+
+
+def test_push_blocked_by_wall() -> None:
+    state, agent_id, box_ids, wall_ids = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)], wall_positions=[(2, 0)]
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
-        new_state,
-        {
-            box_id: Position(2, 0),
-            agent_id: Position(1, 0),
-        },
-    )
-
-
-def test_push_not_adjacent() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    state = with_positions(
-        state,
+        next_state,
         {
             agent_id: Position(0, 0),
-            box_id: Position(2, 0),
+            box_ids[0]: Position(1, 0),
+            wall_ids[0]: Position(2, 0),
         },
     )
-    new_state = push_system(state, agent_id, Position(2, 0))
+
+
+def test_push_blocked_by_another_box() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)]
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
-        new_state,
+        next_state,
         {
-            box_id: Position(2, 0),
             agent_id: Position(0, 0),
+            box_ids[0]: Position(1, 0),
+            box_ids[1]: Position(2, 0),
         },
     )
 
 
-def test_push_non_pushable() -> None:
-    agent_id: EntityID = 1
-    wall_id: EntityID = 2
-    agent = pmap({agent_id: Agent()})
-    wall = pmap({wall_id: Wall()})
-    collidable = pmap({agent_id: Collidable(), wall_id: Collidable()})
-    position = pmap({agent_id: Position(0, 0), wall_id: Position(1, 0)})
-
-    state: State = State(
-        width=3,
-        height=1,
-        move_fn=lambda s, eid, dir: [Position(1, 0)],
-        position=position,
-        agent=agent,
-        enemy=pmap(),
-        box=pmap(),
-        pushable=pmap(),
-        wall=wall,
-        door=pmap(),
-        locked=pmap(),
-        portal=pmap(),
-        exit=pmap(),
-        key=pmap(),
-        collectible=pmap(),
-        rewardable=pmap(),
-        cost=pmap(),
-        item=pmap(),
-        required=pmap(),
-        inventory=pmap(),
-        health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
-        blocking=pmap(),
-        dead=pmap(),
-        moving=pmap(),
-        hazard=pmap(),
-        collidable=collidable,
-        damage=pmap(),
-        lethal_damage=pmap(),
-        turn=0,
-        score=0,
-        win=False,
-        lose=False,
-        message=None,
+def test_push_box_out_of_bounds() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(3, 0), box_positions=[(4, 0)], width=5, height=1
     )
-    new_state = push_system(state, agent_id, Position(1, 0))
+    next_state = push_system(state, agent_id, Position(4, 0))
     check_positions(
-        new_state,
+        next_state,
         {
-            wall_id: Position(1, 0),
-            agent_id: Position(0, 0),
-        },
-    )
-
-
-def test_push_box_all_directions() -> None:
-    # Right: agent (0,0), box (1,0), empty (2,0)
-    state_r, agent_id_r, box_id_r, _ = make_push_state()
-    state_r = with_positions(
-        state_r, {agent_id_r: Position(0, 0), box_id_r: Position(1, 0)}
-    )
-    new_state_r = push_system(state_r, agent_id_r, Position(1, 0))
-    check_positions(
-        new_state_r,
-        {
-            agent_id_r: Position(1, 0),
-            box_id_r: Position(2, 0),
-        },
-    )
-    # Left: agent (2,0), box (1,0), empty (0,0)
-    state_l, agent_id_l, box_id_l, _ = make_push_state()
-    state_l = with_positions(
-        state_l, {agent_id_l: Position(2, 0), box_id_l: Position(1, 0)}
-    )
-    new_state_l = push_system(state_l, agent_id_l, Position(1, 0))
-    check_positions(
-        new_state_l,
-        {
-            agent_id_l: Position(1, 0),
-            box_id_l: Position(0, 0),
-        },
-    )
-    # Down: agent (0,0), box (0,1), empty (0,2)
-    state_d, agent_id_d, box_id_d, _ = make_push_state()
-    state_d = replace(state_d, width=1, height=3)
-    state_d = with_positions(
-        state_d, {agent_id_d: Position(0, 0), box_id_d: Position(0, 1)}
-    )
-    new_state_d = push_system(state_d, agent_id_d, Position(0, 1))
-    check_positions(
-        new_state_d,
-        {
-            agent_id_d: Position(0, 1),
-            box_id_d: Position(0, 2),
-        },
-    )
-    # Up: agent (0,2), box (0,1), empty (0,0)
-    state_u, agent_id_u, box_id_u, _ = make_push_state()
-    state_u = replace(state_u, width=1, height=3)
-    state_u = with_positions(
-        state_u, {agent_id_u: Position(0, 2), box_id_u: Position(0, 1)}
-    )
-    new_state_u = push_system(state_u, agent_id_u, Position(0, 1))
-    check_positions(
-        new_state_u,
-        {
-            agent_id_u: Position(0, 1),
-            box_id_u: Position(0, 0),
+            agent_id: Position(3, 0),
+            box_ids[0]: Position(4, 0),
         },
     )
 
 
 def test_push_box_onto_collectible() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    collectible_id = 42
-    state = with_positions(state, {agent_id: Position(0, 0), box_id: Position(1, 0)})
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
+    )
+    collectible_id: EntityID = new_entity_id()
     state = replace(
         state,
-        collectible=pmap({collectible_id: Collectible()}),
+        collectible=state.collectible.set(collectible_id, Collectible()),
         position=state.position.set(collectible_id, Position(2, 0)),
+        entity=state.entity.set(collectible_id, Entity()),
     )
-    new_state = push_system(state, agent_id, Position(1, 0))
+    next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
-        new_state,
+        next_state,
         {
-            box_id: Position(2, 0),
             agent_id: Position(1, 0),
+            box_ids[0]: Position(2, 0),
             collectible_id: Position(2, 0),
         },
     )
 
 
 def test_push_box_onto_exit() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    exit_id = 99
-    state = with_positions(state, {agent_id: Position(0, 0), box_id: Position(1, 0)})
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
+    )
+    exit_id: EntityID = new_entity_id()
     state = replace(
         state,
-        exit=pmap({exit_id: Exit()}),
+        exit=state.exit.set(exit_id, Exit()),
         position=state.position.set(exit_id, Position(2, 0)),
+        entity=state.entity.set(exit_id, Entity()),
     )
-    new_state = push_system(state, agent_id, Position(1, 0))
+    next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
-        new_state,
+        next_state,
         {
-            box_id: Position(2, 0),
             agent_id: Position(1, 0),
+            box_ids[0]: Position(2, 0),
             exit_id: Position(2, 0),
         },
     )
 
 
-def test_push_blocked_by_agent() -> None:
-    blocking_agent_id: EntityID = 99
-    state, agent_id, box_id, _ = make_push_state()
-    state = with_positions(
-        state,
-        {
-            agent_id: Position(0, 0),
-            box_id: Position(1, 0),
-            blocking_agent_id: Position(2, 0),
-        },
+def test_push_box_onto_portal() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
     )
-    agent_map = state.agent.set(blocking_agent_id, Agent())
-    collidable_map = state.collidable.set(blocking_agent_id, Collidable())
-    state = replace(state, agent=agent_map, collidable=collidable_map)
-    new_state = push_system(state, agent_id, Position(1, 0))
-    check_positions(
-        new_state,
-        {
-            box_id: Position(1, 0),
-            agent_id: Position(0, 0),
-            blocking_agent_id: Position(2, 0),
-        },
-    )
-
-
-def test_push_blocked_by_multi_component_blocker() -> None:
-    blocker_id: EntityID = 77
-    state, agent_id, box_id, _ = make_push_state()
-    state = with_positions(
-        state,
-        {agent_id: Position(0, 0), box_id: Position(1, 0), blocker_id: Position(2, 0)},
-    )
+    portal_id: EntityID = new_entity_id()
+    paired_portal_id: EntityID = new_entity_id()
     state = replace(
         state,
-        box=state.box.set(blocker_id, Box()),
-        pushable=state.pushable.set(blocker_id, Pushable()),
-        blocking=state.blocking.set(blocker_id, Blocking()),
-        collidable=state.collidable.set(blocker_id, Collidable()),
+        portal=state.portal.set(portal_id, Portal(pair_entity=paired_portal_id)).set(
+            paired_portal_id, Portal(pair_entity=portal_id)
+        ),
+        position=state.position.set(portal_id, Position(2, 0)).set(
+            paired_portal_id, Position(4, 0)
+        ),
+        entity=state.entity.set(portal_id, Entity()).set(paired_portal_id, Entity()),
     )
-    new_state = push_system(state, agent_id, Position(1, 0))
+    next_state = push_system(state, agent_id, Position(1, 0))
+    # Box should land at (2,0) (portal logic would teleport after push_system, not during push_system itself)
     check_positions(
-        new_state,
+        next_state,
         {
-            box_id: Position(1, 0),
-            agent_id: Position(0, 0),
-            blocker_id: Position(2, 0),
+            agent_id: Position(1, 0),
+            box_ids[0]: Position(2, 0),
+            portal_id: Position(2, 0),
+            paired_portal_id: Position(4, 0),
         },
     )
 
 
-def test_push_missing_box_position() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    state = replace(state, position=state.position.remove(box_id))
-    new_state = push_system(state, agent_id, Position(1, 0))
-    assert agent_id in new_state.position
-    assert box_id not in new_state.position
+def test_push_box_onto_agent() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
+    )
+    other_agent_id: EntityID = new_entity_id()
+    state = replace(
+        state,
+        agent=state.agent.set(other_agent_id, Agent()),
+        collidable=state.collidable.set(other_agent_id, Collidable()),
+        position=state.position.set(other_agent_id, Position(2, 0)),
+        inventory=state.inventory.set(other_agent_id, Inventory(pset())),
+        entity=state.entity.set(other_agent_id, Entity()),
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
+    check_positions(
+        next_state,
+        {
+            agent_id: Position(0, 0),
+            box_ids[0]: Position(1, 0),
+            other_agent_id: Position(2, 0),
+        },
+    )
+
+
+def test_push_box_left_right_up_down() -> None:
+    cases: List[Tuple[Direction, Tuple[int, int], Tuple[int, int], Tuple[int, int]]] = [
+        (Direction.RIGHT, (0, 0), (1, 0), (2, 0)),
+        (Direction.LEFT, (2, 0), (1, 0), (0, 0)),
+        (Direction.DOWN, (0, 0), (0, 1), (0, 2)),
+        (Direction.UP, (0, 2), (0, 1), (0, 0)),
+    ]
+    for direction, agent_p, box_p, dest_p in cases:
+        state, agent_id, box_ids, _ = make_push_state(
+            agent_pos=agent_p, box_positions=[box_p], width=3, height=3
+        )
+        next_box_pos = Position(*dest_p)
+        next_state = push_system(state, agent_id, Position(*box_p))
+        check_positions(
+            next_state,
+            {
+                agent_id: Position(*box_p),
+                box_ids[0]: next_box_pos,
+            },
+        )
+
+
+def test_push_box_on_narrow_grid_edge() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(0, 1)], width=1, height=2
+    )
+    next_state = push_system(state, agent_id, Position(0, 1))
+    check_positions(
+        next_state,
+        {
+            agent_id: Position(0, 0),
+            box_ids[0]: Position(0, 1),
+        },
+    )
+
+
+def test_push_chain_of_boxes_blocked() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)]
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
+    check_positions(
+        next_state,
+        {
+            agent_id: Position(0, 0),
+            box_ids[0]: Position(1, 0),
+            box_ids[1]: Position(2, 0),
+        },
+    )
+
+
+def test_push_chain_wall_box_blocked() -> None:
+    # Wall at (2,0), box at (1,0) (agent at (0,0)): can't push box because wall blocks chain.
+    state, agent_id, box_ids, wall_ids = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)], wall_positions=[(2, 0)]
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
+    check_positions(
+        next_state,
+        {
+            agent_id: Position(0, 0),
+            box_ids[0]: Position(1, 0),
+            wall_ids[0]: Position(2, 0),
+        },
+    )
+
+
+def test_push_chain_box_wall_blocked() -> None:
+    # Box at (1,0), wall at (2,0), box at (3,0). Can't push into wall.
+    state, agent_id, box_ids, wall_ids = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0), (3, 0)], wall_positions=[(2, 0)]
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
+    check_positions(
+        next_state,
+        {
+            agent_id: Position(0, 0),
+            box_ids[0]: Position(1, 0),
+            wall_ids[0]: Position(2, 0),
+            box_ids[1]: Position(3, 0),
+        },
+    )
+
+
+def test_push_box_onto_multiple_collidables() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
+    )
+    collectible_id = new_entity_id()
+    exit_id = new_entity_id()
+    state = replace(
+        state,
+        collectible=state.collectible.set(collectible_id, Collectible()),
+        exit=state.exit.set(exit_id, Exit()),
+        position=state.position.set(collectible_id, Position(2, 0)).set(
+            exit_id, Position(2, 0)
+        ),
+        entity=state.entity.set(collectible_id, Entity()).set(exit_id, Entity()),
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
+    check_positions(
+        next_state,
+        {
+            agent_id: Position(1, 0),
+            box_ids[0]: Position(2, 0),
+            collectible_id: Position(2, 0),
+            exit_id: Position(2, 0),
+        },
+    )
+
+
+def test_push_not_adjacent() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(2, 0)]
+    )
+    next_state = push_system(state, agent_id, Position(1, 0))
+    assert box_ids[0] in next_state.position and next_state.position[
+        box_ids[0]
+    ] == Position(2, 0)
+
+
+def test_push_no_pushable_at_destination() -> None:
+    state, agent_id, _, _ = make_push_state(agent_pos=(0, 0))
+    next_state = push_system(state, agent_id, Position(1, 0))
+    assert next_state.position[agent_id] == Position(
+        0, 0
+    )  # push system doesn't handle agent movement
+
+
+def test_push_box_missing_position() -> None:
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
+    )
+    state = replace(state, position=state.position.remove(box_ids[0]))
+    next_state = push_system(state, agent_id, Position(1, 0))
+    assert agent_id in next_state.position
+    assert box_ids[0] not in next_state.position
 
 
 def test_push_missing_agent_position() -> None:
-    state, agent_id, box_id, _ = make_push_state()
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
+    )
     state = replace(state, position=state.position.remove(agent_id))
-    new_state = push_system(state, agent_id, Position(1, 0))
-    assert box_id in new_state.position
-    assert agent_id not in new_state.position
+    next_state = push_system(state, agent_id, Position(1, 0))
+    assert box_ids[0] in next_state.position
+    assert agent_id not in next_state.position
 
 
 def test_push_box_at_narrow_grid_edge() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    state = replace(state, width=1, height=2)
-    state = with_positions(state, {agent_id: Position(0, 0), box_id: Position(0, 1)})
-    new_state = push_system(state, agent_id, Position(0, 1))
-    check_positions(
-        new_state,
-        {
-            box_id: Position(0, 1),
-            agent_id: Position(0, 0),
-        },
+    state, agent_id, box_ids, _ = make_push_state(
+        agent_pos=(0, 0), box_positions=[(1, 0)]
     )
-
-
-def test_push_box_onto_portal() -> None:
-    state, agent_id, box_id, _ = make_push_state()
-    portal_id = 77
-    state = with_positions(state, {agent_id: Position(0, 0), box_id: Position(1, 0)})
+    state = replace(state, width=1, height=2)
     state = replace(
         state,
-        portal=pmap({portal_id: Portal(pair_entity=88)}),
-        position=state.position.set(portal_id, Position(2, 0)),
+        position=state.position.set(agent_id, Position(0, 0)).set(
+            box_ids[0], Position(0, 1)
+        ),
     )
-    new_state = push_system(state, agent_id, Position(1, 0))
+    next_state = push_system(state, agent_id, Position(0, 1))
     check_positions(
-        new_state,
+        next_state,
         {
-            agent_id: Position(1, 0),
-            box_id: Position(2, 0),
-            portal_id: Position(2, 0),
+            agent_id: Position(0, 0),
+            box_ids[0]: Position(0, 1),
         },
     )

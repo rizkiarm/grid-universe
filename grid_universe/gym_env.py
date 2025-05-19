@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import numpy.typing as npt
-from typing import Optional, Dict, Tuple, Any, List, Literal
+from typing import Optional, Dict, Tuple, Any, List
 from PIL.Image import Image as PILImage
 from enum import IntEnum
 
@@ -14,12 +14,10 @@ from grid_universe.actions import (
     UseKeyAction,
     WaitAction,
 )
-from grid_universe.levels.generator import generate
+from grid_universe.levels.maze import generate
 from grid_universe.renderer.texture import TextureRenderer
 from grid_universe.step import step
-from grid_universe.components import PowerUpType
-from grid_universe.types import EntityID
-from grid_universe.utils.powerup import is_powerup_active
+from grid_universe.types import EffectType, EntityID
 
 # --- Observation type ---
 ObsType = Dict[str, npt.NDArray[Any]]
@@ -38,7 +36,7 @@ class MazeEnvAction(IntEnum):
 def agent_feature_vector(
     state: State,
     agent_id: EntityID,
-    powerup_types: List[PowerUpType],
+    powerup_types: List[EffectType],
     key_ids: List[str],
 ) -> np.ndarray[Any, Any]:
     # Health
@@ -48,9 +46,6 @@ def agent_feature_vector(
     if agent_hp:
         health = agent_hp.health
         max_health = agent_hp.max_health
-    else:
-        health = np.nan
-        max_health = np.nan
 
     # Score
     score = state.score
@@ -65,30 +60,28 @@ def agent_feature_vector(
         )
         key_counts.append(count)
 
-    # Powerups: active flag and remaining
-    powerup_status = state.powerup_status.get(agent_id)
+    # Powerups: active flag (1/0) for each EffectType
     powerup_flags = []
-    powerup_remainings = []
-    for ptype in powerup_types:
-        active = int(is_powerup_active(state, agent_id, ptype))
+    # Simple: active if any effect (of given EffectType) is in agent's status
+    for effect_type in powerup_types:
+        active = 0
+        for eff_id in state.status[agent_id].effect_ids:
+            # Check which effect types are present (immunity, phasing, speed)
+            if effect_type == EffectType.IMMUNITY and eff_id in state.immunity:
+                active = 1
+            elif effect_type == EffectType.PHASING and eff_id in state.phasing:
+                active = 1
+            elif effect_type == EffectType.SPEED and eff_id in state.speed:
+                active = 1
         powerup_flags.append(active)
-        if powerup_status and ptype in powerup_status:
-            remaining = powerup_status[ptype].remaining
-            # None means unlimited, encode as np.nan
-            powerup_remainings.append(np.nan if remaining is None else float(remaining))
-        else:
-            powerup_remainings.append(np.nan)
 
-    # Compose full feature vector
-    # [health, max_health, score, ...key_counts, ...powerup_flags, ...powerup_remainings]
     base_vec = np.array([health, max_health, float(score)], dtype=np.float32)
     key_count_vec = np.array(key_counts, dtype=np.float32)
     powerup_flags_vec = np.array(powerup_flags, dtype=np.float32)
-    powerup_rem_vec = np.array(powerup_remainings, dtype=np.float32)
-    return np.concatenate([base_vec, key_count_vec, powerup_flags_vec, powerup_rem_vec])
+    return np.concatenate([base_vec, key_count_vec, powerup_flags_vec])
 
 
-class ECSMazeEnv(gym.Env[ObsType, np.integer]):
+class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     metadata = {"render_modes": ["human", "texture"]}
     DIR_ACTIONS: Dict[int, Direction] = {
         MazeEnvAction.UP: Direction.UP,
@@ -99,7 +92,7 @@ class ECSMazeEnv(gym.Env[ObsType, np.integer]):
 
     def __init__(
         self,
-        render_mode: Literal["human", "texture"] = "texture",
+        render_mode: str = "texture",
         renderer_cell_size: int = 64,
         **kwargs: Any,
     ):
@@ -108,20 +101,18 @@ class ECSMazeEnv(gym.Env[ObsType, np.integer]):
         self.agent_id: Optional[EntityID] = None
         self.width: int = int(kwargs.get("width", 9))
         self.height: int = int(kwargs.get("height", 9))
-        self._powerup_types: List[PowerUpType] = [
-            PowerUpType.GHOST,
-            PowerUpType.SHIELD,
-            PowerUpType.HAZARD_IMMUNITY,
-            PowerUpType.DOUBLE_SPEED,
+        self._powerup_types: List[EffectType] = [
+            EffectType.IMMUNITY,
+            EffectType.PHASING,
+            EffectType.SPEED,
         ]
         self._renderer_cell_size = renderer_cell_size
         self._texture_renderer: Optional[TextureRenderer] = None
         # We'll initialize self._key_ids after first reset (when keys are known)
-        # For obs space, we conservatively allow up to N key types (for now, 8?)
         self._max_key_types = 8
 
         # Compute agent vector length for observation space
-        agent_vec_len = 3 + self._max_key_types + 2 * len(self._powerup_types)
+        agent_vec_len = 3 + self._max_key_types + len(self._powerup_types)
         self.observation_space = gym.spaces.Dict(
             {
                 "image": gym.spaces.Box(

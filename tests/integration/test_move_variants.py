@@ -2,14 +2,12 @@ from typing import Tuple
 import pytest
 from grid_universe.actions import MoveAction, Direction
 from grid_universe.components import (
-    Box,
-    Pushable,
-    Wall,
     Exit,
     Position,
-    Hazard,
-    HazardType,
+    Pushable,
+    Blocking,
     LethalDamage,
+    Health,
 )
 from grid_universe.types import EntityID
 from grid_universe.moves import (
@@ -47,7 +45,7 @@ def test_wrap_around_at_edges(
 
 def test_wrap_around_blocked_destination() -> None:
     wall_id: EntityID = 2
-    extra = {"position": {wall_id: Position(0, 2)}, "wall": {wall_id: Wall()}}
+    extra = {"position": {wall_id: Position(0, 2)}, "blocking": {wall_id: Blocking()}}
     state, agent_id = make_agent_state(
         agent_pos=(4, 2), extra_components=extra, move_fn=wrap_around_move_fn, width=5
     )
@@ -64,7 +62,6 @@ def test_wrap_around_push_box() -> None:
     box_id: EntityID = 2
     extra = {
         "position": {box_id: Position(0, 2)},
-        "box": {box_id: Box()},
         "pushable": {box_id: Pushable()},
     }
     state, agent_id = make_agent_state(
@@ -84,7 +81,6 @@ def test_wrap_around_push_box_from_edge():
     box_id: EntityID = 2
     extra = {
         "position": {box_id: Position(0, 2)},
-        "box": {box_id: Box()},
         "pushable": {box_id: Pushable()},
     }
     state, agent_id = make_agent_state(
@@ -118,14 +114,19 @@ def test_wrap_around_win_on_exit() -> None:
 
 
 def test_wrap_around_lose_on_hazard() -> None:
+    agent_id: EntityID = 1
     hazard_id: EntityID = 20
     extra = {
+        "health": {agent_id: Health(health=1, max_health=1)},
         "position": {hazard_id: Position(0, 2)},
-        "hazard": {hazard_id: Hazard(type=HazardType.LAVA)},
         "lethal_damage": {hazard_id: LethalDamage()},
     }
     state, agent_id = make_agent_state(
-        agent_pos=(4, 2), extra_components=extra, move_fn=wrap_around_move_fn, width=5
+        agent_pos=(4, 2),
+        extra_components=extra,
+        move_fn=wrap_around_move_fn,
+        width=5,
+        agent_id=agent_id,
     )
     state2 = step(
         state,
@@ -141,7 +142,7 @@ def test_wrap_around_lose_on_hazard() -> None:
 
 def test_slippery_slides_until_blocked() -> None:
     wall_id: EntityID = 2
-    extra = {"position": {wall_id: Position(4, 2)}, "wall": {wall_id: Wall()}}
+    extra = {"position": {wall_id: Position(4, 2)}, "blocking": {wall_id: Blocking()}}
     state, agent_id = make_agent_state(
         agent_pos=(1, 2), extra_components=extra, move_fn=slippery_move_fn, width=5
     )
@@ -171,7 +172,6 @@ def test_slippery_push_box_and_slide() -> None:
     box_id: EntityID = 2
     extra = {
         "position": {box_id: Position(2, 2)},
-        "box": {box_id: Box()},
         "pushable": {box_id: Pushable()},
     }
     state, agent_id = make_agent_state(
@@ -182,7 +182,7 @@ def test_slippery_push_box_and_slide() -> None:
         MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
         agent_id=agent_id,
     )
-    # With no blocker, agent should end at (4,2), box should end at (3,2)
+    # With no blocker, agent should end at (3,2), box at (4,2)
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (3, 2)
     assert (state2.position[box_id].x, state2.position[box_id].y) == (4, 2)
 
@@ -206,14 +206,19 @@ def test_slippery_slide_win_on_exit() -> None:
 
 
 def test_slippery_slide_lose_on_hazard() -> None:
+    agent_id: EntityID = 1
     hazard_id: EntityID = 20
     extra = {
+        "health": {agent_id: Health(health=1, max_health=1)},
         "position": {hazard_id: Position(4, 2)},
-        "hazard": {hazard_id: Hazard(type=HazardType.LAVA)},
         "lethal_damage": {hazard_id: LethalDamage()},
     }
     state, agent_id = make_agent_state(
-        agent_pos=(1, 2), extra_components=extra, move_fn=slippery_move_fn, width=5
+        agent_pos=(1, 2),
+        extra_components=extra,
+        move_fn=slippery_move_fn,
+        width=5,
+        agent_id=agent_id,
     )
     state2 = step(
         state,
@@ -249,7 +254,7 @@ def test_windy_blocked_by_wall(monkeypatch) -> None:
 
     monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
     monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
-    extra = {"position": {wall_id: Position(2, 2)}, "wall": {wall_id: Wall()}}
+    extra = {"position": {wall_id: Position(2, 2)}, "blocking": {wall_id: Blocking()}}
     state, agent_id = make_agent_state(
         agent_pos=(1, 1), extra_components=extra, move_fn=windy_move_fn
     )
@@ -285,18 +290,22 @@ def test_windy_win_on_exit(monkeypatch) -> None:
 
 
 def test_windy_lose_on_hazard(monkeypatch) -> None:
+    agent_id: EntityID = 1
     hazard_id: EntityID = 20
     import grid_universe.moves as moves_mod
 
     monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
     monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
     extra = {
+        "health": {agent_id: Health(health=1, max_health=1)},
         "position": {hazard_id: Position(2, 2)},
-        "hazard": {hazard_id: Hazard(type=HazardType.LAVA)},
         "lethal_damage": {hazard_id: LethalDamage()},
     }
     state, agent_id = make_agent_state(
-        agent_pos=(1, 1), extra_components=extra, move_fn=windy_move_fn
+        agent_pos=(1, 1),
+        extra_components=extra,
+        move_fn=windy_move_fn,
+        agent_id=agent_id,
     )
     state2 = step(
         state,
@@ -312,7 +321,7 @@ def test_windy_lose_on_hazard(monkeypatch) -> None:
 
 def test_gravity_falls_until_blocked() -> None:
     wall_id: EntityID = 2
-    extra = {"position": {wall_id: Position(1, 4)}, "wall": {wall_id: Wall()}}
+    extra = {"position": {wall_id: Position(1, 4)}, "blocking": {wall_id: Blocking()}}
     state, agent_id = make_agent_state(
         agent_pos=(1, 1), extra_components=extra, move_fn=gravity_move_fn, height=5
     )
@@ -357,14 +366,19 @@ def test_gravity_win_by_falling_on_exit() -> None:
 
 
 def test_gravity_lose_by_falling_on_hazard() -> None:
+    agent_id: EntityID = 1
     hazard_id: EntityID = 20
     extra = {
+        "health": {agent_id: Health(health=1, max_health=1)},
         "position": {hazard_id: Position(1, 4)},
-        "hazard": {hazard_id: Hazard(type=HazardType.LAVA)},
         "lethal_damage": {hazard_id: LethalDamage()},
     }
     state, agent_id = make_agent_state(
-        agent_pos=(1, 1), extra_components=extra, move_fn=gravity_move_fn, height=5
+        agent_pos=(1, 1),
+        extra_components=extra,
+        move_fn=gravity_move_fn,
+        height=5,
+        agent_id=agent_id,
     )
     state2 = step(
         state,

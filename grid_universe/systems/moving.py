@@ -1,6 +1,6 @@
 from dataclasses import replace
 from grid_universe.state import State
-from grid_universe.components import Moving, Position
+from grid_universe.components import Moving, MovingAxis, Position
 from grid_universe.utils.ecs import entities_at
 
 
@@ -15,7 +15,7 @@ def moving_system(state: State) -> State:
         # Compute intended move
         dx, dy = (
             (moving.direction, 0)
-            if moving.axis == "horizontal"
+            if moving.axis == MovingAxis.HORIZONTAL
             else (0, moving.direction)
         )
         next_pos = Position(pos.x + dx, pos.y + dy)
@@ -27,8 +27,7 @@ def moving_system(state: State) -> State:
 
         for oid in entities_at(state, next_pos):
             if (
-                oid in state.wall
-                or oid in state.blocking
+                oid in state.blocking
                 or oid in state.pushable
                 or oid in state.collidable
             ):

@@ -1,42 +1,94 @@
 from dataclasses import replace
-from typing import Optional
-from grid_universe.systems.powerup import powerup_tick_system
-from grid_universe.components import (
-    Agent,
-    PowerUp,
-    PowerUpType,
-    PowerUpLimit,
-    Inventory,
-)
-from grid_universe.types import EntityID
-from pyrsistent import PMap, pmap, pset
+from typing import List, Dict, Tuple, Optional, TypedDict, Literal
+from pyrsistent import pmap, pset, PMap, PSet
 from grid_universe.state import State
-from grid_universe.utils.powerup import use_powerup_if_present, is_powerup_active
-from grid_universe.utils.collectible import grant_powerups_on_collect
+from grid_universe.components import (
+    Status,
+    Agent,
+    Position,
+    Inventory,
+    Appearance,
+    AppearanceName,
+    Immunity,
+    Speed,
+    Phasing,
+    TimeLimit,
+    UsageLimit,
+)
+from grid_universe.entity import Entity, new_entity_id
+from grid_universe.types import EntityID
+from grid_universe.systems.status import status_system
+from grid_universe.utils.status import use_status_effect
 
 
-def make_powerup_state(
-    powerups_by_type: dict[PowerUpType, tuple[PowerUpLimit, Optional[int]]],
-    agent_id: EntityID = 1,
-) -> tuple[State, EntityID]:
-    """Helper: Build a state with a dict of {PowerUpType: (limit, remaining)} for one agent."""
-    pu_dict = {
-        pu_type: PowerUp(type=pu_type, limit=limit, remaining=remaining)
-        for pu_type, (limit, remaining) in powerups_by_type.items()
-    }
-    agent = pmap({agent_id: Agent()})
-    powerup_status = pmap({agent_id: pmap(pu_dict)})
-    state = State(
-        width=1,
+class RequiredEffectSpec(TypedDict):
+    type: Literal["immunity", "speed", "phasing"]
+
+
+class EffectSpec(RequiredEffectSpec, total=False):
+    limit: Literal["time", "usage"]
+    amount: int
+    multiplier: int
+
+
+def build_agent_with_effects(
+    agent_id: Optional[EntityID] = None,
+    effects: Optional[List[EffectSpec]] = None,
+) -> Tuple[State, EntityID, List[EntityID]]:
+    entity: Dict[EntityID, Entity] = {}
+    agent: Dict[EntityID, Agent] = {}
+    inventory: Dict[EntityID, Inventory] = {}
+    appearance: Dict[EntityID, Appearance] = {}
+    immunity: Dict[EntityID, Immunity] = {}
+    speed: Dict[EntityID, Speed] = {}
+    phasing: Dict[EntityID, Phasing] = {}
+    time_limit: Dict[EntityID, TimeLimit] = {}
+    usage_limit: Dict[EntityID, UsageLimit] = {}
+    effect_ids: List[EntityID] = []
+    status_effect_ids: PSet[EntityID] = pset()
+
+    if agent_id is None:
+        agent_id = new_entity_id()
+    entity[agent_id] = Entity()
+    agent[agent_id] = Agent()
+    inventory[agent_id] = Inventory(pset())
+    appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
+    effects = effects or []
+
+    for eff in effects:
+        eid: EntityID = new_entity_id()
+        entity[eid] = Entity()
+        eff_type: Literal["immunity", "speed", "phasing"] = eff["type"]
+        if eff_type == "immunity":
+            immunity[eid] = Immunity()
+        elif eff_type == "speed":
+            multiplier: int = 2
+            if "multiplier" in eff and eff["multiplier"] is not None:
+                multiplier = eff["multiplier"]
+            speed[eid] = Speed(multiplier=multiplier)
+        elif eff_type == "phasing":
+            phasing[eid] = Phasing()
+        limit = eff.get("limit")
+        amount_raw = eff.get("amount")
+        if limit == "time" and amount_raw is not None:
+            time_limit[eid] = TimeLimit(amount=amount_raw)
+        if limit == "usage" and amount_raw is not None:
+            usage_limit[eid] = UsageLimit(amount=amount_raw)
+        effect_ids.append(eid)
+        status_effect_ids = status_effect_ids.add(eid)
+
+    status: PMap[EntityID, Status] = pmap(
+        {agent_id: Status(effect_ids=status_effect_ids)}
+    )
+
+    state: State = State(
+        width=3,
         height=1,
         move_fn=lambda s, eid, dir: [],
-        position=pmap(),
-        agent=agent,
-        enemy=pmap(),
-        box=pmap(),
+        entity=pmap(entity),
+        position=pmap({agent_id: Position(0, 0)}),
+        agent=pmap(agent),
         pushable=pmap(),
-        wall=pmap(),
-        door=pmap(),
         locked=pmap(),
         portal=pmap(),
         exit=pmap(),
@@ -44,213 +96,173 @@ def make_powerup_state(
         collectible=pmap(),
         rewardable=pmap(),
         cost=pmap(),
-        item=pmap(),
         required=pmap(),
-        inventory=pmap(),
+        inventory=pmap(inventory),
         health=pmap(),
-        powerup=pmap(),
-        powerup_status=powerup_status,
-        floor=pmap(),
+        appearance=pmap(appearance),
         blocking=pmap(),
         dead=pmap(),
         moving=pmap(),
-        hazard=pmap(),
         collidable=pmap(),
         damage=pmap(),
         lethal_damage=pmap(),
+        immunity=pmap(immunity),
+        speed=pmap(speed),
+        phasing=pmap(phasing),
+        time_limit=pmap(time_limit),
+        usage_limit=pmap(usage_limit),
+        status=status,
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,
         lose=False,
         message=None,
     )
-    return state, agent_id
+    return state, agent_id, effect_ids
 
 
-def test_duration_powerup_ticks_down_and_expires() -> None:
-    state, agent_id = make_powerup_state(
-        {PowerUpType.SHIELD: (PowerUpLimit.DURATION, 2)}
+# --- TESTS ---
+
+
+def test_time_limited_immunity_ticks_and_expires() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="immunity", limit="time", amount=2)]
     )
-    new_state = powerup_tick_system(state)
-    pu_status = new_state.powerup_status[agent_id]
-    assert pu_status[PowerUpType.SHIELD].remaining == 1
-    new_state2 = powerup_tick_system(new_state)
-    pu_status2 = new_state2.powerup_status[agent_id]
-    assert PowerUpType.SHIELD not in pu_status2
+    state1 = status_system(state)
+    state2 = status_system(state1)
+    assert not state2.status[agent_id].effect_ids
 
 
-def test_usage_powerup_does_not_tick() -> None:
-    state, agent_id = make_powerup_state({PowerUpType.SHIELD: (PowerUpLimit.USAGE, 2)})
-    new_state = powerup_tick_system(state)
-    pu_status = new_state.powerup_status[agent_id]
-    assert pu_status[PowerUpType.SHIELD].remaining == 2  # Unchanged
-
-
-def test_powerup_with_unlimited_duration_does_not_expire() -> None:
-    state, agent_id = make_powerup_state(
-        {PowerUpType.DOUBLE_SPEED: (PowerUpLimit.DURATION, None)}
+def test_time_limited_speed_ticks_and_expires() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="speed", limit="time", amount=1)]
     )
-    new_state = powerup_tick_system(state)
-    pu_status = new_state.powerup_status[agent_id]
-    assert pu_status[PowerUpType.DOUBLE_SPEED].remaining is None
+    state1 = status_system(state)
+    assert not state1.status[agent_id].effect_ids
 
 
-def test_powerup_with_unlimited_usage_does_not_expire() -> None:
-    state, agent_id = make_powerup_state(
-        {PowerUpType.GHOST: (PowerUpLimit.USAGE, None)}
+def test_time_limited_phasing_ticks_and_expires() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="phasing", limit="time", amount=2)]
     )
-    new_state = powerup_tick_system(state)
-    pu_status = new_state.powerup_status[agent_id]
-    assert pu_status[PowerUpType.GHOST].remaining is None
+    state1 = status_system(state)
+    state2 = status_system(state1)
+    assert not state2.status[agent_id].effect_ids
 
 
-def test_zero_and_negative_duration_powerup_expires_immediately() -> None:
-    # Zero remaining
-    state, agent_id = make_powerup_state(
-        {PowerUpType.HAZARD_IMMUNITY: (PowerUpLimit.DURATION, 0)}
+def test_usage_limited_immunity_does_not_tick() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="immunity", limit="usage", amount=3)]
     )
-    new_state = powerup_tick_system(state)
-    pu_status = new_state.powerup_status[agent_id]
-    assert PowerUpType.HAZARD_IMMUNITY not in pu_status
+    state2 = status_system(state)
+    assert state2.usage_limit[effect_ids[0]].amount == 3
+    assert effect_ids[0] in state2.status[agent_id].effect_ids
 
-    # Negative remaining
-    state, agent_id = make_powerup_state(
-        {PowerUpType.HAZARD_IMMUNITY: (PowerUpLimit.DURATION, -1)}
+
+def test_usage_limited_speed_does_not_tick() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="speed", limit="usage", amount=2)]
     )
-    new_state = powerup_tick_system(state)
-    pu_status = new_state.powerup_status[agent_id]
-    assert PowerUpType.HAZARD_IMMUNITY not in pu_status
+    state2 = status_system(state)
+    assert state2.usage_limit[effect_ids[0]].amount == 2
+    assert effect_ids[0] in state2.status[agent_id].effect_ids
 
 
-def test_multiple_powerups_tick_independently() -> None:
-    state, agent_id = make_powerup_state(
-        {
-            PowerUpType.SHIELD: (PowerUpLimit.DURATION, 1),
-            PowerUpType.GHOST: (PowerUpLimit.DURATION, 3),
-            PowerUpType.DOUBLE_SPEED: (PowerUpLimit.USAGE, 2),
-        }
+def test_usage_limited_phasing_does_not_tick() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="phasing", limit="usage", amount=2)]
     )
-    new_state = powerup_tick_system(state)
-    pu_status = new_state.powerup_status[agent_id]
-    assert PowerUpType.SHIELD not in pu_status  # SHIELD should have expired
-    assert pu_status[PowerUpType.GHOST].remaining == 2  # GHOST should tick down
-    assert pu_status[PowerUpType.DOUBLE_SPEED].remaining == 2  # DOUBLE_SPEED unchanged
+    state2 = status_system(state)
+    assert state2.usage_limit[effect_ids[0]].amount == 2
+    assert effect_ids[0] in state2.status[agent_id].effect_ids
 
 
-def test_no_powerups_no_error() -> None:
-    agent = pmap({1: Agent()})
-    powerup_status: PMap[EntityID, PMap[PowerUpType, PowerUp]] = pmap({1: pmap({})})
+def test_unlimited_time_immunity_does_not_expire() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="immunity")]
+    )
+    state2 = status_system(state)
+    assert state2.status[agent_id].effect_ids
+
+
+def test_unlimited_time_speed_does_not_expire() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="speed")]
+    )
+    state2 = status_system(state)
+    assert state2.status[agent_id].effect_ids
+
+
+def test_unlimited_time_phasing_does_not_expire() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[EffectSpec(type="phasing")]
+    )
+    state2 = status_system(state)
+    assert state2.status[agent_id].effect_ids
+
+
+def test_multiple_effects_tick_independently() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[
+            EffectSpec(type="immunity", limit="time", amount=1),
+            EffectSpec(type="speed", limit="usage", amount=2),
+            EffectSpec(type="phasing", limit="time", amount=2),
+        ]
+    )
+    state1 = status_system(state)
+    remaining = state1.status[agent_id].effect_ids
+    assert (
+        effect_ids[0] not in remaining
+        and effect_ids[1] in remaining
+        and effect_ids[2] in remaining
+    )
+    state2 = status_system(state1)
+    remaining2 = state2.status[agent_id].effect_ids
+    assert effect_ids[1] in remaining2 and effect_ids[2] not in remaining2
+
+
+def test_multi_agent_effects_are_isolated() -> None:
+    state1, agent1, eff1 = build_agent_with_effects(
+        agent_id=1, effects=[EffectSpec(type="immunity", limit="time", amount=1)]
+    )
+    state2, agent2, eff2 = build_agent_with_effects(
+        agent_id=2, effects=[EffectSpec(type="speed", limit="usage", amount=2)]
+    )
+    state = replace(
+        state1,
+        entity=state1.entity.update(state2.entity),
+        position=state1.position.update(state2.position),
+        agent=state1.agent.update(state2.agent),
+        inventory=state1.inventory.update(state2.inventory),
+        appearance=state1.appearance.update(state2.appearance),
+        immunity=state1.immunity.update(state2.immunity),
+        speed=state1.speed.update(state2.speed),
+        status=state1.status.update(state2.status),
+        time_limit=state1.time_limit.update(state2.time_limit),
+        usage_limit=state1.usage_limit.update(state2.usage_limit),
+    )
+    state2 = status_system(state)
+    assert not state2.status[agent1].effect_ids
+    assert eff2[0] in state2.status[agent2].effect_ids
+
+
+def test_status_effects_empty_is_robust() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects()
+    state2 = status_system(state)
+    assert agent_id in state2.status
+    assert not state2.status[agent_id].effect_ids
+
+
+def test_status_system_no_agents() -> None:
     state = State(
         width=1,
         height=1,
         move_fn=lambda s, eid, dir: [],
-        position=pmap(),
-        agent=agent,
-        enemy=pmap(),
-        box=pmap(),
-        pushable=pmap(),
-        wall=pmap(),
-        door=pmap(),
-        locked=pmap(),
-        portal=pmap(),
-        exit=pmap(),
-        key=pmap(),
-        collectible=pmap(),
-        rewardable=pmap(),
-        cost=pmap(),
-        item=pmap(),
-        required=pmap(),
-        inventory=pmap(),
-        health=pmap(),
-        powerup=pmap(),
-        powerup_status=powerup_status,
-        floor=pmap(),
-        blocking=pmap(),
-        dead=pmap(),
-        moving=pmap(),
-        hazard=pmap(),
-        collidable=pmap(),
-        damage=pmap(),
-        lethal_damage=pmap(),
-        turn=0,
-        score=0,
-        win=False,
-        lose=False,
-        message=None,
-    )
-    new_state = powerup_tick_system(state)
-    assert new_state.powerup_status[1] == pmap({})
-
-
-def test_multiple_agents_powerup_tick() -> None:
-    # Agent 1 with SHIELD, Agent 2 with GHOST
-    state1, agent1 = make_powerup_state(
-        {PowerUpType.SHIELD: (PowerUpLimit.DURATION, 2)}, agent_id=1
-    )
-    agent2 = 2
-    agent_map = state1.agent.set(agent2, Agent())
-    pu_map2 = {
-        PowerUpType.GHOST: PowerUp(
-            type=PowerUpType.GHOST, limit=PowerUpLimit.DURATION, remaining=3
-        )
-    }
-    powerup_status2 = state1.powerup_status.set(agent2, pmap(pu_map2))
-    state = State(
-        width=1,
-        height=1,
-        move_fn=state1.move_fn,
-        position=state1.position,
-        agent=agent_map,
-        enemy=state1.enemy,
-        box=state1.box,
-        pushable=state1.pushable,
-        wall=state1.wall,
-        door=state1.door,
-        locked=state1.locked,
-        portal=state1.portal,
-        exit=state1.exit,
-        key=state1.key,
-        collectible=state1.collectible,
-        rewardable=state1.rewardable,
-        cost=state1.cost,
-        item=state1.item,
-        required=state1.required,
-        inventory=state1.inventory,
-        health=state1.health,
-        powerup=state1.powerup,
-        powerup_status=powerup_status2,
-        floor=state1.floor,
-        blocking=state1.blocking,
-        dead=state1.dead,
-        moving=state1.moving,
-        hazard=state1.hazard,
-        collidable=state1.collidable,
-        damage=state1.damage,
-        lethal_damage=state1.lethal_damage,
-        turn=state1.turn,
-        score=state1.score,
-        win=state1.win,
-        lose=state1.lose,
-        message=state1.message,
-    )
-    new_state = powerup_tick_system(state)
-    assert new_state.powerup_status[1][PowerUpType.SHIELD].remaining == 1
-    assert new_state.powerup_status[2][PowerUpType.GHOST].remaining == 2
-
-
-def test_powerup_tick_no_agents():
-    # Empty state, no agents or powerup_status at all
-    state = State(
-        width=1,
-        height=1,
-        move_fn=lambda s, eid, dir: [],
+        entity=pmap(),
         position=pmap(),
         agent=pmap(),
-        enemy=pmap(),
-        box=pmap(),
         pushable=pmap(),
-        wall=pmap(),
-        door=pmap(),
         locked=pmap(),
         portal=pmap(),
         exit=pmap(),
@@ -258,84 +270,104 @@ def test_powerup_tick_no_agents():
         collectible=pmap(),
         rewardable=pmap(),
         cost=pmap(),
-        item=pmap(),
         required=pmap(),
         inventory=pmap(),
         health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
+        appearance=pmap(),
         blocking=pmap(),
         dead=pmap(),
         moving=pmap(),
-        hazard=pmap(),
         collidable=pmap(),
         damage=pmap(),
         lethal_damage=pmap(),
+        immunity=pmap(),
+        speed=pmap(),
+        phasing=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,
         lose=False,
         message=None,
     )
-    new_state = powerup_tick_system(state)
-    assert new_state.powerup_status == pmap()
+    state2 = status_system(state)
+    assert state2.status == pmap()
 
 
-def test_stack_usage_powerup():
-    # Agent has SHIELD powerup in status with 3 uses (simulate already has)
-    state, agent_id = make_powerup_state({})
-    # Agent already has SHIELD with 3
-    status_map = state.powerup_status[agent_id].set(
-        PowerUpType.SHIELD,
-        PowerUp(type=PowerUpType.SHIELD, limit=PowerUpLimit.USAGE, remaining=3),
+def test_multiple_same_type_time_limited_effects_tick_independently() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[
+            EffectSpec(type="speed", limit="time", amount=1),
+            EffectSpec(type="speed", limit="time", amount=3),
+        ]
     )
+    state1 = status_system(state)
+    assert effect_ids[0] not in state1.status[agent_id].effect_ids
+    assert effect_ids[1] in state1.status[agent_id].effect_ids
+    state2 = status_system(state1)
+    assert effect_ids[1] in state2.status[agent_id].effect_ids
+    state3 = status_system(state2)
+    assert not state3.status[agent_id].effect_ids
 
-    # Collected powerup entity
-    collected_eid = 99
-    powerup_store = pmap(
-        {
-            collected_eid: PowerUp(
-                type=PowerUpType.SHIELD, limit=PowerUpLimit.USAGE, remaining=2
-            )
-        }
+
+def test_multiple_usage_limited_effects_are_used_one_at_a_time() -> None:
+    state, agent_id, effect_ids = build_agent_with_effects(
+        effects=[
+            EffectSpec(type="speed", limit="usage", amount=1),
+            EffectSpec(type="speed", limit="usage", amount=2),
+        ]
     )
-    inv = Inventory(item_ids=pset([collected_eid]))
+    use1 = use_status_effect(effect_ids[0], state.usage_limit)
+    assert use1[effect_ids[0]].amount == 0
+    use2 = use_status_effect(effect_ids[1], use1)
+    assert use2[effect_ids[1]].amount == 1
+    use3 = use_status_effect(effect_ids[1], use2)
+    assert use3[effect_ids[1]].amount == 0
 
-    # Run stacking logic
-    new_inv, new_powerup_store, new_status = grant_powerups_on_collect(
-        [collected_eid], agent_id, inv, powerup_store, pmap({agent_id: status_map})
+
+def test_status_cleanup_for_missing_effect() -> None:
+    agent_id: EntityID = new_entity_id()
+    ghost_effect: EntityID = new_entity_id()
+    state = State(
+        width=1,
+        height=1,
+        move_fn=lambda s, eid, dir: [],
+        entity=pmap({agent_id: Entity()}),
+        position=pmap({agent_id: Position(0, 0)}),
+        agent=pmap({agent_id: Agent()}),
+        status=pmap({agent_id: Status(effect_ids=pset([ghost_effect]))}),
+        pushable=pmap(),
+        locked=pmap(),
+        portal=pmap(),
+        exit=pmap(),
+        key=pmap(),
+        collectible=pmap(),
+        rewardable=pmap(),
+        cost=pmap(),
+        required=pmap(),
+        inventory=pmap(),
+        health=pmap(),
+        appearance=pmap({agent_id: Appearance(name=AppearanceName.HUMAN)}),
+        blocking=pmap(),
+        dead=pmap(),
+        moving=pmap(),
+        collidable=pmap(),
+        damage=pmap(),
+        lethal_damage=pmap(),
+        immunity=pmap(),
+        speed=pmap(),
+        phasing=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        prev_position=pmap(),
+        turn=0,
+        score=0,
+        win=False,
+        lose=False,
+        message=None,
     )
-
-    assert new_status[agent_id][PowerUpType.SHIELD].remaining == 5  # 3+2
-    assert collected_eid not in new_powerup_store
-    assert collected_eid not in new_inv.item_ids
-
-
-def test_unlimited_usage_not_removed():
-    state, agent_id = make_powerup_state(
-        {PowerUpType.GHOST: (PowerUpLimit.USAGE, None)}
-    )
-    pu_status = state.powerup_status
-    for _ in range(5):
-        used, pu_status = use_powerup_if_present(pu_status, agent_id, PowerUpType.GHOST)
-        assert used
-        assert PowerUpType.GHOST in pu_status[agent_id]
-
-
-def test_usage_powerup_removed_on_exhaust():
-    state, agent_id = make_powerup_state({PowerUpType.SHIELD: (PowerUpLimit.USAGE, 1)})
-    pu_status = state.powerup_status
-    used, pu_status = use_powerup_if_present(pu_status, agent_id, PowerUpType.SHIELD)
-    assert used
-    assert PowerUpType.SHIELD not in pu_status[agent_id]
-
-
-def test_is_powerup_active():
-    state, agent_id = make_powerup_state({PowerUpType.SHIELD: (PowerUpLimit.USAGE, 3)})
-    assert is_powerup_active(state, agent_id, PowerUpType.SHIELD)
-    # Remove shield
-    new_state = replace(
-        state, powerup_status=state.powerup_status.set(agent_id, pmap({}))
-    )
-    assert not is_powerup_active(new_state, agent_id, PowerUpType.SHIELD)
+    state2 = status_system(state)
+    assert not state2.status[agent_id].effect_ids

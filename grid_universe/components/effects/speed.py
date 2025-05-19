@@ -2,5 +2,5 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class Wall:
-    pass
+class Speed:
+    multiplier: int

@@ -1,6 +1,7 @@
 from dataclasses import replace
 from pyrsistent import pset, PSet
 
+from grid_universe.entity import Entity
 from grid_universe.state import State
 from grid_universe.step import step
 from grid_universe.types import EntityID
@@ -9,9 +10,9 @@ from grid_universe.components import (
     Agent,
     Inventory,
     Key,
-    Door,
     Locked,
     Blocking,
+    Collectible,
 )
 from grid_universe.actions import UseKeyAction
 from tests.test_utils import make_minimal_key_door_state
@@ -30,7 +31,11 @@ def set_inventory(state: State, agent_id: EntityID, item_ids: PSet[EntityID]) ->
 
 
 def add_key_entity(state: State, key_id: EntityID, key_id_str: str) -> State:
-    return replace(state, key=state.key.set(key_id, Key(key_id=key_id_str)))
+    return replace(
+        state,
+        key=state.key.set(key_id, Key(key_id=key_id_str)),
+        entity=state.entity.set(key_id, Entity()),
+    )
 
 
 def add_door_with_lock(
@@ -38,10 +43,10 @@ def add_door_with_lock(
 ) -> State:
     return replace(
         state,
-        door=state.door.set(door_id, Door()),
         locked=state.locked.set(door_id, Locked(key_id=key_id_str)),
         blocking=state.blocking.set(door_id, Blocking()),
         position=state.position.set(door_id, pos),
+        entity=state.entity.set(door_id, Entity()),
     )
 
 
@@ -191,13 +196,11 @@ def test_unlock_with_key_not_in_key_store() -> None:
 
 
 def test_unlock_with_nonkey_item_in_inventory() -> None:
-    from grid_universe.components import Item
-
     state, entities = make_minimal_key_door_state()
     agent_id: EntityID = entities["agent_id"]
     nonkey_id: EntityID = 3333
     door_id: EntityID = entities["door_id"]
-    state = replace(state, item=state.item.set(nonkey_id, Item()))
+    state = replace(state, collectible=state.collectible.set(nonkey_id, Collectible()))
     state = set_inventory(
         state, agent_id, state.inventory[agent_id].item_ids.add(nonkey_id)
     )
@@ -268,10 +271,10 @@ def test_multi_agent_unlock_affects_only_actor() -> None:
         state,
         agent=state.agent.set(agent_id2, Agent()),
         key=state.key.set(key_id2, Key(key_id="blue")),
-        door=state.door.set(door_id2, Door()),
         locked=state.locked.set(door_id2, Locked(key_id="blue")),
         blocking=state.blocking.set(door_id2, Blocking()),
         position=state.position.set(agent_id2, Position(0, 4)).set(door_id2, pos2),
+        entity=state.entity.set(agent_id2, Entity()).set(door_id2, Entity()),
         inventory=state.inventory.set(agent_id2, Inventory(item_ids=pset([key_id2]))),
     )
     state = add_key_to_inventory(state, agent_id1, key_id1)

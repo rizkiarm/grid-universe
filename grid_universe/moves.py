@@ -68,7 +68,7 @@ def slippery_move_fn(
         test_pos = Position(nx, ny)
         blocked = False
         for oid, o_pos in state.position.items():
-            if o_pos == test_pos and (oid in state.wall or oid in state.blocking):
+            if o_pos == test_pos and oid in state.blocking:
                 blocked = True
                 break
         if blocked:
@@ -124,7 +124,7 @@ def gravity_move_fn(
             return False
         test_pos = Position(px, py)
         for oid, o_pos in state.position.items():
-            if o_pos == test_pos and (oid in state.wall or oid in state.blocking):
+            if o_pos == test_pos and oid in state.blocking:
                 return False
         return True
 

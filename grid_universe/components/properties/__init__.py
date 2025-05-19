@@ -1,31 +1,47 @@
-from .position import Position
-from .collectible import Collectible
-from .locked import Locked
-from .moving import Moving
+from .agent import Agent
+from .appearance import Appearance, AppearanceName
 from .blocking import Blocking
-from .dead import Dead
-from .rewardable import Rewardable
-from .cost import Cost
-from .pushable import Pushable
-from .health import Health
-from .required import Required
+from .collectible import Collectible
 from .collidable import Collidable
+from .cost import Cost
 from .damage import Damage
+from .dead import Dead
+from .exit import Exit
+from .health import Health
+from .inventory import Inventory
+from .key import Key
 from .lethal_damage import LethalDamage
+from .locked import Locked
+from .moving import Moving, MovingAxis
+from .portal import Portal
+from .position import Position
+from .pushable import Pushable
+from .required import Required
+from .rewardable import Rewardable
+from .status import Status
 
 __all__ = [
-    "Position",
+    "Agent",
+    "Appearance",
+    "AppearanceName",
+    "Blocking",
     "Collectible",
+    "Collidable",
+    "Cost",
+    "Damage",
+    "Dead",
+    "Exit",
+    "Health",
+    "Inventory",
+    "Key",
+    "LethalDamage",
     "Locked",
     "Moving",
-    "Blocking",
-    "Dead",
-    "Rewardable",
-    "Cost",
+    "MovingAxis",
+    "Portal",
+    "Position",
     "Pushable",
-    "Health",
     "Required",
-    "Collidable",
-    "Damage",
-    "LethalDamage",
+    "Rewardable",
+    "Status",
 ]

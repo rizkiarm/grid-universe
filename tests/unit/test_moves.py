@@ -13,7 +13,7 @@ from grid_universe.moves import (
     gravity_move_fn,
 )
 from grid_universe.actions import Direction
-from grid_universe.components import Position, Wall, Blocking
+from grid_universe.components import Position, Blocking
 from grid_universe.types import EntityID, MoveFn
 from tests.test_utils import make_agent_state
 
@@ -125,16 +125,13 @@ def test_slippery_move_fn(
 ) -> None:
     width: int = 5
     height: int = 5
-    wall_entities: Dict[EntityID, Wall] = {}
     blocking_entities: Dict[EntityID, Blocking] = {}
     pos_map: Dict[EntityID, Position] = {}
     for idx, blocker_pos in enumerate(blockers):
         wid: EntityID = 100 + idx
-        wall_entities[wid] = Wall()
         blocking_entities[wid] = Blocking()
         pos_map[wid] = Position(*blocker_pos)
     extra = {
-        "wall": wall_entities,
         "blocking": blocking_entities,
         "position": pos_map,
     }
@@ -166,16 +163,13 @@ def test_gravity_move_fn(
 ) -> None:
     width: int = 5
     height: int = 5
-    wall_entities: Dict[EntityID, Wall] = {}
     blocking_entities: Dict[EntityID, Blocking] = {}
     pos_map: Dict[EntityID, Position] = {}
     for idx, blocker_pos in enumerate(blockers):
         wid: EntityID = 200 + idx
-        wall_entities[wid] = Wall()
         blocking_entities[wid] = Blocking()
         pos_map[wid] = Position(*blocker_pos)
     extra = {
-        "wall": wall_entities,
         "blocking": blocking_entities,
         "position": pos_map,
     }
@@ -226,16 +220,13 @@ def test_windy_move_fn(
     monkeypatch.setattr(moves_mod.random, "choice", fake_choice)
     width: int = 5
     height: int = 5
-    wall_entities: Dict[EntityID, Wall] = {}
     blocking_entities: Dict[EntityID, Blocking] = {}
     pos_map: Dict[EntityID, Position] = {}
     for idx, blocker_pos in enumerate(blockers):
         wid: EntityID = 300 + idx
-        wall_entities[wid] = Wall()
         blocking_entities[wid] = Blocking()
         pos_map[wid] = Position(*blocker_pos)
     extra = {
-        "wall": wall_entities,
         "blocking": blocking_entities,
         "position": pos_map,
     }

@@ -47,8 +47,7 @@ def push_system(state: State, eid: EntityID, next_pos: Position) -> State:
     blocked = False
     for other_id, other_pos in state.position.items():
         if other_pos == push_to and (
-            other_id in state.wall
-            or other_id in state.blocking
+            other_id in state.blocking
             or other_id in state.pushable
             or other_id in state.collidable
         ):

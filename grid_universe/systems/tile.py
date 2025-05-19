@@ -30,7 +30,7 @@ def tile_reward_system(state: State, eid: EntityID) -> State:
     if not reward_ids:
         return state
 
-    score = state.score + sum(state.rewardable[rid].reward for rid in reward_ids)
+    score = state.score + sum(state.rewardable[rid].amount for rid in reward_ids)
     return replace(state, score=score)
 
 

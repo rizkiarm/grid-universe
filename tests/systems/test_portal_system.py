@@ -1,88 +1,90 @@
 from dataclasses import replace
-from typing import Callable, Tuple, List, Type
+from typing import Tuple, List
 
 import pytest
-from pyrsistent import pmap, PMap
+from pyrsistent import pmap
 
 from grid_universe.state import State
 from grid_universe.types import EntityID
-from grid_universe.components import Collidable, Position, Agent, Box, Pushable, Portal
+from grid_universe.components import (
+    Collidable,
+    Position,
+    Agent,
+    Pushable,
+    Portal,
+    Appearance,
+    AppearanceName,
+)
+from grid_universe.entity import Entity, new_entity_id
 from grid_universe.systems.portal import portal_system
-
-# --- Utility function for state creation ---
 
 
 def make_entity_on_portal_state(
     entity_id: EntityID,
-    entity_component: object,
+    is_agent: bool,
     portal1_id: EntityID,
     portal2_id: EntityID,
     entity_pos: Tuple[int, int],
     portal1_pos: Tuple[int, int],
     portal2_pos: Tuple[int, int],
 ) -> State:
-    position: PMap[EntityID, Position] = pmap(
-        {
-            entity_id: Position(*entity_pos),
-            portal1_id: Position(*portal1_pos),
-            portal2_id: Position(*portal2_pos),
-        }
-    )
-    portal: PMap[EntityID, Portal] = pmap(
-        {
-            portal1_id: Portal(pair_entity=portal2_id),
-            portal2_id: Portal(pair_entity=portal1_id),
-        }
-    )
-    agent: PMap[EntityID, Agent] = (
-        pmap({entity_id: entity_component})
-        if isinstance(entity_component, Agent)
-        else pmap()
-    )
-    box: PMap[EntityID, Box] = (
-        pmap({entity_id: entity_component})
-        if isinstance(entity_component, Box)
-        else pmap()
-    )
-    pushable: PMap[EntityID, Pushable] = (
-        pmap({entity_id: Pushable()}) if isinstance(entity_component, Box) else pmap()
-    )
-    collidable: PMap[EntityID, Collidable] = pmap({entity_id: Collidable()})
+    position = {
+        entity_id: Position(*entity_pos),
+        portal1_id: Position(*portal1_pos),
+        portal2_id: Position(*portal2_pos),
+    }
+    portal = {
+        portal1_id: Portal(pair_entity=portal2_id),
+        portal2_id: Portal(pair_entity=portal1_id),
+    }
+    entity = {
+        entity_id: Entity(),
+        portal1_id: Entity(),
+        portal2_id: Entity(),
+    }
+    collidable = {entity_id: Collidable()}
+    appearance = {
+        entity_id: Appearance(
+            name=AppearanceName.HUMAN if is_agent else AppearanceName.BOX
+        ),
+        portal1_id: Appearance(name=AppearanceName.PORTAL),
+        portal2_id: Appearance(name=AppearanceName.PORTAL),
+    }
+    agent = {entity_id: Agent()} if is_agent else {}
+    pushable = {entity_id: Pushable()} if not is_agent else {}
 
-    empty_pmap: PMap = pmap()
     return State(
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
-        position=position,
-        prev_position=position,  # assume standing still at the beginning
-        agent=agent,
-        enemy=empty_pmap,
-        box=box,
-        pushable=pushable,
-        wall=empty_pmap,
-        door=empty_pmap,
-        locked=empty_pmap,
-        portal=portal,
-        exit=empty_pmap,
-        key=empty_pmap,
-        collectible=empty_pmap,
-        rewardable=empty_pmap,
-        cost=empty_pmap,
-        item=empty_pmap,
-        required=empty_pmap,
-        inventory=empty_pmap,
-        health=empty_pmap,
-        powerup=empty_pmap,
-        powerup_status=empty_pmap,
-        floor=empty_pmap,
-        blocking=empty_pmap,
-        dead=empty_pmap,
-        moving=empty_pmap,
-        hazard=empty_pmap,
-        collidable=collidable,
-        damage=empty_pmap,
-        lethal_damage=empty_pmap,
+        entity=pmap(entity),
+        position=pmap(position),
+        agent=pmap(agent),
+        pushable=pmap(pushable),
+        locked=pmap(),
+        portal=pmap(portal),
+        exit=pmap(),
+        key=pmap(),
+        collectible=pmap(),
+        rewardable=pmap(),
+        cost=pmap(),
+        required=pmap(),
+        inventory=pmap(),
+        health=pmap(),
+        appearance=pmap(appearance),
+        blocking=pmap(),
+        dead=pmap(),
+        moving=pmap(),
+        collidable=pmap(collidable),
+        damage=pmap(),
+        lethal_damage=pmap(),
+        immunity=pmap(),
+        phasing=pmap(),
+        speed=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(position),  # assume standing still at the beginning
         turn=0,
         score=0,
         win=False,
@@ -91,32 +93,27 @@ def make_entity_on_portal_state(
     )
 
 
-# --- Parametrized fixtures for entity types ---
-
-EntityType = Tuple[str, Type[object], Callable[[EntityID], object]]
-ENTITY_TYPES: List[EntityType] = [
-    ("agent", Agent, lambda entity_id: Agent()),
-    ("box", Box, lambda entity_id: Box()),
+ENTITY_TYPES: List[Tuple[str, bool]] = [
+    ("agent", True),
+    ("pushable", False),
 ]
 
 
-@pytest.mark.parametrize("entity_label, entity_cls, entity_factory", ENTITY_TYPES)
+@pytest.mark.parametrize("entity_label,is_agent", ENTITY_TYPES)
 def test_entity_standing_on_portal_does_not_teleport(
     entity_label: str,
-    entity_cls: Type[object],
-    entity_factory: Callable[[EntityID], object],
+    is_agent: bool,
 ) -> None:
-    """Ensure entity standing on portal tile does not teleport again unless moved."""
-    entity_id: EntityID = 1
-    portal1_id: EntityID = 2
-    portal2_id: EntityID = 3
+    entity_id: EntityID = new_entity_id()
+    portal1_id: EntityID = new_entity_id()
+    portal2_id: EntityID = new_entity_id()
     entity_pos: Tuple[int, int] = (4, 4)
     portal1_pos: Tuple[int, int] = (4, 4)
     portal2_pos: Tuple[int, int] = (7, 7)
 
     state: State = make_entity_on_portal_state(
         entity_id,
-        entity_factory(entity_id),
+        is_agent,
         portal1_id,
         portal2_id,
         entity_pos,
@@ -128,54 +125,51 @@ def test_entity_standing_on_portal_does_not_teleport(
     assert new_state.position[entity_id] == Position(*portal1_pos)
 
 
-@pytest.mark.parametrize("entity_label, entity_cls, entity_factory", ENTITY_TYPES)
+@pytest.mark.parametrize("entity_label, is_agent", ENTITY_TYPES)
 def test_entity_teleported_when_entering_portal(
     entity_label: str,
-    entity_cls: Type[object],
-    entity_factory: Callable[[EntityID], object],
+    is_agent: bool,
 ) -> None:
-    """Ensure teleport occurs when entity enters portal from a non-portal tile."""
-    entity_id: EntityID = 1
-    portal1_id: EntityID = 2
-    portal2_id: EntityID = 3
+    entity_id: EntityID = new_entity_id()
+    portal1_id: EntityID = new_entity_id()
+    portal2_id: EntityID = new_entity_id()
     start_pos: Tuple[int, int] = (1, 1)
     portal1_pos: Tuple[int, int] = (4, 4)
     portal2_pos: Tuple[int, int] = (7, 7)
 
     state: State = make_entity_on_portal_state(
         entity_id,
-        entity_factory(entity_id),
+        is_agent,
         portal1_id,
         portal2_id,
         start_pos,
         portal1_pos,
         portal2_pos,
     )
-    # Simulate entity moving onto portal1
     moved_state: State = replace(
-        state, position=state.position.set(entity_id, Position(*portal1_pos))
+        state,
+        position=state.position.set(entity_id, Position(*portal1_pos)),
+        prev_position=state.position,
     )
     new_state: State = portal_system(moved_state)
     assert new_state.position[entity_id] == Position(*portal2_pos)
 
 
-@pytest.mark.parametrize("entity_label, entity_cls, entity_factory", ENTITY_TYPES)
+@pytest.mark.parametrize("entity_label, is_agent", ENTITY_TYPES)
 def test_entity_not_teleported_if_not_on_portal(
     entity_label: str,
-    entity_cls: Type[object],
-    entity_factory: Callable[[EntityID], object],
+    is_agent: bool,
 ) -> None:
-    """No teleport occurs if entity is not on any portal."""
-    entity_id: EntityID = 1
-    portal1_id: EntityID = 2
-    portal2_id: EntityID = 3
+    entity_id: EntityID = new_entity_id()
+    portal1_id: EntityID = new_entity_id()
+    portal2_id: EntityID = new_entity_id()
     entity_pos: Tuple[int, int] = (1, 2)
     portal1_pos: Tuple[int, int] = (3, 5)
     portal2_pos: Tuple[int, int] = (7, 7)
 
     state: State = make_entity_on_portal_state(
         entity_id,
-        entity_factory(entity_id),
+        is_agent,
         portal1_id,
         portal2_id,
         entity_pos,
@@ -187,76 +181,73 @@ def test_entity_not_teleported_if_not_on_portal(
     assert new_state.position[entity_id] == Position(*entity_pos)
 
 
-def test_box_teleported_when_pushed_onto_portal() -> None:
-    """Box is teleported when pushed onto a portal tile."""
-    entity_id: EntityID = 10
-    portal1_id: EntityID = 20
-    portal2_id: EntityID = 30
+def test_pushable_teleported_when_pushed_onto_portal() -> None:
+    entity_id: EntityID = new_entity_id()
+    portal1_id: EntityID = new_entity_id()
+    portal2_id: EntityID = new_entity_id()
     start_pos: Tuple[int, int] = (2, 2)
     portal1_pos: Tuple[int, int] = (4, 4)
     portal2_pos: Tuple[int, int] = (8, 8)
-    # Simulate box being pushed onto portal1
     state: State = make_entity_on_portal_state(
-        entity_id, Box(), portal1_id, portal2_id, start_pos, portal1_pos, portal2_pos
+        entity_id, False, portal1_id, portal2_id, start_pos, portal1_pos, portal2_pos
     )
     moved_state: State = replace(
-        state, position=state.position.set(entity_id, Position(*portal1_pos))
+        state,
+        position=state.position.set(entity_id, Position(*portal1_pos)),
+        prev_position=state.position,
     )
     new_state: State = portal_system(moved_state)
     assert new_state.position[entity_id] == Position(*portal2_pos)
 
 
 def test_portal_pair_missing_does_not_crash() -> None:
-    """Teleport on incomplete portal pair does not crash, entity not moved."""
-    agent_id: EntityID = 1
-    portal1_id: EntityID = 2
+    agent_id: EntityID = new_entity_id()
+    portal1_id: EntityID = new_entity_id()
     agent_pos: Tuple[int, int] = (2, 2)
     portal1_pos: Tuple[int, int] = (2, 2)
-    # Omit portal2
-    position: PMap[EntityID, Position] = pmap(
-        {
-            agent_id: Position(*agent_pos),
-            portal1_id: Position(*portal1_pos),
-        }
-    )
-    portal: PMap[EntityID, Portal] = pmap(
-        {portal1_id: Portal(pair_entity=999)}  # points to missing portal
-    )
-    agent: PMap[EntityID, Agent] = pmap({agent_id: Agent()})
-    collidable: PMap[EntityID, Collidable] = pmap({agent_id: Collidable()})
-    empty_pmap: PMap = pmap()
+    position = {
+        agent_id: Position(*agent_pos),
+        portal1_id: Position(*portal1_pos),
+    }
+    portal = {portal1_id: Portal(pair_entity=999)}
+    entity = {agent_id: Entity(), portal1_id: Entity()}
+    collidable = {agent_id: Collidable()}
+    appearance = {
+        agent_id: Appearance(name=AppearanceName.HUMAN),
+        portal1_id: Appearance(name=AppearanceName.PORTAL),
+    }
     state: State = State(
         width=5,
         height=5,
         move_fn=lambda s, eid, d: [],
-        position=position,
-        agent=agent,
-        enemy=empty_pmap,
-        box=empty_pmap,
-        pushable=empty_pmap,
-        wall=empty_pmap,
-        door=empty_pmap,
-        locked=empty_pmap,
-        portal=portal,
-        exit=empty_pmap,
-        key=empty_pmap,
-        collectible=empty_pmap,
-        rewardable=empty_pmap,
-        cost=empty_pmap,
-        item=empty_pmap,
-        required=empty_pmap,
-        inventory=empty_pmap,
-        health=empty_pmap,
-        powerup=empty_pmap,
-        powerup_status=empty_pmap,
-        floor=empty_pmap,
-        blocking=empty_pmap,
-        dead=empty_pmap,
-        moving=empty_pmap,
-        hazard=empty_pmap,
-        collidable=collidable,
-        damage=empty_pmap,
-        lethal_damage=empty_pmap,
+        entity=pmap(entity),
+        position=pmap(position),
+        agent=pmap({agent_id: Agent()}),
+        pushable=pmap(),
+        locked=pmap(),
+        portal=pmap(portal),
+        exit=pmap(),
+        key=pmap(),
+        collectible=pmap(),
+        rewardable=pmap(),
+        cost=pmap(),
+        required=pmap(),
+        inventory=pmap(),
+        health=pmap(),
+        appearance=pmap(appearance),
+        blocking=pmap(),
+        dead=pmap(),
+        moving=pmap(),
+        collidable=pmap(collidable),
+        damage=pmap(),
+        lethal_damage=pmap(),
+        immunity=pmap(),
+        phasing=pmap(),
+        speed=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(position),
         turn=0,
         score=0,
         win=False,
@@ -268,66 +259,75 @@ def test_portal_pair_missing_does_not_crash() -> None:
 
 
 def test_multiple_entities_on_portal_all_teleported_on_entry() -> None:
-    """Multiple entities entering different portals are all teleported."""
-    agent_id: EntityID = 1
-    box_id: EntityID = 2
-    portal1_id: EntityID = 10
-    portal2_id: EntityID = 20
+    agent_id: EntityID = new_entity_id()
+    pushable_id: EntityID = new_entity_id()
+    portal1_id: EntityID = new_entity_id()
+    portal2_id: EntityID = new_entity_id()
     portal1_pos: Tuple[int, int] = (2, 2)
     portal2_pos: Tuple[int, int] = (7, 7)
-    position: PMap[EntityID, Position] = pmap(
-        {
-            agent_id: Position(*portal1_pos),
-            box_id: Position(*portal2_pos),
-            portal1_id: Position(*portal1_pos),
-            portal2_id: Position(*portal2_pos),
-        }
-    )
-    portal: PMap[EntityID, Portal] = pmap(
-        {
-            portal1_id: Portal(pair_entity=portal2_id),
-            portal2_id: Portal(pair_entity=portal1_id),
-        }
-    )
-    agent: PMap[EntityID, Agent] = pmap({agent_id: Agent()})
-    box: PMap[EntityID, Box] = pmap({box_id: Box()})
-    pushable: PMap[EntityID, Pushable] = pmap({box_id: Pushable()})
-    collidable: PMap[EntityID, Collidable] = pmap(
-        {agent_id: Collidable(), box_id: Collidable()}
-    )
-    empty_pmap: PMap = pmap()
-    state: State = State(
+    prev_agent_pos: Tuple[int, int] = (1, 2)
+    prev_pushable_pos: Tuple[int, int] = (6, 7)
+    position = {
+        agent_id: Position(*portal1_pos),
+        pushable_id: Position(*portal2_pos),
+        portal1_id: Position(*portal1_pos),
+        portal2_id: Position(*portal2_pos),
+    }
+    prev_position = {
+        agent_id: Position(*prev_agent_pos),
+        pushable_id: Position(*prev_pushable_pos),
+        portal1_id: Position(*portal1_pos),
+        portal2_id: Position(*portal2_pos),
+    }
+    portal = {
+        portal1_id: Portal(pair_entity=portal2_id),
+        portal2_id: Portal(pair_entity=portal1_id),
+    }
+    entity = {
+        agent_id: Entity(),
+        pushable_id: Entity(),
+        portal1_id: Entity(),
+        portal2_id: Entity(),
+    }
+    collidable = {agent_id: Collidable(), pushable_id: Collidable()}
+    appearance = {
+        agent_id: Appearance(name=AppearanceName.HUMAN),
+        pushable_id: Appearance(name=AppearanceName.BOX),
+        portal1_id: Appearance(name=AppearanceName.PORTAL),
+        portal2_id: Appearance(name=AppearanceName.PORTAL),
+    }
+    state = State(
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
-        position=position,
-        agent=agent,
-        enemy=empty_pmap,
-        box=box,
-        pushable=pushable,
-        wall=empty_pmap,
-        door=empty_pmap,
-        locked=empty_pmap,
-        portal=portal,
-        exit=empty_pmap,
-        key=empty_pmap,
-        collectible=empty_pmap,
-        rewardable=empty_pmap,
-        cost=empty_pmap,
-        item=empty_pmap,
-        required=empty_pmap,
-        inventory=empty_pmap,
-        health=empty_pmap,
-        powerup=empty_pmap,
-        powerup_status=empty_pmap,
-        floor=empty_pmap,
-        blocking=empty_pmap,
-        dead=empty_pmap,
-        moving=empty_pmap,
-        hazard=empty_pmap,
-        collidable=collidable,
-        damage=empty_pmap,
-        lethal_damage=empty_pmap,
+        entity=pmap(entity),
+        position=pmap(position),
+        prev_position=pmap(prev_position),
+        agent=pmap({agent_id: Agent()}),
+        pushable=pmap({pushable_id: Pushable()}),
+        locked=pmap(),
+        portal=pmap(portal),
+        exit=pmap(),
+        key=pmap(),
+        collectible=pmap(),
+        rewardable=pmap(),
+        cost=pmap(),
+        required=pmap(),
+        inventory=pmap(),
+        health=pmap(),
+        appearance=pmap(appearance),
+        blocking=pmap(),
+        dead=pmap(),
+        moving=pmap(),
+        collidable=pmap(collidable),
+        damage=pmap(),
+        lethal_damage=pmap(),
+        immunity=pmap(),
+        speed=pmap(),
+        phasing=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
         turn=0,
         score=0,
         win=False,
@@ -336,68 +336,93 @@ def test_multiple_entities_on_portal_all_teleported_on_entry() -> None:
     )
     new_state: State = portal_system(state)
     assert new_state.position[agent_id] == Position(*portal2_pos)
-    assert new_state.position[box_id] == Position(*portal1_pos)
+    assert new_state.position[pushable_id] == Position(*portal1_pos)
 
 
 def test_entity_chained_portals_no_infinite_teleport() -> None:
-    """Entity entering chained portals is teleported once, not in a loop."""
-    agent_id: EntityID = 1
-    portal_a: EntityID = 10
-    portal_b: EntityID = 20
-    portal_c: EntityID = 30
+    from grid_universe.components import (
+        Collidable,
+        Portal,
+        Appearance,
+        AppearanceName,
+        Agent,
+    )
+    from grid_universe.entity import Entity, new_entity_id
+    from pyrsistent import pmap
+    from grid_universe.state import State
+    from grid_universe.systems.portal import portal_system
+
+    agent_id: EntityID = new_entity_id()
+    portal_a: EntityID = new_entity_id()
+    portal_b: EntityID = new_entity_id()
+    portal_c: EntityID = new_entity_id()
     pos_a: Tuple[int, int] = (2, 2)
     pos_b: Tuple[int, int] = (4, 4)
     pos_c: Tuple[int, int] = (6, 6)
-    position: PMap[EntityID, Position] = pmap(
-        {
-            agent_id: Position(*pos_a),
-            portal_a: Position(*pos_a),
-            portal_b: Position(*pos_b),
-            portal_c: Position(*pos_c),
-        }
-    )
-    portal: PMap[EntityID, Portal] = pmap(
-        {
-            portal_a: Portal(pair_entity=portal_b),
-            portal_b: Portal(pair_entity=portal_c),
-            portal_c: Portal(pair_entity=portal_a),
-        }
-    )
-    agent: PMap[EntityID, Agent] = pmap({agent_id: Agent()})
-    collidable: PMap[EntityID, Collidable] = pmap({agent_id: Collidable()})
-    empty_pmap: PMap = pmap()
+    prev_agent_pos: Tuple[int, int] = (1, 2)  # Simulate moving onto portal A
+
+    position = {
+        agent_id: Position(*pos_a),
+        portal_a: Position(*pos_a),
+        portal_b: Position(*pos_b),
+        portal_c: Position(*pos_c),
+    }
+    prev_position = {
+        agent_id: Position(*prev_agent_pos),
+        portal_a: Position(*pos_a),
+        portal_b: Position(*pos_b),
+        portal_c: Position(*pos_c),
+    }
+    portal = {
+        portal_a: Portal(pair_entity=portal_b),
+        portal_b: Portal(pair_entity=portal_c),
+        portal_c: Portal(pair_entity=portal_a),
+    }
+    entity = {
+        agent_id: Entity(),
+        portal_a: Entity(),
+        portal_b: Entity(),
+        portal_c: Entity(),
+    }
+    collidable = {agent_id: Collidable()}
+    appearance = {
+        agent_id: Appearance(name=AppearanceName.HUMAN),
+        portal_a: Appearance(name=AppearanceName.PORTAL),
+        portal_b: Appearance(name=AppearanceName.PORTAL),
+        portal_c: Appearance(name=AppearanceName.PORTAL),
+    }
     state: State = State(
         width=10,
         height=10,
         move_fn=lambda s, eid, d: [],
-        position=position,
-        agent=agent,
-        enemy=empty_pmap,
-        box=empty_pmap,
-        pushable=empty_pmap,
-        wall=empty_pmap,
-        door=empty_pmap,
-        locked=empty_pmap,
-        portal=portal,
-        exit=empty_pmap,
-        key=empty_pmap,
-        collectible=empty_pmap,
-        rewardable=empty_pmap,
-        cost=empty_pmap,
-        item=empty_pmap,
-        required=empty_pmap,
-        inventory=empty_pmap,
-        health=empty_pmap,
-        powerup=empty_pmap,
-        powerup_status=empty_pmap,
-        floor=empty_pmap,
-        blocking=empty_pmap,
-        dead=empty_pmap,
-        moving=empty_pmap,
-        hazard=empty_pmap,
-        collidable=collidable,
-        damage=empty_pmap,
-        lethal_damage=empty_pmap,
+        entity=pmap(entity),
+        position=pmap(position),
+        prev_position=pmap(prev_position),
+        agent=pmap({agent_id: Agent()}),
+        pushable=pmap(),
+        locked=pmap(),
+        portal=pmap(portal),
+        exit=pmap(),
+        key=pmap(),
+        collectible=pmap(),
+        rewardable=pmap(),
+        cost=pmap(),
+        required=pmap(),
+        inventory=pmap(),
+        health=pmap(),
+        appearance=pmap(appearance),
+        blocking=pmap(),
+        dead=pmap(),
+        moving=pmap(),
+        collidable=pmap(collidable),
+        damage=pmap(),
+        lethal_damage=pmap(),
+        immunity=pmap(),
+        speed=pmap(),
+        phasing=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
         turn=0,
         score=0,
         win=False,

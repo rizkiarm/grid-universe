@@ -1,7 +1,6 @@
 from dataclasses import replace
 from typing import Dict, List, Tuple, Optional
 from pyrsistent import pmap, pset
-
 from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.components import (
@@ -13,6 +12,7 @@ from grid_universe.components import (
     Position,
     Dead,
 )
+from grid_universe.entity import Entity
 from grid_universe.actions import WaitAction
 from grid_universe.step import step
 
@@ -34,30 +34,32 @@ def make_agent_tile_state(
     collectible_map: Dict[EntityID, Collectible] = {}
     inventory: Dict[EntityID, Inventory] = {agent_id: Inventory(pset())}
 
+    entity: Dict[EntityID, Entity] = {}
+    entity[agent_id] = Entity()
     if rewardable:
         for rid, reward in rewardable.items():
             pos[rid] = Position(*agent_pos)
-            reward_map[rid] = Rewardable(reward=reward)
+            reward_map[rid] = Rewardable(amount=reward)
+            entity[rid] = Entity()
     if cost:
         for cid, cvalue in cost.items():
             pos[cid] = Position(*agent_pos)
             cost_map[cid] = Cost(amount=cvalue)
+            entity[cid] = Entity()
     if collectible_ids:
         for cid in collectible_ids:
             pos[cid] = Position(*agent_pos)
             collectible_map[cid] = Collectible()
+            entity[cid] = Entity()
 
     state: State = State(
         width=3,
         height=1,
         move_fn=lambda s, eid, d: [],
+        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
-        enemy=pmap(),
-        box=pmap(),
         pushable=pmap(),
-        wall=pmap(),
-        door=pmap(),
         locked=pmap(),
         portal=pmap(),
         exit=pmap(),
@@ -65,20 +67,23 @@ def make_agent_tile_state(
         collectible=pmap(collectible_map),
         rewardable=pmap(reward_map),
         cost=pmap(cost_map),
-        item=pmap(),
         required=pmap(),
         inventory=pmap(inventory),
         health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
+        appearance=pmap(),
         blocking=pmap(),
         dead=pmap({agent_id: Dead()}) if agent_dead else pmap(),
         moving=pmap(),
-        hazard=pmap(),
         collidable=pmap(),
         damage=pmap(),
         lethal_damage=pmap(),
+        immunity=pmap(),
+        phasing=pmap(),
+        speed=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,
@@ -170,20 +175,22 @@ def test_cost_with_some_collectible() -> None:
 def test_rewardable_at_another_position() -> None:
     # Rewardable at (1,0), agent at (0,0)
     state, agent_id = make_agent_tile_state(agent_pos=(0, 0))
-    rewardable_id = 99
-    reward_map = state.rewardable.set(rewardable_id, Rewardable(reward=11))
+    rewardable_id: EntityID = 99
+    reward_map = state.rewardable.set(rewardable_id, Rewardable(amount=11))
     pos_map = state.position.set(rewardable_id, Position(1, 0))
-    state = replace(state, rewardable=reward_map, position=pos_map)
+    entity_map = state.entity.set(rewardable_id, Entity())
+    state = replace(state, rewardable=reward_map, position=pos_map, entity=entity_map)
     assert agent_step_and_score(state, agent_id) == 0
 
 
 def test_cost_at_another_position() -> None:
     # Cost at (1,0), agent at (0,0)
     state, agent_id = make_agent_tile_state(agent_pos=(0, 0))
-    cost_id = 77
+    cost_id: EntityID = 77
     cost_map = state.cost.set(cost_id, Cost(amount=6))
     pos_map = state.position.set(cost_id, Position(1, 0))
-    state = replace(state, cost=cost_map, position=pos_map)
+    entity_map = state.entity.set(cost_id, Entity())
+    state = replace(state, cost=cost_map, position=pos_map, entity=entity_map)
     assert agent_step_and_score(state, agent_id) == 0
 
 
@@ -199,7 +206,7 @@ def test_agent_missing_from_state() -> None:
     state, agent_id = make_agent_tile_state(
         agent_pos=(0, 0), rewardable={2: 5}, cost={3: 2}
     )
-    state = replace(state, agent=pmap())
+    state = replace(state, agent=state.agent.remove(agent_id))
     assert agent_step_and_score(state, agent_id) == 0
 
 
@@ -214,29 +221,32 @@ def test_agent_missing_position() -> None:
 
 def test_multiple_agents_separate_scores() -> None:
     # Each agent only gets score for their tile
-    agent1_id = 1
-    agent2_id = 2
-    pos = {
+    agent1_id: EntityID = 1
+    agent2_id: EntityID = 2
+    pos: Dict[EntityID, Position] = {
         agent1_id: Position(0, 0),
         agent2_id: Position(1, 0),
         3: Position(0, 0),  # rewardable for agent1
         4: Position(1, 0),  # cost for agent2
     }
-    agent_map = {agent1_id: Agent(), agent2_id: Agent()}
-    rewardable = {3: Rewardable(reward=12)}
+    agent_map: Dict[EntityID, Agent] = {agent1_id: Agent(), agent2_id: Agent()}
+    rewardable = {3: Rewardable(amount=12)}
     cost = {4: Cost(amount=7)}
     inventory = {agent1_id: Inventory(pset()), agent2_id: Inventory(pset())}
-    state = State(
+    entity: Dict[EntityID, Entity] = {
+        agent1_id: Entity(),
+        agent2_id: Entity(),
+        3: Entity(),
+        4: Entity(),
+    }
+    state: State = State(
         width=2,
         height=1,
         move_fn=lambda s, eid, d: [],
+        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
-        enemy=pmap(),
-        box=pmap(),
         pushable=pmap(),
-        wall=pmap(),
-        door=pmap(),
         locked=pmap(),
         portal=pmap(),
         exit=pmap(),
@@ -244,20 +254,23 @@ def test_multiple_agents_separate_scores() -> None:
         collectible=pmap(),
         rewardable=pmap(rewardable),
         cost=pmap(cost),
-        item=pmap(),
         required=pmap(),
         inventory=pmap(inventory),
         health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
+        appearance=pmap(),
         blocking=pmap(),
         dead=pmap(),
         moving=pmap(),
-        hazard=pmap(),
         collidable=pmap(),
         damage=pmap(),
         lethal_damage=pmap(),
+        immunity=pmap(),
+        phasing=pmap(),
+        speed=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,

@@ -1,60 +1,64 @@
-from .objects import Agent
-from .objects import Enemy
-from .objects import Box
-from .objects import Key
-from .objects import Door
-from .objects import Portal
-from .objects import Inventory
-from .objects import Hazard, HazardType
-from .objects import Wall
-from .objects import Floor
-from .objects import Exit
-from .objects import Item
-from .properties import Position
-from .properties import Collectible
-from .properties import Locked
-from .properties import Moving
+# Effects
+from .effects import Effect
+from .effects import Immunity
+from .effects import Phasing
+from .effects import TimeLimit
+from .effects import UsageLimit
+from .effects import Speed
+
+# Properties
+from .properties import Agent
+from .properties import Appearance, AppearanceName
 from .properties import Blocking
-from .properties import Dead
-from .properties import Rewardable
-from .properties import Cost
-from .properties import Pushable
-from .properties import Health
-from .properties import Required
+from .properties import Collectible
 from .properties import Collidable
+from .properties import Cost
 from .properties import Damage
+from .properties import Dead
+from .properties import Exit
+from .properties import Health
+from .properties import Inventory
+from .properties import Key
 from .properties import LethalDamage
-from .effects import PowerUp, PowerUpType, PowerUpLimit
+from .properties import Locked
+from .properties import Moving, MovingAxis
+from .properties import Portal
+from .properties import Position
+from .properties import Pushable
+from .properties import Required
+from .properties import Rewardable
+from .properties import Status
 
 __all__ = [
-    "Position",
+    # Effects
+    "Effect",
+    "Immunity",
+    "Phasing",
+    "Speed",
+    "TimeLimit",
+    "UsageLimit",
+    # Properties
     "Agent",
-    "Enemy",
-    "Box",
-    "Collectible",
-    "Portal",
-    "Key",
-    "Door",
-    "Locked",
-    "Inventory",
-    "Moving",
-    "PowerUp",
-    "PowerUpType",
-    "PowerUpLimit",
-    "Hazard",
-    "HazardType",
-    "Wall",
-    "Floor",
+    "Appearance",
+    "AppearanceName",
     "Blocking",
-    "Dead",
-    "Rewardable",
+    "Collectible",
+    "Collidable",
     "Cost",
-    "Pushable",
+    "Damage",
+    "Dead",
     "Exit",
     "Health",
-    "Item",
-    "Required",
-    "Collidable",
-    "Damage",
+    "Inventory",
+    "Key",
     "LethalDamage",
+    "Locked",
+    "Moving",
+    "MovingAxis",
+    "Portal",
+    "Position",
+    "Pushable",
+    "Required",
+    "Rewardable",
+    "Status",
 ]

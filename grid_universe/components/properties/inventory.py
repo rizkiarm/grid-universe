@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from pyrsistent import PSet
+from grid_universe.types import EntityID
 
 
 @dataclass(frozen=True)
 class Inventory:
-    item_ids: PSet[int]  # Immutable set of item entity IDs (keys, etc.)
+    item_ids: PSet[EntityID]

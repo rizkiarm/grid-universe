@@ -8,31 +8,30 @@ from grid_universe.components import (
     Inventory,
     Key,
     Collectible,
-    Item,
-    Door,
     Locked,
     Blocking,
     Collidable,
     Exit,
-    Box,
     Pushable,
-    Wall,
     Cost,
     Damage,
     Dead,
-    Enemy,
-    Floor,
-    Hazard,
     Health,
     LethalDamage,
     Moving,
     Portal,
-    PowerUp,
-    PowerUpType,
     Required,
     Rewardable,
+    Appearance,
+    AppearanceName,
+    Immunity,
+    Phasing,
+    Speed,
+    TimeLimit,
+    UsageLimit,
+    Status,
 )
-from grid_universe.entity import new_entity_id
+from grid_universe.entity import new_entity_id, Entity
 from grid_universe.types import EntityID, MoveFn
 from grid_universe.moves import default_move_fn
 
@@ -50,11 +49,11 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
     inventory: Dict[EntityID, Inventory] = {}
     key: Dict[EntityID, Key] = {}
     collectible: Dict[EntityID, Collectible] = {}
-    item: Dict[EntityID, Item] = {}
-    door: Dict[EntityID, Door] = {}
     locked: Dict[EntityID, Locked] = {}
     blocking: Dict[EntityID, Blocking] = {}
     collidable: Dict[EntityID, Collidable] = {}
+    appearance: Dict[EntityID, Appearance] = {}
+    entity: Dict[EntityID, Entity] = {}
 
     agent_id = new_entity_id()
     key_id = new_entity_id()
@@ -71,24 +70,25 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
     inventory[agent_id] = Inventory(pset())
     key[key_id] = Key(key_id="red")
     collectible[key_id] = Collectible()
-    item[key_id] = Item()
-    door[door_id] = Door()
     locked[door_id] = Locked(key_id="red")
     blocking[door_id] = Blocking()
     collidable[agent_id] = Collidable()
     collidable[door_id] = Collidable()
+    appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
+    appearance[key_id] = Appearance(name=AppearanceName.KEY)
+    appearance[door_id] = Appearance(name=AppearanceName.DOOR)
+    entity[agent_id] = Entity()
+    entity[key_id] = Entity()
+    entity[door_id] = Entity()
 
     state = State(
         width=3,
         height=3,
         move_fn=default_move_fn,
+        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
-        enemy=pmap(),
-        box=pmap(),
         pushable=pmap(),
-        wall=pmap(),
-        door=pmap(door),
         locked=pmap(locked),
         portal=pmap(),
         exit=pmap(),
@@ -96,20 +96,23 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
         collectible=pmap(collectible),
         rewardable=pmap(),
         cost=pmap(),
-        item=pmap(item),
         required=pmap(),
         inventory=pmap(inventory),
         health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
+        appearance=pmap(appearance),
         blocking=pmap(blocking),
         dead=pmap(),
         moving=pmap(),
-        hazard=pmap(),
         collidable=pmap(collidable),
         damage=pmap(),
         lethal_damage=pmap(),
+        immunity=pmap(),
+        phasing=pmap(),
+        speed=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,
@@ -121,10 +124,17 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
 
 def make_exit_entity(
     position: Tuple[int, int],
-) -> Tuple[EntityID, Dict[EntityID, Exit], Dict[EntityID, Position]]:
+) -> Tuple[
+    EntityID, Dict[EntityID, Exit], Dict[EntityID, Position], Dict[EntityID, Entity]
+]:
     """Utility to add a single Exit entity at a given position."""
     exit_id = new_entity_id()
-    return exit_id, {exit_id: Exit()}, {exit_id: Position(*position)}
+    return (
+        exit_id,
+        {exit_id: Exit()},
+        {exit_id: Position(*position)},
+        {exit_id: Entity()},
+    )
 
 
 def make_agent_box_wall_state(
@@ -141,25 +151,29 @@ def make_agent_box_wall_state(
     pos: Dict[EntityID, Position] = {}
     agent: Dict[EntityID, Agent] = {}
     inventory: Dict[EntityID, Inventory] = {}
-    box: Dict[EntityID, Box] = {}
     pushable: Dict[EntityID, Pushable] = {}
-    wall: Dict[EntityID, Wall] = {}
+    blocking: Dict[EntityID, Blocking] = {}
     collidable: Dict[EntityID, Collidable] = {}
+    appearance: Dict[EntityID, Appearance] = {}
+    entity: Dict[EntityID, Entity] = {}
 
     agent_id = new_entity_id()
     pos[agent_id] = Position(*agent_pos)
     agent[agent_id] = Agent()
     inventory[agent_id] = Inventory(pset())
     collidable[agent_id] = Collidable()
+    appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
+    entity[agent_id] = Entity()
 
     box_ids: List[EntityID] = []
     if box_positions:
         for bpos in box_positions:
             bid = new_entity_id()
             pos[bid] = Position(*bpos)
-            box[bid] = Box()
             pushable[bid] = Pushable()
             collidable[bid] = Collidable()
+            appearance[bid] = Appearance(name=AppearanceName.BOX)
+            entity[bid] = Entity()
             box_ids.append(bid)
 
     wall_ids: List[EntityID] = []
@@ -167,21 +181,20 @@ def make_agent_box_wall_state(
         for wpos in wall_positions:
             wid = new_entity_id()
             pos[wid] = Position(*wpos)
-            wall[wid] = Wall()
+            blocking[wid] = Blocking()
             collidable[wid] = Collidable()
+            appearance[wid] = Appearance(name=AppearanceName.WALL)
+            entity[wid] = Entity()
             wall_ids.append(wid)
 
     state = State(
         width=width,
         height=height,
         move_fn=default_move_fn,
+        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
-        enemy=pmap(),
-        box=pmap(box),
         pushable=pmap(pushable),
-        wall=pmap(wall),
-        door=pmap(),
         locked=pmap(),
         portal=pmap(),
         exit=pmap(),
@@ -189,20 +202,23 @@ def make_agent_box_wall_state(
         collectible=pmap(),
         rewardable=pmap(),
         cost=pmap(),
-        item=pmap(),
         required=pmap(),
         inventory=pmap(inventory),
         health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
-        blocking=pmap(),
+        appearance=pmap(appearance),
+        blocking=pmap(blocking),
         dead=pmap(),
         moving=pmap(),
-        hazard=pmap(),
         collidable=pmap(collidable),
         damage=pmap(),
         lethal_damage=pmap(),
+        immunity=pmap(),
+        phasing=pmap(),
+        speed=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,
@@ -210,63 +226,6 @@ def make_agent_box_wall_state(
         message=None,
     )
     return state, agent_id, box_ids, wall_ids
-
-
-def make_agent_with_powerup_collectible(
-    agent_pos: Tuple[int, int], collectible_pos: Tuple[int, int], powerup: PowerUp
-) -> Tuple[State, EntityID, EntityID]:
-    agent_id: EntityID = 1
-    collectible_id: EntityID = 2
-
-    pos: Dict[EntityID, Position] = {
-        agent_id: Position(*agent_pos),
-        collectible_id: Position(*collectible_pos),
-    }
-    agent: PMap[EntityID, Agent] = pmap({agent_id: Agent()})
-    inventory: PMap[EntityID, Inventory] = pmap({agent_id: Inventory(pset())})
-    collectible: PMap[EntityID, Collectible] = pmap({collectible_id: Collectible()})
-    item: PMap[EntityID, Item] = pmap({collectible_id: Item()})
-    powerup_map: PMap[EntityID, PowerUp] = pmap({collectible_id: powerup})
-
-    state: State = State(
-        width=3,
-        height=1,
-        move_fn=lambda s, eid, dir: [Position(pos[eid].x + 1, 0)],
-        position=pmap(pos),
-        agent=agent,
-        enemy=pmap(),
-        box=pmap(),
-        pushable=pmap(),
-        wall=pmap(),
-        door=pmap(),
-        locked=pmap(),
-        portal=pmap(),
-        exit=pmap(),
-        key=pmap(),
-        collectible=collectible,
-        rewardable=pmap(),
-        cost=pmap(),
-        item=item,
-        required=pmap(),
-        inventory=inventory,
-        health=pmap({agent_id: Health(health=10, max_health=10)}),
-        powerup=powerup_map,
-        powerup_status=pmap(),
-        floor=pmap(),
-        blocking=pmap(),
-        dead=pmap(),
-        moving=pmap(),
-        hazard=pmap(),
-        collidable=pmap(),
-        damage=pmap(),
-        lethal_damage=pmap(),
-        turn=0,
-        score=0,
-        win=False,
-        lose=False,
-        message=None,
-    )
-    return state, agent_id, collectible_id
 
 
 def assert_entity_positions(
@@ -304,31 +263,27 @@ def make_agent_state(
     width: int = 5,
     height: int = 5,
     agent_dead: bool = False,
-    powerup_status: Optional[PMap[EntityID, PMap[PowerUpType, PowerUp]]] = None,
+    agent_id: EntityID = 1,
 ) -> Tuple[State, EntityID]:
-    agent_id: EntityID = 1
-
     positions: Dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
     positions.update(filter_component_map(extra_components, "position", Position))
 
     agent_map: Dict[EntityID, Agent] = {agent_id: Agent()}
     inventory: Dict[EntityID, Inventory] = {agent_id: Inventory(pset())}
     dead_map: PMap[EntityID, Dead] = pmap({agent_id: Dead()}) if agent_dead else pmap()
-    powerup_status_map: PMap[EntityID, PMap[PowerUpType, PowerUp]] = (
-        powerup_status if powerup_status else pmap()
-    )
+    entity: Dict[EntityID, Entity] = {agent_id: Entity()}
+    for eid in positions:
+        if eid not in entity:
+            entity[eid] = Entity()
 
     state: State = State(
         width=width,
         height=height,
         move_fn=move_fn if move_fn is not None else default_move_fn,
+        entity=pmap(entity),
         position=pmap(positions),
         agent=pmap(agent_map),
-        enemy=pmap(filter_component_map(extra_components, "enemy", Enemy)),
-        box=pmap(filter_component_map(extra_components, "box", Box)),
         pushable=pmap(filter_component_map(extra_components, "pushable", Pushable)),
-        wall=pmap(filter_component_map(extra_components, "wall", Wall)),
-        door=pmap(filter_component_map(extra_components, "door", Door)),
         locked=pmap(filter_component_map(extra_components, "locked", Locked)),
         portal=pmap(filter_component_map(extra_components, "portal", Portal)),
         exit=pmap(filter_component_map(extra_components, "exit", Exit)),
@@ -340,17 +295,15 @@ def make_agent_state(
             filter_component_map(extra_components, "rewardable", Rewardable)
         ),
         cost=pmap(filter_component_map(extra_components, "cost", Cost)),
-        item=pmap(filter_component_map(extra_components, "item", Item)),
         required=pmap(filter_component_map(extra_components, "required", Required)),
         inventory=pmap(inventory),
         health=pmap(filter_component_map(extra_components, "health", Health)),
-        powerup=pmap(filter_component_map(extra_components, "powerup", PowerUp)),
-        powerup_status=powerup_status_map,
-        floor=pmap(filter_component_map(extra_components, "floor", Floor)),
+        appearance=pmap(
+            filter_component_map(extra_components, "appearance", Appearance)
+        ),
         blocking=pmap(filter_component_map(extra_components, "blocking", Blocking)),
         dead=dead_map,
         moving=pmap(filter_component_map(extra_components, "moving", Moving)),
-        hazard=pmap(filter_component_map(extra_components, "hazard", Hazard)),
         collidable=pmap(
             filter_component_map(extra_components, "collidable", Collidable)
         ),
@@ -358,6 +311,17 @@ def make_agent_state(
         lethal_damage=pmap(
             filter_component_map(extra_components, "lethal_damage", LethalDamage)
         ),
+        immunity=pmap(filter_component_map(extra_components, "immunity", Immunity)),
+        phasing=pmap(filter_component_map(extra_components, "phasing", Phasing)),
+        speed=pmap(filter_component_map(extra_components, "speed", Speed)),
+        time_limit=pmap(
+            filter_component_map(extra_components, "time_limit", TimeLimit)
+        ),
+        usage_limit=pmap(
+            filter_component_map(extra_components, "usage_limit", UsageLimit)
+        ),
+        status=pmap(filter_component_map(extra_components, "status", Status)),
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,

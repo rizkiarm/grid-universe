@@ -1,39 +1,41 @@
 from dataclasses import dataclass, replace
 import dataclasses
-from pyrsistent.typing import PMap
 import streamlit as st
 import numpy as np
 from typing import List, Tuple, Dict, Optional
 from st_keyup import st_keyup  # type: ignore
-from grid_universe.components import (
-    Inventory,
-    PowerUp,
-    PowerUpType,
-    PowerUpLimit,
-)
-from grid_universe.gym_env import ECSMazeEnv, MazeEnvAction, ObsType
-from grid_universe.levels.generator import (
+from grid_universe.components import Inventory
+from grid_universe.components.properties.appearance import AppearanceName
+from grid_universe.components.properties.status import Status
+from grid_universe.gym_env import GridUniverseEnv, MazeEnvAction, ObsType
+from grid_universe.levels.maze import (
     DEFAULT_HAZARDS,
     DEFAULT_POWERUPS,
     DEFAULT_ENEMIES,
+    EnemySpec,
+    HazardSpec,
+    PowerupSpec,
 )
 from grid_universe.moves import MOVE_FN_REGISTRY, default_move_fn
 from grid_universe.state import State
-from grid_universe.types import EnemySpec, HazardSpec, MoveFn, PowerupSpec, RenderType
-from grid_universe.utils.render import eid_to_render_type
+from grid_universe.types import (
+    EffectType,
+    EffectLimit,
+    EffectLimitAmount,
+    EntityID,
+    MoveFn,
+)
 
-ITEM_ICONS: Dict[RenderType, str] = {
-    RenderType.KEY: "🔑",
-    RenderType.REWARDABLE_ITEM: "🪙",
-    RenderType.REQUIRED_ITEM: "🌟",
-    RenderType.ITEM: "🎁",
+ITEM_ICONS: Dict[AppearanceName, str] = {
+    AppearanceName.KEY: "🔑",
+    AppearanceName.COIN: "🪙",
+    AppearanceName.CORE: "🌟",
 }
 
-POWERUP_ICONS: Dict[PowerUpType, str] = {
-    PowerUpType.GHOST: "👻",
-    PowerUpType.SHIELD: "🛡️",
-    PowerUpType.HAZARD_IMMUNITY: "🧪",
-    PowerUpType.DOUBLE_SPEED: "⚡",
+POWERUP_ICONS: Dict[AppearanceName, str] = {
+    AppearanceName.GHOST: "👻",
+    AppearanceName.SHIELD: "🛡️",
+    AppearanceName.BOOTS: "⚡",
 }
 
 st.set_page_config(layout="wide", page_title="Grid Universe")
@@ -61,8 +63,8 @@ class MazeConfig:
     num_moving_boxes: int
     num_portals: int
     num_doors: int
-    agent_health: int
-    floor_cost: int
+    health: int
+    movement_cost: int
     required_item_reward: int
     rewardable_item_reward: int
     powerups: List[PowerupSpec]
@@ -84,8 +86,8 @@ def set_default_config() -> None:
             num_moving_boxes=1,
             num_portals=1,
             num_doors=1,
-            agent_health=5,
-            floor_cost=1,
+            health=5,
+            movement_cost=1,
             required_item_reward=10,
             rewardable_item_reward=10,
             powerups=list(DEFAULT_POWERUPS),
@@ -112,8 +114,8 @@ def get_config_from_widgets() -> MazeConfig:
         step=0.01,
         key="wall_percentage",
     )
-    floor_cost: int = st.slider(
-        "Floor cost", 1, 10, maze_config.floor_cost, key="floor_cost"
+    movement_cost: int = st.slider(
+        "Floor cost", 1, 10, maze_config.movement_cost, key="movement_cost"
     )
 
     st.subheader("Items & Rewards")
@@ -145,9 +147,7 @@ def get_config_from_widgets() -> MazeConfig:
     )
 
     st.subheader("Agent")
-    agent_health: int = st.slider(
-        "Agent Health", 1, 30, maze_config.agent_health, key="agent_health"
-    )
+    health: int = st.slider("Agent Health", 1, 30, maze_config.health, key="health")
 
     st.subheader("Boxes, Doors, Portals")
     num_boxes: int = st.slider("Boxes", 0, 8, maze_config.num_boxes, key="num_boxes")
@@ -189,44 +189,59 @@ def get_config_from_widgets() -> MazeConfig:
 
     st.subheader("Powerups")
     powerups: List[PowerupSpec] = []
-    for powerup_type, powerup_ltype, powerup_remaining in DEFAULT_POWERUPS:
+    for (
+        pu_appearance,
+        pu_effects,
+        pu_limit_type,
+        pu_limit_amount,
+        pu_option,
+    ) in DEFAULT_POWERUPS:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             count: int = st.number_input(
-                f"{powerup_type.value.replace('_', ' ').capitalize()} count",
+                f"{pu_appearance.value.replace('_', ' ').capitalize()} count",
                 min_value=0,
                 value=1,
-                key=f"powerup_count_{powerup_type.value}",
+                key=f"powerup_count_{pu_appearance.value}",
             )
         with col2:
             limit_option: str = st.selectbox(
-                "Limit",
-                ["duration", "usage", "unlimited"],
-                index=[PowerUpLimit.DURATION, PowerUpLimit.USAGE, None].index(
-                    powerup_ltype
-                ),
-                key=f"powerup_limit_{powerup_type.value}",
+                "Limit Type",
+                ["time", "usage", "unlimited"],
+                index=[EffectLimit.TIME, EffectLimit.USAGE, None].index(pu_limit_type),
+                key=f"powerup_limit_type_{pu_appearance.value}",
             )
-            limit_type: Optional[PowerUpLimit] = None
-            if limit_option == "duration":
-                limit_type = PowerUpLimit.DURATION
+            updated_limit_type: Optional[EffectLimit] = None
+            if limit_option == "time":
+                updated_limit_type = EffectLimit.TIME
             elif limit_option == "usage":
-                limit_type = PowerUpLimit.USAGE
+                updated_limit_type = EffectLimit.USAGE
             else:
-                limit_type = None  # Irrelevant for unlimited
+                updated_limit_type = None  # Irrelevant for unlimited
         with col3:
             if limit_option != "unlimited":
-                remaining: Optional[int] = st.number_input(
-                    "Remaining",
+                updated_limit_amount: Optional[int] = st.number_input(
+                    "Limit Amount",
                     min_value=1,
-                    value=powerup_remaining,
-                    key=f"powerup_remaining_{powerup_type.value}",
+                    value=pu_limit_amount,
+                    key=f"powerup_limit_amount_{pu_appearance.value}",
                 )
             else:
                 st.markdown("Unlimited")
-                remaining = None
+                updated_limit_amount = None
         if count > 0:
-            powerups.extend([(powerup_type, limit_type, remaining)] * count)
+            powerups.extend(
+                [
+                    (
+                        pu_appearance,
+                        pu_effects,
+                        updated_limit_type,
+                        updated_limit_amount,
+                        pu_option,
+                    )
+                ]
+                * count
+            )
 
     st.subheader("Enemies")
     enemy_count: int = st.number_input(
@@ -249,7 +264,7 @@ def get_config_from_widgets() -> MazeConfig:
                     damage = 0
             with cols[2]:
                 moving = st.checkbox("Moving?", value=False, key=f"enemy_moving_{idx}")
-            enemies.append((damage, lethal, moving))
+            enemies.append((AppearanceName.MONSTER, damage, lethal, moving))
 
     st.subheader("Gameplay Movement")
     move_fn_names: List[str] = list(MOVE_FN_REGISTRY.keys())
@@ -275,8 +290,8 @@ def get_config_from_widgets() -> MazeConfig:
         num_moving_boxes=num_moving_boxes,
         num_portals=num_portals,
         num_doors=num_doors,
-        agent_health=agent_health,
-        floor_cost=floor_cost,
+        health=health,
+        movement_cost=movement_cost,
         required_item_reward=required_item_reward,
         rewardable_item_reward=rewardable_item_reward,
         powerups=powerups,
@@ -290,9 +305,9 @@ def get_config_from_widgets() -> MazeConfig:
 
 def make_env_and_reset(
     config: MazeConfig,
-) -> Tuple[ECSMazeEnv, ObsType, Dict[str, object]]:
+) -> Tuple[GridUniverseEnv, ObsType, Dict[str, object]]:
     config_dict = dataclasses.asdict(config)
-    env = ECSMazeEnv(render_mode="texture", **config_dict)
+    env = GridUniverseEnv(render_mode="texture", **config_dict)
     obs, info = env.reset(seed=config.seed)
     st.session_state["env"] = env
     st.session_state["obs"] = obs
@@ -333,7 +348,7 @@ def get_keyboard_action() -> Optional[MazeEnvAction]:
     return None
 
 
-def do_action(env: ECSMazeEnv, action_idx: MazeEnvAction) -> None:
+def do_action(env: GridUniverseEnv, action_idx: MazeEnvAction) -> None:
     obs, reward, terminated, truncated, info = env.step(np.uint(action_idx))
     st.session_state["obs"] = obs
     st.session_state["info"] = info
@@ -341,30 +356,58 @@ def do_action(env: ECSMazeEnv, action_idx: MazeEnvAction) -> None:
     st.session_state["game_over"] = terminated or truncated
 
 
-def display_powerup_status(powerup_status: PMap[PowerUpType, PowerUp]) -> None:
+def get_effect_types(state: State, effect_id: EntityID) -> List[EffectType]:
+    effect_types: List[EffectType] = []
+    for effect_type, effect_ids in [
+        (EffectType.IMMUNITY, state.immunity),
+        (EffectType.PHASING, state.phasing),
+        (EffectType.SPEED, state.speed),
+    ]:
+        if effect_id in effect_ids:
+            effect_types.append(effect_type)
+    return effect_types
+
+
+def get_effect_limits(
+    state: State, effect_id: EntityID
+) -> List[Tuple[EffectLimit, EffectLimitAmount]]:
+    effect_limits: List[Tuple[EffectLimit, EffectLimitAmount]] = []
+    for limit_type, limit_map in [
+        (EffectLimit.TIME, state.time_limit),
+        (EffectLimit.USAGE, state.usage_limit),
+    ]:
+        if effect_id in limit_map:
+            effect_limits.append((limit_type, limit_map[effect_id].amount))
+    return effect_limits
+
+
+def display_powerup_status(state: State, status: Status) -> None:
     st.text("PowerUp")
     with st.container(height=200):
-        if len(powerup_status) == 0:
+        if len(status.effect_ids) == 0:
             st.error("No active powerups")
-        for ptype, powerup in powerup_status.items():
-            icon = POWERUP_ICONS.get(ptype, "✨")
+        for effect_id in status.effect_ids:
+            effect_name = state.appearance[effect_id].name
+            effect_types = get_effect_types(state, effect_id)
+            effect_limits = get_effect_limits(state, effect_id)
+            icon = POWERUP_ICONS.get(state.appearance[effect_id].name, "✨")
             st.success(
-                f"{ptype.value.capitalize()}: "
-                f"{powerup.limit.name.lower() if powerup.limit is not None else 'No limit'} "
-                f"{powerup.remaining}",
+                f"{effect_name.capitalize()}"
+                f" [{', '.join(effect_types)}]"
+                f" {', '.join(['(' + ltype + ' ' + str(lamount) + ')' for ltype, lamount in effect_limits])}",
                 icon=icon,
             )
 
 
-def display_inventory(inventory: Inventory, state: State) -> None:
+def display_inventory(state: State, inventory: Inventory) -> None:
     st.text("Inventory")
     with st.container(height=200):
         if len(inventory.item_ids) == 0:
             st.error("No items")
         for item_id in inventory.item_ids:
-            render_type: RenderType = eid_to_render_type(state, item_id)
-            icon = ITEM_ICONS.get(render_type, "🎲")  # fallback icon
-            text = f"{render_type.name.replace('_', ' ').capitalize()} #{item_id}"
+            name = state.appearance[item_id].name
+            icon = ITEM_ICONS.get(name, "🎲")  # fallback icon
+            text = f"{name.replace('_', ' ').capitalize()} #{item_id}"
             if item_id in state.key:
                 text += f" ({state.key[item_id].key_id})"
             st.success(text, icon=icon)
@@ -405,7 +448,7 @@ with tab_game:
             make_env_and_reset(st.session_state["maze_config"])
 
         # Need to put after generate maze
-        env: ECSMazeEnv = st.session_state["env"]
+        env: GridUniverseEnv = st.session_state["env"]
         obs: ObsType = st.session_state["obs"]
         info: Dict[str, object] = st.session_state["info"]
 
@@ -461,8 +504,8 @@ with tab_game:
                     f"**Health Point:** {health.health} / {health.max_health}", icon="❤️"
                 )
 
-                display_powerup_status(state.powerup_status[agent_id])
-                display_inventory(state.inventory[agent_id], state)
+                display_powerup_status(state, state.status[agent_id])
+                display_inventory(state, state.inventory[agent_id])
 
     with middle_col:
         if env.state and env.state.win:

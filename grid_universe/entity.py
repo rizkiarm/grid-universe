@@ -1,13 +1,20 @@
+from dataclasses import dataclass
+from typing import Iterator, List
+
+from grid_universe.types import EntityID
+
+
+@dataclass(frozen=True)
+class Entity:
+    pass
+
+
 """
 Entity ID management for ECS.
 
 - Entities are always integer IDs.
 - This module provides a simple, globally unique entity ID generator and helper functions.
 """
-
-from typing import Iterator, List
-
-from grid_universe.types import EntityID
 
 
 # Simple auto-incrementing integer ID generator

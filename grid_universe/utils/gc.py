@@ -1,20 +1,14 @@
-from typing import Set
-
-from pyrsistent.typing import PMap
-from grid_universe.state import State
+from pyrsistent import pmap
 from grid_universe.types import EntityID
+from grid_universe.state import State
+from typing import Set, Any, Dict, cast
+from pyrsistent.typing import PMap
 
 
 def compute_alive_entities(state: State) -> Set[EntityID]:
-    alive: Set[EntityID] = set()
-    alive |= set(state.position.keys())
-    alive |= set(state.collectible.keys())
-    alive |= set(state.agent.keys())
-    alive |= set(state.enemy.keys())
-    alive |= set(state.box.keys())
-    alive |= set(state.key.keys())
-    alive |= set(state.portal.keys())
-    alive |= set(state.exit.keys())
+    alive: Set[EntityID] = set(state.entity.keys())
+    for stats in state.status.values():
+        alive |= set(stats.effect_ids)
     for inv in state.inventory.values():
         alive |= set(inv.item_ids)
     return alive
@@ -22,18 +16,13 @@ def compute_alive_entities(state: State) -> Set[EntityID]:
 
 def run_garbage_collector(state: State) -> State:
     alive = compute_alive_entities(state)
-    kwargs = {}
+    new_fields: Dict[str, Any] = {}
     for field in state.__dataclass_fields__:
         value = getattr(state, field)
-        # Only clean mappings keyed by int (EntityID), leave everything else untouched
-        if isinstance(value, PMap) and value:
-            key_sample = next(iter(value.keys()))
-            if isinstance(key_sample, EntityID):
-                # Keep only entries for alive entities
-                filtered = value.filter(lambda eid, _: eid in alive)
-                kwargs[field] = filtered
-            else:
-                kwargs[field] = value
-        else:
-            kwargs[field] = value
-    return State(**kwargs)
+        if isinstance(value, type(pmap())):
+            value_map = cast(PMap[EntityID, Any], value)
+            filtered = pmap({k: v for k, v in value_map.items() if k in alive})
+            new_fields[field] = filtered
+    from dataclasses import replace
+
+    return replace(state, **new_fields)

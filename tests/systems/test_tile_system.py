@@ -1,5 +1,7 @@
 from dataclasses import replace
-from grid_universe.systems.tile import tile_reward_system, tile_cost_system
+from typing import Dict, List, Optional, Tuple
+from pyrsistent import pmap, pset, PMap
+from grid_universe.state import State
 from grid_universe.components import (
     Agent,
     Rewardable,
@@ -8,70 +10,91 @@ from grid_universe.components import (
     Inventory,
     Dead,
     Position,
+    Appearance,
+    AppearanceName,
 )
-from grid_universe.state import State
+from grid_universe.systems.tile import tile_reward_system, tile_cost_system
 from grid_universe.types import EntityID
-from pyrsistent import pmap, pset
+from grid_universe.entity import Entity
 
 
 def make_tile_state(
-    rewardable_ids: list[EntityID] = [],
-    cost_ids: list[EntityID] = [],
-    collectible_ids: list[EntityID] = [],
-    agent_pos: tuple[int, int] = (0, 0),
+    rewardable_ids: Optional[List[EntityID]] = None,
+    cost_ids: Optional[List[EntityID]] = None,
+    collectible_ids: Optional[List[EntityID]] = None,
+    agent_pos: Tuple[int, int] = (0, 0),
     reward_amount: int = 10,
     cost_amount: int = 2,
-) -> tuple[State, EntityID]:
-    agent_id = 1
-    pos = {agent_id: Position(*agent_pos)}
-    agent = pmap({agent_id: Agent()})
-    rewardable = {}
-    cost = {}
-    collectible = {}
-    inventory = pmap({agent_id: Inventory(pset())})
+    agent_dead: bool = False,
+    agent_in_state: bool = True,
+) -> Tuple[State, EntityID]:
+    entity: Dict[EntityID, Entity] = {}
+    agent_id: EntityID = 1
+    pos: Dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
+    agent_map: Dict[EntityID, Agent] = {agent_id: Agent()} if agent_in_state else {}
+    reward_map: Dict[EntityID, Rewardable] = {}
+    cost_map: Dict[EntityID, Cost] = {}
+    collectible_map: Dict[EntityID, Collectible] = {}
+    inventory: Dict[EntityID, Inventory] = {agent_id: Inventory(pset())}
+    appearance: Dict[EntityID, Appearance] = {
+        agent_id: Appearance(name=AppearanceName.HUMAN)
+    }
+    dead: PMap[EntityID, Dead] = pmap({agent_id: Dead()}) if agent_dead else pmap()
+
+    rewardable_ids = rewardable_ids or []
+    cost_ids = cost_ids or []
+    collectible_ids = collectible_ids or []
 
     for rid in rewardable_ids:
+        entity[rid] = Entity()
         pos[rid] = Position(*agent_pos)
-        rewardable[rid] = Rewardable(reward=reward_amount)
+        reward_map[rid] = Rewardable(amount=reward_amount)
+        appearance[rid] = Appearance(name=AppearanceName.COIN)
     for cid in cost_ids:
+        entity[cid] = Entity()
         pos[cid] = Position(*agent_pos)
-        cost[cid] = Cost(amount=cost_amount)
-    for cid in collectible_ids:
-        pos[cid] = Position(*agent_pos)
-        collectible[cid] = Collectible()
+        cost_map[cid] = Cost(amount=cost_amount)
+        appearance[cid] = Appearance(name=AppearanceName.COIN)
+    for colid in collectible_ids:
+        entity[colid] = Entity()
+        pos[colid] = Position(*agent_pos)
+        collectible_map[colid] = Collectible()
+        appearance[colid] = Appearance(name=AppearanceName.CORE)
 
-    state = State(
+    entity[agent_id] = Entity()
+
+    state: State = State(
         width=3,
         height=1,
-        move_fn=lambda s, eid, dir: [],
+        move_fn=lambda s, eid, d: [],
+        entity=pmap(entity),
         position=pmap(pos),
-        agent=agent,
-        enemy=pmap(),
-        box=pmap(),
+        agent=pmap(agent_map),
         pushable=pmap(),
-        wall=pmap(),
-        door=pmap(),
         locked=pmap(),
         portal=pmap(),
         exit=pmap(),
         key=pmap(),
-        collectible=pmap(collectible),
-        rewardable=pmap(rewardable),
-        cost=pmap(cost),
-        item=pmap(),
+        collectible=pmap(collectible_map),
+        rewardable=pmap(reward_map),
+        cost=pmap(cost_map),
         required=pmap(),
-        inventory=inventory,
+        inventory=pmap(inventory),
         health=pmap(),
-        powerup=pmap(),
-        powerup_status=pmap(),
-        floor=pmap(),
+        appearance=pmap(appearance),
         blocking=pmap(),
-        dead=pmap(),
+        dead=dead,
         moving=pmap(),
-        hazard=pmap(),
         collidable=pmap(),
         damage=pmap(),
         lethal_damage=pmap(),
+        immunity=pmap(),
+        speed=pmap(),
+        phasing=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
         turn=0,
         score=0,
         win=False,
@@ -81,196 +104,176 @@ def make_tile_state(
     return state, agent_id
 
 
-def test_tile_reward_system_grants_score() -> None:
+def agent_step_and_score(state: State, agent_id: EntityID) -> int:
+    next_state: State = tile_reward_system(state, agent_id)
+    next_state = tile_cost_system(next_state, agent_id)
+    return next_state.score
+
+
+def test_rewardable_tile_grants_score() -> None:
     state, agent_id = make_tile_state(rewardable_ids=[2])
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 10
+    assert agent_step_and_score(state, agent_id) == 10
 
 
-def test_tile_cost_system_removes_score() -> None:
+def test_cost_tile_removes_score() -> None:
     state, agent_id = make_tile_state(cost_ids=[3])
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == -2
+    assert agent_step_and_score(state, agent_id) == -2
 
 
-def test_tile_reward_system_ignores_collectible() -> None:
-    # If there's both a rewardable and a collectible at the same pos, must NOT grant reward
+def test_rewardable_ignored_if_collectible() -> None:
     state, agent_id = make_tile_state(rewardable_ids=[2], collectible_ids=[2])
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
+    assert agent_step_and_score(state, agent_id) == 0
 
 
-def test_tile_cost_system_ignores_collectible() -> None:
-    # If there's both a cost and a collectible at the same pos, must NOT apply cost
+def test_cost_ignored_if_collectible() -> None:
     state, agent_id = make_tile_state(cost_ids=[3], collectible_ids=[3])
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
+    assert agent_step_and_score(state, agent_id) == 0
 
 
-def test_tile_reward_system_multiple_rewards() -> None:
-    state, agent_id = make_tile_state(rewardable_ids=[2, 3])
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 20
+def test_multiple_rewardables_and_costs() -> None:
+    state, agent_id = make_tile_state(rewardable_ids=[2, 3], cost_ids=[4, 5])
+    assert agent_step_and_score(state, agent_id) == 10 + 10 - 2 - 2
 
 
-def test_tile_cost_system_multiple_costs() -> None:
-    state, agent_id = make_tile_state(cost_ids=[4, 5])
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == -4
+def test_reward_and_cost_both_collectible_ignored() -> None:
+    state, agent_id = make_tile_state(
+        rewardable_ids=[2], cost_ids=[3], collectible_ids=[2, 3]
+    )
+    assert agent_step_and_score(state, agent_id) == 0
 
 
-def test_tile_reward_system_agent_dead() -> None:
-    state, agent_id = make_tile_state(rewardable_ids=[2])
-    state = replace(state, dead=state.dead.set(agent_id, Dead()))
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
+def test_reward_cost_same_tile() -> None:
+    # Both rewardable and cost at same position, not collectible
+    state, agent_id = make_tile_state(rewardable_ids=[2], cost_ids=[2])
+    assert agent_step_and_score(state, agent_id) == 10 - 2
 
 
-def test_tile_cost_system_agent_dead() -> None:
-    state, agent_id = make_tile_state(cost_ids=[3])
-    state = replace(state, dead=state.dead.set(agent_id, Dead()))
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
+def test_zero_and_negative_rewards_costs() -> None:
+    state, agent_id = make_tile_state(
+        rewardable_ids=[2, 3], cost_ids=[4, 5], reward_amount=0, cost_amount=-6
+    )
+    assert agent_step_and_score(state, agent_id) == 0 + 0 - (-6) - (-6)
 
 
-def test_tile_reward_system_agent_position_missing() -> None:
-    state, agent_id = make_tile_state(rewardable_ids=[2])
-    state = replace(state, position=state.position.remove(agent_id))
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
+def test_rewardable_with_some_collectible() -> None:
+    state, agent_id = make_tile_state(rewardable_ids=[2, 3], collectible_ids=[3])
+    assert agent_step_and_score(state, agent_id) == 10
 
 
-def test_tile_cost_system_agent_position_missing() -> None:
-    state, agent_id = make_tile_state(cost_ids=[3])
-    state = replace(state, position=state.position.remove(agent_id))
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
+def test_cost_with_some_collectible() -> None:
+    state, agent_id = make_tile_state(cost_ids=[2, 3], collectible_ids=[2])
+    assert agent_step_and_score(state, agent_id) == -2
 
 
-def test_tile_reward_cost_same_tile() -> None:
-    # Agent on tile with rewardable 2 and cost 3
+def test_rewardable_at_another_position() -> None:
+    state, agent_id = make_tile_state()
+    rewardable_id = 99
+    reward_map = state.rewardable.set(rewardable_id, Rewardable(amount=11))
+    pos_map = state.position.set(rewardable_id, Position(1, 0))
+    state = replace(
+        state,
+        rewardable=reward_map,
+        position=pos_map,
+        entity=state.entity.set(rewardable_id, Entity()),
+    )
+    assert agent_step_and_score(state, agent_id) == 0
+
+
+def test_cost_at_another_position() -> None:
+    state, agent_id = make_tile_state()
+    cost_id = 77
+    cost_map = state.cost.set(cost_id, Cost(amount=6))
+    pos_map = state.position.set(cost_id, Position(1, 0))
+    state = replace(
+        state,
+        cost=cost_map,
+        position=pos_map,
+        entity=state.entity.set(cost_id, Entity()),
+    )
+    assert agent_step_and_score(state, agent_id) == 0
+
+
+def test_agent_dead_no_score_change() -> None:
+    state, agent_id = make_tile_state(rewardable_ids=[2], cost_ids=[3], agent_dead=True)
+    assert agent_step_and_score(state, agent_id) == 0
+
+
+def test_agent_missing_from_state() -> None:
     state, agent_id = make_tile_state(rewardable_ids=[2], cost_ids=[3])
-    new_state = tile_reward_system(state, agent_id)
-    new_state = tile_cost_system(new_state, agent_id)
-    assert new_state.score == 8  # +10, then -2
-
-
-def test_tile_reward_zero_negative() -> None:
-    state, agent_id = make_tile_state(rewardable_ids=[2], reward_amount=0)
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
-    state_neg, agent_id = make_tile_state(rewardable_ids=[2], reward_amount=-5)
-    new_state_neg = tile_reward_system(state_neg, agent_id)
-    assert new_state_neg.score == -5
-
-
-def test_tile_cost_zero_negative() -> None:
-    state, agent_id = make_tile_state(cost_ids=[3], cost_amount=0)
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
-    state_neg, agent_id = make_tile_state(cost_ids=[3], cost_amount=-6)
-    new_state_neg = tile_cost_system(state_neg, agent_id)
-    assert new_state_neg.score == 6
-
-
-def test_tile_reward_system_no_rewardable() -> None:
-    state, agent_id = make_tile_state()
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
-
-
-def test_tile_cost_system_no_cost() -> None:
-    state, agent_id = make_tile_state()
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
-
-
-def test_tile_reward_system_no_agent_in_state() -> None:
-    state, agent_id = make_tile_state(rewardable_ids=[2])
     state = replace(state, agent=state.agent.remove(agent_id))
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
+    assert agent_step_and_score(state, agent_id) == 0
 
 
-def test_tile_cost_system_no_agent_in_state() -> None:
-    state, agent_id = make_tile_state(cost_ids=[3])
-    state = replace(state, agent=state.agent.remove(agent_id))
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
+def test_agent_missing_position() -> None:
+    state, agent_id = make_tile_state(rewardable_ids=[2], cost_ids=[3])
+    state = replace(state, position=state.position.remove(agent_id))
+    assert agent_step_and_score(state, agent_id) == 0
 
 
-def test_tile_rewardable_at_other_pos() -> None:
-    state, agent_id = make_tile_state()
-    # Add rewardable at (2,0), agent at (0,0)
-    rewardable_id = 42
-    state = replace(
-        state,
-        rewardable=state.rewardable.set(rewardable_id, Rewardable(reward=15)),
-        position=state.position.set(rewardable_id, Position(2, 0)),
+def test_multiple_agents_separate_scores() -> None:
+    agent1_id = 1
+    agent2_id = 2
+    entity: Dict[EntityID, Entity] = {
+        agent1_id: Entity(),
+        agent2_id: Entity(),
+        3: Entity(),
+        4: Entity(),
+    }
+    pos = {
+        agent1_id: Position(0, 0),
+        agent2_id: Position(1, 0),
+        3: Position(0, 0),  # rewardable for agent1
+        4: Position(1, 0),  # cost for agent2
+    }
+    agent_map: Dict[EntityID, Agent] = {agent1_id: Agent(), agent2_id: Agent()}
+    rewardable = {3: Rewardable(amount=12)}
+    cost = {4: Cost(amount=7)}
+    inventory = {agent1_id: Inventory(pset()), agent2_id: Inventory(pset())}
+    appearance: Dict[EntityID, Appearance] = {
+        agent1_id: Appearance(name=AppearanceName.HUMAN),
+        agent2_id: Appearance(name=AppearanceName.HUMAN),
+        3: Appearance(name=AppearanceName.COIN),
+        4: Appearance(name=AppearanceName.COIN),
+    }
+    state = State(
+        width=2,
+        height=1,
+        move_fn=lambda s, eid, d: [],
+        entity=pmap(entity),
+        position=pmap(pos),
+        agent=pmap(agent_map),
+        pushable=pmap(),
+        locked=pmap(),
+        portal=pmap(),
+        exit=pmap(),
+        key=pmap(),
+        collectible=pmap(),
+        rewardable=pmap(rewardable),
+        cost=pmap(cost),
+        required=pmap(),
+        inventory=pmap(inventory),
+        health=pmap(),
+        appearance=pmap(appearance),
+        blocking=pmap(),
+        dead=pmap(),
+        moving=pmap(),
+        collidable=pmap(),
+        damage=pmap(),
+        lethal_damage=pmap(),
+        immunity=pmap(),
+        speed=pmap(),
+        phasing=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        status=pmap(),
+        prev_position=pmap(),
+        turn=0,
+        score=0,
+        win=False,
+        lose=False,
+        message=None,
     )
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
-
-
-def test_tile_cost_at_other_pos() -> None:
-    state, agent_id = make_tile_state()
-    cost_id = 99
-    state = replace(
-        state,
-        cost=state.cost.set(cost_id, Cost(amount=7)),
-        position=state.position.set(cost_id, Position(2, 0)),
-    )
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
-
-
-def test_tile_reward_system_multiple_agents() -> None:
-    state, agent_id = make_tile_state(rewardable_ids=[2])
-    agent2_id = 99
-    # Add a second agent at a different pos (no rewardable there)
-    state = replace(
-        state,
-        agent=state.agent.set(agent2_id, Agent()),
-        position=state.position.set(agent2_id, Position(2, 0)),
-    )
-    # Agent2 should get no score, only agent1 should
-    state1 = tile_reward_system(state, agent_id)
-    state2 = tile_reward_system(state, agent2_id)
-    assert state1.score == 10
-    assert state2.score == 0
-
-
-def test_tile_cost_system_multiple_agents() -> None:
-    state, agent_id = make_tile_state(cost_ids=[3])
-    agent2_id = 99
-    state = replace(
-        state,
-        agent=state.agent.set(agent2_id, Agent()),
-        position=state.position.set(agent2_id, Position(2, 0)),
-    )
-    state1 = tile_cost_system(state, agent_id)
-    state2 = tile_cost_system(state, agent2_id)
-    assert state1.score == -2
-    assert state2.score == 0
-
-
-def test_tile_reward_system_dead_and_missing_position() -> None:
-    state, agent_id = make_tile_state(rewardable_ids=[2])
-    state = replace(
-        state,
-        dead=state.dead.set(agent_id, Dead()),
-        position=state.position.remove(agent_id),
-    )
-    new_state = tile_reward_system(state, agent_id)
-    assert new_state.score == 0
-
-
-def test_tile_cost_system_dead_and_missing_position() -> None:
-    state, agent_id = make_tile_state(cost_ids=[3])
-    state = replace(
-        state,
-        dead=state.dead.set(agent_id, Dead()),
-        position=state.position.remove(agent_id),
-    )
-    new_state = tile_cost_system(state, agent_id)
-    assert new_state.score == 0
+    score1 = agent_step_and_score(state, agent1_id)
+    score2 = agent_step_and_score(state, agent2_id)
+    assert score1 == 12
+    assert score2 == -7

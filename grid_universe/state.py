@@ -2,76 +2,133 @@ from dataclasses import dataclass
 from typing import Optional
 from pyrsistent import PMap, pmap
 
-from grid_universe.components import (
-    Position,
+from grid_universe.entity import Entity
+from grid_universe.components.effects import (
+    Immunity,
+    Phasing,
+    Speed,
+    TimeLimit,
+    UsageLimit,
+)
+from grid_universe.components.properties import (
     Agent,
-    Enemy,
-    Box,
-    Collectible,
-    Portal,
-    Key,
-    Door,
-    Inventory,
-    Moving,
-    PowerUp,
-    Hazard,
-    Wall,
-    Floor,
+    Appearance,
     Blocking,
+    Collectible,
+    Collidable,
+    Cost,
+    Damage,
     Dead,
-    Rewardable,
-    Pushable,
-    Locked,
     Exit,
     Health,
-    Required,
-    Collidable,
-    Item,
-    PowerUpType,
-    Damage,
+    Inventory,
+    Key,
     LethalDamage,
-    Cost,
+    Locked,
+    Moving,
+    Portal,
+    Position,
+    Pushable,
+    Required,
+    Rewardable,
+    Status,
 )
 from grid_universe.types import EntityID, MoveFn
 
 
 @dataclass(frozen=True)
 class State:
+    # Level
     width: int
     height: int
     move_fn: "MoveFn"
-    position: PMap[EntityID, Position]
+
+    # Entity
+    entity: PMap[EntityID, Entity]
+
+    # Components
+    ## Effects
+    immunity: PMap[EntityID, Immunity]
+    phasing: PMap[EntityID, Phasing]
+    speed: PMap[EntityID, Speed]
+    time_limit: PMap[EntityID, TimeLimit]
+    usage_limit: PMap[EntityID, UsageLimit]
+    ## Properties
     agent: PMap[EntityID, Agent]
-    enemy: PMap[EntityID, Enemy]
-    box: PMap[EntityID, Box]
-    collectible: PMap[EntityID, Collectible]
-    item: PMap[EntityID, Item]
-    required: PMap[EntityID, Required]
-    portal: PMap[EntityID, Portal]
-    key: PMap[EntityID, Key]
-    door: PMap[EntityID, Door]
-    locked: PMap[EntityID, Locked]
-    inventory: PMap[EntityID, Inventory]
-    moving: PMap[EntityID, Moving]
-    powerup: PMap[EntityID, PowerUp]
-    powerup_status: PMap[EntityID, PMap[PowerUpType, PowerUp]]
-    hazard: PMap[EntityID, Hazard]
-    wall: PMap[EntityID, Wall]
-    floor: PMap[EntityID, Floor]
+    appearance: PMap[EntityID, Appearance]
     blocking: PMap[EntityID, Blocking]
-    dead: PMap[EntityID, Dead]
-    rewardable: PMap[EntityID, Rewardable]
+    collectible: PMap[EntityID, Collectible]
+    collidable: PMap[EntityID, Collidable]
     cost: PMap[EntityID, Cost]
-    pushable: PMap[EntityID, Pushable]
+    damage: PMap[EntityID, Damage]
+    dead: PMap[EntityID, Dead]
     exit: PMap[EntityID, Exit]
     health: PMap[EntityID, Health]
-    collidable: PMap[EntityID, Collidable]
-    damage: PMap[EntityID, Damage]
+    inventory: PMap[EntityID, Inventory]
+    key: PMap[EntityID, Key]
     lethal_damage: PMap[EntityID, LethalDamage]
+    locked: PMap[EntityID, Locked]
+    moving: PMap[EntityID, Moving]
+    portal: PMap[EntityID, Portal]
+    position: PMap[EntityID, Position]
+    pushable: PMap[EntityID, Pushable]
+    required: PMap[EntityID, Required]
+    rewardable: PMap[EntityID, Rewardable]
+    status: PMap[EntityID, Status]
+    ## Extra
     prev_position: PMap[EntityID, Position] = pmap()
 
+    # Status
     turn: int = 0
     score: int = 0
     win: bool = False
     lose: bool = False
     message: Optional[str] = None
+
+
+def create_empty_state(width: int, height: int, move_fn: MoveFn) -> State:
+    return State(
+        # Level
+        width=width,
+        height=height,
+        move_fn=move_fn,
+        # Entity
+        entity=pmap(),
+        # Components
+        ## Effects
+        immunity=pmap(),
+        phasing=pmap(),
+        speed=pmap(),
+        time_limit=pmap(),
+        usage_limit=pmap(),
+        ## Properties
+        agent=pmap(),
+        appearance=pmap(),
+        blocking=pmap(),
+        collectible=pmap(),
+        collidable=pmap(),
+        cost=pmap(),
+        damage=pmap(),
+        dead=pmap(),
+        exit=pmap(),
+        health=pmap(),
+        inventory=pmap(),
+        key=pmap(),
+        lethal_damage=pmap(),
+        locked=pmap(),
+        moving=pmap(),
+        portal=pmap(),
+        position=pmap(),
+        pushable=pmap(),
+        required=pmap(),
+        rewardable=pmap(),
+        status=pmap(),
+        ## Extra
+        prev_position=pmap(),
+        # Status
+        turn=0,
+        score=0,
+        win=False,
+        lose=False,
+        message=None,
+    )

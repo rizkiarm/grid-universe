@@ -6,6 +6,8 @@ from grid_universe.actions import (
     PickUpAction,
     WaitAction,
 )
+from grid_universe.systems.damage import damage_system
+from grid_universe.systems.status import status_system
 from grid_universe.types import MoveFn
 from grid_universe.state import State
 from grid_universe.systems.movement import movement_system
@@ -14,16 +16,13 @@ from grid_universe.systems.position import position_system
 from grid_universe.systems.push import push_system
 from grid_universe.systems.portal import portal_system
 from grid_universe.systems.collectible import collectible_system
-from grid_universe.systems.hazard import hazard_system
-from grid_universe.systems.enemy import enemy_collision_system
 from grid_universe.systems.locked import unlock_system
-from grid_universe.systems.powerup import powerup_tick_system
 from grid_universe.systems.terminal import win_system, lose_system
-from grid_universe.components import PowerUpType, Position
+from grid_universe.components import Position
 from grid_universe.systems.tile import tile_reward_system, tile_cost_system
 from grid_universe.types import EntityID
 from grid_universe.utils.gc import run_garbage_collector
-from grid_universe.utils.powerup import is_powerup_active
+from grid_universe.utils.status import get_status_effect, use_status_effect
 
 
 def step(state: State, action: Action, *, agent_id: EntityID) -> State:
@@ -38,7 +37,7 @@ def step(state: State, action: Action, *, agent_id: EntityID) -> State:
         return replace(state, lose=True)
 
     state = moving_system(state)  # move NPCs, etc.
-    state = powerup_tick_system(state)
+    state = status_system(state)
 
     if isinstance(action, MoveAction):
         state = _step_move(state, action, agent_id)
@@ -63,9 +62,19 @@ def _step_move(state: State, action: MoveAction, agent_id: EntityID) -> State:
     if not current_pos:
         return state
 
-    move_count = (
-        2 if is_powerup_active(state, action.entity_id, PowerUpType.DOUBLE_SPEED) else 1
-    )
+    move_count = 1
+
+    if agent_id in state.status:
+        effect_id = get_status_effect(
+            state.status[agent_id].effect_ids,
+            state.speed,
+            state.time_limit,
+            state.usage_limit,
+        )
+        if effect_id is not None:
+            move_count = state.speed[effect_id].multiplier * move_count
+            usage_limit = use_status_effect(effect_id, state.usage_limit)
+            state = replace(state, usage_limit=usage_limit)
 
     blocked: bool = False
 
@@ -111,8 +120,7 @@ def _step_wait(state: State, action: WaitAction, agent_id: EntityID) -> State:
 
 def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
     state = portal_system(state)
-    state = hazard_system(state, action.entity_id)
-    state = enemy_collision_system(state, action.entity_id)
+    state = damage_system(state)
     state = tile_reward_system(state, agent_id)
     return state
 
