@@ -30,7 +30,7 @@ A modular, extensible, entity-component-system (ECS) gridworld environment for r
 ## Installation
 
 **Requirements:**
-- Python 3.10+
+- Python 3.11+
 - [pyrsistent](https://github.com/tobgu/pyrsistent)
 - [Pillow](https://pillow.readthedocs.io/en/stable/)
 - [gymnasium](https://github.com/Farama-Foundation/Gymnasium)
