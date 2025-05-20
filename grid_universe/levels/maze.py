@@ -1,9 +1,11 @@
 from dataclasses import replace
+from enum import StrEnum, auto
 from typing import Any, Optional, List, Dict, Tuple, Set, Union
 import random
 
 from pyrsistent import pset
 
+from grid_universe.components.properties.pathfinding import Pathfinding, PathfindingType
 from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.entity import Entity, new_entity_id
@@ -90,11 +92,19 @@ DEFAULT_HAZARDS: List[HazardSpec] = [
 
 IsMoving = bool
 
-EnemySpec = Tuple[AppearanceName, DamageAmount, DamageLethal, IsMoving]
+
+class MovementType(StrEnum):
+    STATIC = auto()
+    DIRECTIONAL = auto()
+    PATHFINDING_LINE = auto()
+    PATHFINDING_PATH = auto()
+
+
+EnemySpec = Tuple[AppearanceName, DamageAmount, DamageLethal, MovementType]
 
 DEFAULT_ENEMIES: List[EnemySpec] = [
-    (AppearanceName.MONSTER, 5, True, True),
-    (AppearanceName.MONSTER, 3, False, False),
+    (AppearanceName.MONSTER, 5, True, MovementType.DIRECTIONAL),
+    (AppearanceName.MONSTER, 3, False, MovementType.PATHFINDING_LINE),
 ]
 
 
@@ -382,6 +392,7 @@ def place_threats(
     state_damage = state.damage
     state_lethal_damage = state.lethal_damage
     state_moving = state.moving
+    state_pathfinding = state.pathfinding
 
     for threat_detail in threats:
         if not empty_positions:
@@ -389,7 +400,7 @@ def place_threats(
         position = empty_positions.pop()
         entity_id: EntityID = new_entity_id()
         appearance_name, damage, lethal = threat_detail[:3]
-        moving = threat_detail[3] if len(threat_detail) == 4 else False
+        movement = threat_detail[3] if len(threat_detail) == 4 else None
 
         state_entity = state_entity.set(entity_id, Entity())
         state_position = state_position.set(entity_id, Position(*position))
@@ -400,14 +411,30 @@ def place_threats(
         state_damage = state_damage.set(entity_id, Damage(amount=damage))
         if lethal:
             state_lethal_damage = state_lethal_damage.set(entity_id, LethalDamage())
-        if moving:
-            state_moving = state_moving.set(
-                entity_id,
-                Moving(
-                    axis=rng.choice([MovingAxis.HORIZONTAL, MovingAxis.VERTICAL]),
-                    direction=rng.choice([-1, 1]),
-                ),
-            )
+        if movement is not None and movement != MovementType.STATIC:
+            if movement == MovementType.DIRECTIONAL:
+                state_moving = state_moving.set(
+                    entity_id,
+                    Moving(
+                        axis=rng.choice([MovingAxis.HORIZONTAL, MovingAxis.VERTICAL]),
+                        direction=rng.choice([-1, 1]),
+                    ),
+                )
+            elif movement in [
+                MovementType.PATHFINDING_LINE,
+                MovementType.PATHFINDING_PATH,
+            ]:
+                state_pathfinding = state_pathfinding.set(
+                    entity_id,
+                    Pathfinding(
+                        target=list(state.agent.keys())[0],
+                        type=PathfindingType.STRAIGHT_LINE
+                        if movement == MovementType.PATHFINDING_LINE
+                        else PathfindingType.PATH,
+                    ),
+                )
+            else:
+                raise NotImplementedError
 
     return replace(
         state,
@@ -418,6 +445,7 @@ def place_threats(
         damage=state_damage,
         lethal_damage=state_lethal_damage,
         moving=state_moving,
+        pathfinding=state_pathfinding,
     )
 
 

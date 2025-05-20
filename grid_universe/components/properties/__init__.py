@@ -13,6 +13,7 @@ from .key import Key
 from .lethal_damage import LethalDamage
 from .locked import Locked
 from .moving import Moving, MovingAxis
+from .pathfinding import Pathfinding, PathfindingType
 from .portal import Portal
 from .position import Position
 from .pushable import Pushable
@@ -38,6 +39,8 @@ __all__ = [
     "Locked",
     "Moving",
     "MovingAxis",
+    "Pathfinding",
+    "PathfindingType",
     "Portal",
     "Position",
     "Pushable",

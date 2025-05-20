@@ -15,6 +15,7 @@ from grid_universe.levels.maze import (
     DEFAULT_ENEMIES,
     EnemySpec,
     HazardSpec,
+    MovementType,
     PowerupSpec,
 )
 from grid_universe.moves import MOVE_FN_REGISTRY, default_move_fn
@@ -249,27 +250,40 @@ def get_config_from_widgets() -> MazeConfig:
             )
 
     st.subheader("Enemies")
+    enemies: List[EnemySpec] = list(DEFAULT_ENEMIES)  # DEFAULT_ENEMIES
     enemy_count: int = st.number_input(
-        "Number of enemies", min_value=0, value=1, key="enemy_count"
+        "Number of enemies", min_value=0, value=len(enemies), key="enemy_count"
     )
-    enemies: List[EnemySpec] = []
     if enemy_count > 0:
         for idx in range(enemy_count):
+            enemy: EnemySpec = (AppearanceName.MONSTER, 2, False, MovementType.STATIC)
+            if idx < len(enemies):
+                enemy = enemies[idx]
+            appearance, damage, lethal, movement = enemy
+
             st.markdown(f"**Enemy #{idx + 1}**")
             cols = st.columns([1, 1, 1])
             with cols[0]:
-                lethal = st.checkbox("Lethal?", value=False, key=f"enemy_lethal_{idx}")
+                lethal = st.checkbox("Lethal?", value=lethal, key=f"enemy_lethal_{idx}")
             with cols[1]:
                 if not lethal:
                     damage = st.number_input(
-                        "Damage", min_value=1, value=5, key=f"enemy_damage_{idx}"
+                        "Damage", min_value=1, value=damage, key=f"enemy_damage_{idx}"
                     )
                 else:
                     st.markdown("Lethal")
                     damage = 0
             with cols[2]:
-                moving = st.checkbox("Moving?", value=False, key=f"enemy_moving_{idx}")
-            enemies.append((AppearanceName.MONSTER, damage, lethal, moving))
+                movement_option: str = st.selectbox(
+                    "Movement Type",
+                    MovementType,
+                    index=[e.value for e in MovementType].index(movement),
+                    key=f"enemy_movement_{idx}",
+                )
+            if idx < len(enemies):
+                enemies[idx] = (appearance, damage, lethal, movement_option)
+            else:
+                enemies.append((appearance, damage, lethal, movement_option))
 
     st.subheader("Gameplay Movement")
     move_fn_names: List[str] = list(MOVE_FN_REGISTRY.keys())

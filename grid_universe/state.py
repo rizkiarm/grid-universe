@@ -26,6 +26,7 @@ from grid_universe.components.properties import (
     LethalDamage,
     Locked,
     Moving,
+    Pathfinding,
     Portal,
     Position,
     Pushable,
@@ -70,6 +71,7 @@ class State:
     lethal_damage: PMap[EntityID, LethalDamage] = pmap()
     locked: PMap[EntityID, Locked] = pmap()
     moving: PMap[EntityID, Moving] = pmap()
+    pathfinding: PMap[EntityID, Pathfinding] = pmap()
     portal: PMap[EntityID, Portal] = pmap()
     position: PMap[EntityID, Position] = pmap()
     pushable: PMap[EntityID, Pushable] = pmap()

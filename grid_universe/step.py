@@ -7,6 +7,7 @@ from grid_universe.actions import (
     WaitAction,
 )
 from grid_universe.systems.damage import damage_system
+from grid_universe.systems.pathfinding import pathfinding_system
 from grid_universe.systems.status import status_system
 from grid_universe.types import MoveFn
 from grid_universe.state import State
@@ -36,7 +37,8 @@ def step(state: State, action: Action, *, agent_id: EntityID) -> State:
     if not is_valid_state(state, agent_id) or is_terminal_state(state, agent_id):
         return state
 
-    state = moving_system(state)  # move NPCs, etc.
+    state = moving_system(state)
+    state = pathfinding_system(state)
     state = status_system(state)
 
     if isinstance(action, MoveAction):
