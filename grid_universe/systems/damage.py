@@ -6,7 +6,7 @@ from grid_universe.components import Health, Dead, UsageLimit
 from grid_universe.types import EntityID
 from grid_universe.utils.ecs import entities_with_components_at
 from grid_universe.utils.health import apply_damage_and_check_death
-from grid_universe.utils.status import get_status_effect, use_status_effect
+from grid_universe.utils.status import use_status_effect_if_present
 
 
 def apply_damage(
@@ -31,15 +31,13 @@ def apply_damage(
 
     for damager_id in damager_ids:
         if entity_id in state.status:
-            effect_id = get_status_effect(
+            usage_limit, effect_id = use_status_effect_if_present(
                 state.status[entity_id].effect_ids,
                 state.immunity,
                 state.time_limit,
                 usage_limit,
             )
-
             if effect_id is not None:
-                usage_limit = use_status_effect(effect_id, usage_limit)
                 continue
 
         damage_amount = (

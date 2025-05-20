@@ -5,7 +5,7 @@ import random
 from pyrsistent import pset
 
 from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State, create_empty_state
+from grid_universe.state import State
 from grid_universe.entity import Entity, new_entity_id
 from grid_universe.moves import default_move_fn
 from grid_universe.types import (
@@ -534,7 +534,9 @@ def generate(
     maze_grid: Dict[Tuple[int, int], bool] = generate_perfect_maze(width, height, rng)
     maze_grid = adjust_maze_wall_percentage(maze_grid, wall_percentage, rng)
 
-    state = create_empty_state(width, height, move_fn, objective_fn)
+    state = State(
+        width=width, height=height, move_fn=move_fn, objective_fn=objective_fn
+    )
 
     # Tiles setup
     empty_positions: List[Tuple[int, int]] = [

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, replace
 import dataclasses
+from pyrsistent import thaw
 import streamlit as st
 import numpy as np
 from typing import List, Tuple, Dict, Optional
@@ -119,20 +120,20 @@ def get_config_from_widgets() -> MazeConfig:
         key="wall_percentage",
     )
     movement_cost: int = st.slider(
-        "Floor cost", 1, 10, maze_config.movement_cost, key="movement_cost"
+        "Floor cost", 0, 10, maze_config.movement_cost, key="movement_cost"
     )
 
     st.subheader("Items & Rewards")
     num_required_items: int = st.slider(
         "Required Items",
-        1,
+        0,
         10,
         maze_config.num_required_items,
         key="num_required_items",
     )
     num_rewardable_items: int = st.slider(
         "Rewardable Items",
-        1,
+        0,
         10,
         maze_config.num_rewardable_items,
         key="num_rewardable_items",
@@ -436,7 +437,7 @@ def display_inventory(state: State, inventory: Inventory) -> None:
 
 # --------- Main App ---------
 set_default_config()
-tab_game, tab_config = st.tabs(["Game", "Config"])
+tab_game, tab_config, tab_state = st.tabs(["Game", "Config", "State"])
 
 with tab_config:
     config: MazeConfig = get_config_from_widgets()
@@ -544,3 +545,7 @@ with tab_game:
         img = env.render(mode="texture")
         if img is not None:
             st.image(img, use_container_width=True)
+
+with tab_state:
+    if env.state:
+        st.json(thaw(env.state.description), expanded=1)

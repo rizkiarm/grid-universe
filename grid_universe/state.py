@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 from pyrsistent import PMap, pmap
 
 from grid_universe.entity import Entity
@@ -45,37 +45,37 @@ class State:
     objective_fn: "ObjectiveFn"
 
     # Entity
-    entity: PMap[EntityID, Entity]
+    entity: PMap[EntityID, Entity] = pmap()
 
     # Components
     ## Effects
-    immunity: PMap[EntityID, Immunity]
-    phasing: PMap[EntityID, Phasing]
-    speed: PMap[EntityID, Speed]
-    time_limit: PMap[EntityID, TimeLimit]
-    usage_limit: PMap[EntityID, UsageLimit]
+    immunity: PMap[EntityID, Immunity] = pmap()
+    phasing: PMap[EntityID, Phasing] = pmap()
+    speed: PMap[EntityID, Speed] = pmap()
+    time_limit: PMap[EntityID, TimeLimit] = pmap()
+    usage_limit: PMap[EntityID, UsageLimit] = pmap()
     ## Properties
-    agent: PMap[EntityID, Agent]
-    appearance: PMap[EntityID, Appearance]
-    blocking: PMap[EntityID, Blocking]
-    collectible: PMap[EntityID, Collectible]
-    collidable: PMap[EntityID, Collidable]
-    cost: PMap[EntityID, Cost]
-    damage: PMap[EntityID, Damage]
-    dead: PMap[EntityID, Dead]
-    exit: PMap[EntityID, Exit]
-    health: PMap[EntityID, Health]
-    inventory: PMap[EntityID, Inventory]
-    key: PMap[EntityID, Key]
-    lethal_damage: PMap[EntityID, LethalDamage]
-    locked: PMap[EntityID, Locked]
-    moving: PMap[EntityID, Moving]
-    portal: PMap[EntityID, Portal]
-    position: PMap[EntityID, Position]
-    pushable: PMap[EntityID, Pushable]
-    required: PMap[EntityID, Required]
-    rewardable: PMap[EntityID, Rewardable]
-    status: PMap[EntityID, Status]
+    agent: PMap[EntityID, Agent] = pmap()
+    appearance: PMap[EntityID, Appearance] = pmap()
+    blocking: PMap[EntityID, Blocking] = pmap()
+    collectible: PMap[EntityID, Collectible] = pmap()
+    collidable: PMap[EntityID, Collidable] = pmap()
+    cost: PMap[EntityID, Cost] = pmap()
+    damage: PMap[EntityID, Damage] = pmap()
+    dead: PMap[EntityID, Dead] = pmap()
+    exit: PMap[EntityID, Exit] = pmap()
+    health: PMap[EntityID, Health] = pmap()
+    inventory: PMap[EntityID, Inventory] = pmap()
+    key: PMap[EntityID, Key] = pmap()
+    lethal_damage: PMap[EntityID, LethalDamage] = pmap()
+    locked: PMap[EntityID, Locked] = pmap()
+    moving: PMap[EntityID, Moving] = pmap()
+    portal: PMap[EntityID, Portal] = pmap()
+    position: PMap[EntityID, Position] = pmap()
+    pushable: PMap[EntityID, Pushable] = pmap()
+    required: PMap[EntityID, Required] = pmap()
+    rewardable: PMap[EntityID, Rewardable] = pmap()
+    status: PMap[EntityID, Status] = pmap()
     ## Extra
     prev_position: PMap[EntityID, Position] = pmap()
 
@@ -86,53 +86,12 @@ class State:
     lose: bool = False
     message: Optional[str] = None
 
-
-def create_empty_state(
-    width: int, height: int, move_fn: MoveFn, objective_fn: ObjectiveFn
-) -> State:
-    return State(
-        # Level
-        width=width,
-        height=height,
-        move_fn=move_fn,
-        objective_fn=objective_fn,
-        # Entity
-        entity=pmap(),
-        # Components
-        ## Effects
-        immunity=pmap(),
-        phasing=pmap(),
-        speed=pmap(),
-        time_limit=pmap(),
-        usage_limit=pmap(),
-        ## Properties
-        agent=pmap(),
-        appearance=pmap(),
-        blocking=pmap(),
-        collectible=pmap(),
-        collidable=pmap(),
-        cost=pmap(),
-        damage=pmap(),
-        dead=pmap(),
-        exit=pmap(),
-        health=pmap(),
-        inventory=pmap(),
-        key=pmap(),
-        lethal_damage=pmap(),
-        locked=pmap(),
-        moving=pmap(),
-        portal=pmap(),
-        position=pmap(),
-        pushable=pmap(),
-        required=pmap(),
-        rewardable=pmap(),
-        status=pmap(),
-        ## Extra
-        prev_position=pmap(),
-        # Status
-        turn=0,
-        score=0,
-        win=False,
-        lose=False,
-        message=None,
-    )
+    @property
+    def description(self) -> PMap[str, Any]:
+        description: PMap[str, Any] = pmap()
+        for field in self.__dataclass_fields__:
+            value = getattr(self, field)
+            if isinstance(value, type(pmap())) and len(value) == 0:
+                continue
+            description = description.set(field, value)
+        return pmap(description)

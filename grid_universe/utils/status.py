@@ -1,5 +1,5 @@
 from dataclasses import replace
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from pyrsistent.typing import PMap, PSet
 from grid_universe.components import Status
@@ -72,3 +72,17 @@ def use_status_effect(
         replace(usage_limit[effect_id], amount=usage_limit[effect_id].amount - 1),
     )
     return usage_limit
+
+
+def use_status_effect_if_present(
+    effect_ids: PSet[EntityID],
+    effect: Union[
+        PMap[EntityID, Immunity], PMap[EntityID, Phasing], PMap[EntityID, Speed]
+    ],
+    time_limit: PMap[EntityID, TimeLimit],
+    usage_limit: PMap[EntityID, UsageLimit],
+) -> Tuple[PMap[EntityID, UsageLimit], Optional[EntityID]]:
+    effect_id = get_status_effect(effect_ids, effect, time_limit, usage_limit)
+    if effect_id is not None:
+        usage_limit = use_status_effect(effect_id, usage_limit)
+    return usage_limit, effect_id

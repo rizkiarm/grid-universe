@@ -4,6 +4,16 @@ from grid_universe.components import Inventory, Key
 from grid_universe.types import EntityID
 
 
+def add_item(inventory: Inventory, item_id: EntityID) -> Inventory:
+    """Returns a new inventory with item_id added."""
+    return Inventory(item_ids=inventory.item_ids.add(item_id))
+
+
+def remove_item(inventory: Inventory, item_id: EntityID) -> Inventory:
+    """Returns a new inventory with item_id removed."""
+    return Inventory(item_ids=inventory.item_ids.remove(item_id))
+
+
 def has_key_with_id(
     inventory: Inventory, key_store: Mapping[EntityID, Key], key_id: str
 ) -> EntityID | None:
@@ -16,16 +26,6 @@ def has_key_with_id(
         if key and key.key_id == key_id:
             return item_id
     return None
-
-
-def remove_item(inventory: Inventory, item_id: EntityID) -> Inventory:
-    """Returns a new inventory with item_id removed."""
-    return Inventory(item_ids=inventory.item_ids.remove(item_id))
-
-
-def add_item(inventory: Inventory, item_id: EntityID) -> Inventory:
-    """Returns a new inventory with item_id added."""
-    return Inventory(item_ids=inventory.item_ids.add(item_id))
 
 
 def all_keys_with_id(

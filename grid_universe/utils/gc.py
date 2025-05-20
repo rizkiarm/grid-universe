@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pyrsistent import pmap
 from grid_universe.types import EntityID
 from grid_universe.state import State
@@ -23,6 +24,4 @@ def run_garbage_collector(state: State) -> State:
             value_map = cast(PMap[EntityID, Any], value)
             filtered = pmap({k: v for k, v in value_map.items() if k in alive})
             new_fields[field] = filtered
-    from dataclasses import replace
-
     return replace(state, **new_fields)

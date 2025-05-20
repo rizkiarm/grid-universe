@@ -1,14 +1,15 @@
 from dataclasses import replace
 from grid_universe.state import State
 from grid_universe.types import EntityID
+from grid_universe.utils.terminal import is_terminal_state, is_valid_state
 
 
 def win_system(state: State, agent_id: EntityID) -> State:
-    if agent_id in state.dead or len(state.agent) == 0:
-        return state
-
-    agent_pos = state.position.get(agent_id)
-    if agent_pos is None or state.win:
+    """
+    Sets state.win = True if the agent satisfies the objective function.
+    Does nothing if the state is already terminal or the agent is missing/dead.
+    """
+    if not is_valid_state(state, agent_id) or is_terminal_state(state, agent_id):
         return state
 
     if state.objective_fn(state, agent_id):

@@ -291,46 +291,12 @@ def test_move_agent_not_in_agent_map() -> None:
 
 def test_move_with_minimal_state() -> None:
     from grid_universe.state import State
-    from pyrsistent import pmap
 
     state = State(
         width=2,
         height=2,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(),
-        position=pmap(),
-        agent=pmap(),
-        pushable=pmap(),
-        locked=pmap(),
-        portal=pmap(),
-        exit=pmap(),
-        key=pmap(),
-        collectible=pmap(),
-        rewardable=pmap(),
-        cost=pmap(),
-        required=pmap(),
-        inventory=pmap(),
-        health=pmap(),
-        appearance=pmap(),
-        blocking=pmap(),
-        dead=pmap(),
-        moving=pmap(),
-        collidable=pmap(),
-        damage=pmap(),
-        lethal_damage=pmap(),
-        immunity=pmap(),
-        phasing=pmap(),
-        speed=pmap(),
-        time_limit=pmap(),
-        usage_limit=pmap(),
-        status=pmap(),
-        prev_position=pmap(),
-        turn=0,
-        score=0,
-        win=False,
-        lose=False,
-        message=None,
     )
     action = MoveAction(entity_id=9999, direction=Direction.RIGHT)
     new_state = step(state, action, agent_id=9999)

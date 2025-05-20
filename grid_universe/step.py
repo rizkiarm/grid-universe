@@ -18,11 +18,11 @@ from grid_universe.systems.portal import portal_system
 from grid_universe.systems.collectible import collectible_system
 from grid_universe.systems.locked import unlock_system
 from grid_universe.systems.terminal import win_system, lose_system
-from grid_universe.components import Position
 from grid_universe.systems.tile import tile_reward_system, tile_cost_system
 from grid_universe.types import EntityID
 from grid_universe.utils.gc import run_garbage_collector
-from grid_universe.utils.status import get_status_effect, use_status_effect
+from grid_universe.utils.status import use_status_effect_if_present
+from grid_universe.utils.terminal import is_terminal_state, is_valid_state
 
 
 def step(state: State, action: Action, *, agent_id: EntityID) -> State:
@@ -30,11 +30,11 @@ def step(state: State, action: Action, *, agent_id: EntityID) -> State:
     Main ECS reducer: applies one action, all relevant systems, and returns new state.
     Exits early if state is terminal.
     """
-    if state.win or state.lose or agent_id not in state.agent:
-        return state
-
     if agent_id in state.dead:
         return replace(state, lose=True)
+
+    if not is_valid_state(state, agent_id) or is_terminal_state(state, agent_id):
+        return state
 
     state = moving_system(state)  # move NPCs, etc.
     state = status_system(state)
@@ -65,7 +65,7 @@ def _step_move(state: State, action: MoveAction, agent_id: EntityID) -> State:
     move_count = 1
 
     if agent_id in state.status:
-        effect_id = get_status_effect(
+        usage_limit, effect_id = use_status_effect_if_present(
             state.status[agent_id].effect_ids,
             state.speed,
             state.time_limit,
@@ -73,7 +73,6 @@ def _step_move(state: State, action: MoveAction, agent_id: EntityID) -> State:
         )
         if effect_id is not None:
             move_count = state.speed[effect_id].multiplier * move_count
-            usage_limit = use_status_effect(effect_id, state.usage_limit)
             state = replace(state, usage_limit=usage_limit)
 
     blocked: bool = False
@@ -101,11 +100,7 @@ def _step_move(state: State, action: MoveAction, agent_id: EntityID) -> State:
 
 
 def _step_usekey(state: State, action: UseKeyAction, agent_id: EntityID) -> State:
-    pos = state.position.get(action.entity_id)
-    if pos is not None:
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            adjacent = Position(pos.x + dx, pos.y + dy)
-            state = unlock_system(state, action.entity_id, adjacent)
+    state = unlock_system(state, action.entity_id)
     return state
 
 
