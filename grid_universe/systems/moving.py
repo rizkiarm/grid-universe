@@ -23,15 +23,15 @@ def moving_system(state: State) -> State:
         if not is_in_bounds(state, next_pos) or is_blocked_at(
             state, next_pos, check_collidable=True
         ):
-            # Reverse direction for next tick ("bounce")
             state_moving = state_moving.set(
                 entity_id,
                 Moving(
-                    axis=moving.axis, direction=-moving.direction, prev_position=pos
+                    axis=moving.axis,
+                    direction=moving.direction*(-1 if moving.bounce else 1),
+                    prev_position=pos
                 ),
             )
         else:
-            # Move entity
             state_position = state_position.set(entity_id, next_pos)
             state_moving = state_moving.set(
                 entity_id,

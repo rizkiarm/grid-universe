@@ -14,4 +14,5 @@ class MovingAxis(StrEnum):
 class Moving:
     axis: MovingAxis
     direction: int  # 1 or -1
+    bounce: bool = True
     prev_position: Optional[Position] = None
