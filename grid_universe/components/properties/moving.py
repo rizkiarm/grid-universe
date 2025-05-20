@@ -15,4 +15,5 @@ class Moving:
     axis: MovingAxis
     direction: int  # 1 or -1
     bounce: bool = True
+    speed: int = 1
     prev_position: Optional[Position] = None
