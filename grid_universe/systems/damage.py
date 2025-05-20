@@ -26,6 +26,14 @@ def apply_damage(
         entities_with_components_at(state, entity_pos, state.damage)
         + entities_with_components_at(state, entity_pos, state.lethal_damage)
     )
+
+    entity_prev_pos = state.prev_position.get(entity_id)
+    if entity_prev_pos is not None:
+        damager_ids = damager_ids.union(
+            entities_with_components_at(state, entity_prev_pos, state.damage)
+            + entities_with_components_at(state, entity_prev_pos, state.lethal_damage)
+        )
+
     if not damager_ids:
         return initial
 
