@@ -82,6 +82,8 @@ DEFAULT_POWERUPS: List[PowerupSpec] = [
 
 DamageLethal = bool
 DamageAmount = int
+MovementSpeed = int
+IsPushable = bool
 
 HazardSpec = Tuple[AppearanceName, DamageAmount, DamageLethal]
 
@@ -89,8 +91,6 @@ DEFAULT_HAZARDS: List[HazardSpec] = [
     (AppearanceName.LAVA, 5, True),
     (AppearanceName.SPIKE, 3, False),
 ]
-
-IsMoving = bool
 
 
 class MovementType(StrEnum):
@@ -100,11 +100,22 @@ class MovementType(StrEnum):
     PATHFINDING_PATH = auto()
 
 
-EnemySpec = Tuple[AppearanceName, DamageAmount, DamageLethal, MovementType]
+EnemySpec = Tuple[
+    AppearanceName, DamageAmount, DamageLethal, MovementType, MovementSpeed
+]
 
 DEFAULT_ENEMIES: List[EnemySpec] = [
-    (AppearanceName.MONSTER, 5, True, MovementType.DIRECTIONAL),
-    (AppearanceName.MONSTER, 3, False, MovementType.PATHFINDING_LINE),
+    (AppearanceName.MONSTER, 5, True, MovementType.DIRECTIONAL, 2),
+    (AppearanceName.MONSTER, 3, False, MovementType.PATHFINDING_LINE, 1),
+]
+
+
+BoxSpec = Tuple[AppearanceName, IsPushable, MovementSpeed]
+
+DEFAULT_BOXES: List[BoxSpec] = [
+    (AppearanceName.BOX, True, 0),
+    (AppearanceName.BOX, False, 1),
+    (AppearanceName.BOX, False, 2),
 ]
 
 
@@ -236,9 +247,7 @@ def place_collectibles(
 def place_boxes(
     state: State,
     empty_positions: List[Tuple[int, int]],
-    num_boxes: int,
-    pushable: bool = False,
-    moving: bool = False,
+    boxes: List[BoxSpec],
     rng: Optional[random.Random] = None,
 ) -> State:
     if rng is None:
@@ -251,7 +260,7 @@ def place_boxes(
     state_pushable = state.pushable
     state_moving = state.moving
 
-    for _ in range(num_boxes):
+    for appearance, pushable, speed in boxes:
         if not empty_positions:
             break
         position = empty_positions.pop()
@@ -260,18 +269,19 @@ def place_boxes(
         state_entity = state_entity.set(box_id, Entity())
         state_position = state_position.set(box_id, Position(*position))
         state_appearance = state_appearance.set(
-            box_id, Appearance(name=AppearanceName.BOX, priority=2)
+            box_id, Appearance(name=appearance, priority=2)
         )
         state_blocking = state_blocking.set(box_id, Blocking())
         state_collidable = state_collidable.set(box_id, Collidable())
         if pushable:
             state_pushable = state_pushable.set(box_id, Pushable())
-        if moving:
+        if speed > 0:
             state_moving = state_moving.set(
                 box_id,
                 Moving(
                     axis=rng.choice([MovingAxis.HORIZONTAL, MovingAxis.VERTICAL]),
                     direction=rng.choice([-1, 1]),
+                    speed=speed,
                 ),
             )
 
@@ -400,7 +410,6 @@ def place_threats(
         position = empty_positions.pop()
         entity_id: EntityID = new_entity_id()
         appearance_name, damage, lethal = threat_detail[:3]
-        movement = threat_detail[3] if len(threat_detail) == 4 else None
 
         state_entity = state_entity.set(entity_id, Entity())
         state_position = state_position.set(entity_id, Position(*position))
@@ -411,16 +420,23 @@ def place_threats(
         state_damage = state_damage.set(entity_id, Damage(amount=damage))
         if lethal:
             state_lethal_damage = state_lethal_damage.set(entity_id, LethalDamage())
-        if movement is not None and movement != MovementType.STATIC:
-            if movement == MovementType.DIRECTIONAL:
+
+        if len(threat_detail) == 3:
+            continue
+
+        movement_type, movement_speed = threat_detail[3:]
+
+        if movement_type is not None and movement_type != MovementType.STATIC:
+            if movement_type == MovementType.DIRECTIONAL:
                 state_moving = state_moving.set(
                     entity_id,
                     Moving(
                         axis=rng.choice([MovingAxis.HORIZONTAL, MovingAxis.VERTICAL]),
                         direction=rng.choice([-1, 1]),
+                        speed=movement_speed,
                     ),
                 )
-            elif movement in [
+            elif movement_type in [
                 MovementType.PATHFINDING_LINE,
                 MovementType.PATHFINDING_PATH,
             ]:
@@ -429,7 +445,7 @@ def place_threats(
                     Pathfinding(
                         target=list(state.agent.keys())[0],
                         type=PathfindingType.STRAIGHT_LINE
-                        if movement == MovementType.PATHFINDING_LINE
+                        if movement_type == MovementType.PATHFINDING_LINE
                         else PathfindingType.PATH,
                     ),
                 )
@@ -542,14 +558,13 @@ def generate(
     height: int,
     num_required_items: int,
     num_rewardable_items: int,
-    num_boxes: int,
-    num_moving_boxes: int,
     num_portals: int,
     num_doors: int,
     health: int = 5,
     movement_cost: int = 1,
     required_item_reward: int = 10,
     rewardable_item_reward: int = 10,
+    boxes: List[BoxSpec] = DEFAULT_BOXES,
     powerups: List[PowerupSpec] = DEFAULT_POWERUPS,
     hazards: List[HazardSpec] = DEFAULT_HAZARDS,
     enemies: List[EnemySpec] = DEFAULT_ENEMIES,
@@ -608,13 +623,8 @@ def generate(
     # Update empty positions to exclude essential path
     empty_non_essential_positions = list(set(empty_positions) - essential_path)
 
-    # Static boxes
-    state = place_boxes(state, empty_non_essential_positions, num_boxes, pushable=True)
-
-    # Moving boxes
-    state = place_boxes(
-        state, empty_non_essential_positions, num_moving_boxes, moving=True, rng=rng
-    )
+    # Boxes
+    state = place_boxes(state, empty_non_essential_positions, boxes, rng=rng)
 
     # Enemies
     state = place_threats(

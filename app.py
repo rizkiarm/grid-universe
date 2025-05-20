@@ -10,9 +10,11 @@ from grid_universe.components.properties.appearance import AppearanceName
 from grid_universe.components.properties.status import Status
 from grid_universe.gym_env import GridUniverseEnv, MazeEnvAction, ObsType
 from grid_universe.levels.maze import (
+    DEFAULT_BOXES,
     DEFAULT_HAZARDS,
     DEFAULT_POWERUPS,
     DEFAULT_ENEMIES,
+    BoxSpec,
     EnemySpec,
     HazardSpec,
     MovementType,
@@ -48,8 +50,11 @@ st.markdown(
     <style>
         header, footer, #MainMenu { visibility: hidden; }
         .stMainBlockContainer {
-            padding-top:0;
-            padding-bottom:0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .stToastContainer {
+            align-items: center;
         }
     </style>
 """,
@@ -63,14 +68,13 @@ class MazeConfig:
     height: int
     num_required_items: int
     num_rewardable_items: int
-    num_boxes: int
-    num_moving_boxes: int
     num_portals: int
     num_doors: int
     health: int
     movement_cost: int
     required_item_reward: int
     rewardable_item_reward: int
+    boxes: List[BoxSpec]
     powerups: List[PowerupSpec]
     hazards: List[HazardSpec]
     enemies: List[EnemySpec]
@@ -87,14 +91,13 @@ def set_default_config() -> None:
             height=10,
             num_required_items=3,
             num_rewardable_items=3,
-            num_boxes=2,
-            num_moving_boxes=1,
             num_portals=1,
             num_doors=1,
             health=5,
             movement_cost=1,
             required_item_reward=10,
             rewardable_item_reward=10,
+            boxes=list(DEFAULT_BOXES),
             powerups=list(DEFAULT_POWERUPS),
             hazards=list(DEFAULT_HAZARDS),
             enemies=list(DEFAULT_ENEMIES),
@@ -155,15 +158,38 @@ def get_config_from_widgets() -> MazeConfig:
     st.subheader("Agent")
     health: int = st.slider("Agent Health", 1, 30, maze_config.health, key="health")
 
-    st.subheader("Boxes, Doors, Portals")
-    num_boxes: int = st.slider("Boxes", 0, 8, maze_config.num_boxes, key="num_boxes")
-    num_moving_boxes: int = st.slider(
-        "Moving Boxes", 0, 4, maze_config.num_moving_boxes, key="num_moving_boxes"
-    )
+    st.subheader("Doors, Portals")
     num_portals: int = st.slider(
         "Portals (pairs)", 0, 5, maze_config.num_portals, key="num_portals"
     )
     num_doors: int = st.slider("Doors", 0, 4, maze_config.num_doors, key="num_doors")
+
+    st.subheader("Boxes")
+    boxes: List[BoxSpec] = list(DEFAULT_BOXES)
+    box_count: int = st.number_input(
+        "Number of boxes", min_value=0, value=len(boxes), key="box_count"
+    )
+    if box_count > 0:
+        for idx in range(box_count):
+            box: BoxSpec = (AppearanceName.BOX, True, 0)
+            if idx < len(boxes):
+                box = boxes[idx]
+            appearance, pushable, speed = box
+
+            st.markdown(f"**Box #{idx + 1}**")
+            cols = st.columns([1, 1])
+            with cols[0]:
+                pushable = st.checkbox(
+                    "Pushable?", value=pushable, key=f"box_pushable_{idx}"
+                )
+            with cols[1]:
+                speed = st.number_input(
+                    "Speed", min_value=0, value=speed, key=f"box_speed_{idx}"
+                )
+            if idx < len(boxes):
+                boxes[idx] = (appearance, pushable, speed)
+            else:
+                boxes.append((appearance, pushable, speed))
 
     st.subheader("Hazards")
     hazards: List[HazardSpec] = []
@@ -256,13 +282,19 @@ def get_config_from_widgets() -> MazeConfig:
     )
     if enemy_count > 0:
         for idx in range(enemy_count):
-            enemy: EnemySpec = (AppearanceName.MONSTER, 2, False, MovementType.STATIC)
+            enemy: EnemySpec = (
+                AppearanceName.MONSTER,
+                2,
+                False,
+                MovementType.STATIC,
+                1,
+            )
             if idx < len(enemies):
                 enemy = enemies[idx]
-            appearance, damage, lethal, movement = enemy
+            appearance, damage, lethal, movement_type, movement_speed = enemy
 
             st.markdown(f"**Enemy #{idx + 1}**")
-            cols = st.columns([1, 1, 1])
+            cols = st.columns([1, 1, 1, 1])
             with cols[0]:
                 lethal = st.checkbox("Lethal?", value=lethal, key=f"enemy_lethal_{idx}")
             with cols[1]:
@@ -274,16 +306,35 @@ def get_config_from_widgets() -> MazeConfig:
                     st.markdown("Lethal")
                     damage = 0
             with cols[2]:
-                movement_option: str = st.selectbox(
+                movement_type: str = st.selectbox(
                     "Movement Type",
                     MovementType,
-                    index=[e.value for e in MovementType].index(movement),
-                    key=f"enemy_movement_{idx}",
+                    index=[e.value for e in MovementType].index(movement_type),
+                    key=f"enemy_movement_type_{idx}",
                 )
+            with cols[3]:
+                if movement_type != MovementType.STATIC:
+                    movement_speed = st.number_input(
+                        "Movement Speed",
+                        min_value=1,
+                        value=movement_speed,
+                        key=f"enemy_movement_speed_{idx}",
+                    )
+                else:
+                    st.markdown("Static")
+                    movement_speed = 0
             if idx < len(enemies):
-                enemies[idx] = (appearance, damage, lethal, movement_option)
+                enemies[idx] = (
+                    appearance,
+                    damage,
+                    lethal,
+                    movement_type,
+                    movement_speed,
+                )
             else:
-                enemies.append((appearance, damage, lethal, movement_option))
+                enemies.append(
+                    (appearance, damage, lethal, movement_type, movement_speed)
+                )
 
     st.subheader("Gameplay Movement")
     move_fn_names: List[str] = list(MOVE_FN_REGISTRY.keys())
@@ -321,14 +372,13 @@ def get_config_from_widgets() -> MazeConfig:
         height=height,
         num_required_items=num_required_items,
         num_rewardable_items=num_rewardable_items,
-        num_boxes=num_boxes,
-        num_moving_boxes=num_moving_boxes,
         num_portals=num_portals,
         num_doors=num_doors,
         health=health,
         movement_cost=movement_cost,
         required_item_reward=required_item_reward,
         rewardable_item_reward=rewardable_item_reward,
+        boxes=boxes,
         powerups=powerups,
         hazards=hazards,
         enemies=enemies,
@@ -349,6 +399,7 @@ def make_env_and_reset(
     st.session_state["obs"] = obs
     st.session_state["info"] = info
     st.session_state["total_reward"] = 0.0
+    st.session_state["prev_health"] = config.health
     return env, obs, info
 
 
@@ -547,6 +598,10 @@ with tab_game:
                 st.info(
                     f"**Health Point:** {health.health} / {health.max_health}", icon="❤️"
                 )
+                prev_health = st.session_state["prev_health"]
+                if health.health < prev_health:
+                    st.toast(f"Taking {health.health - prev_health} damage!", icon="🔥")
+                    st.session_state["prev_health"] = health.health
 
                 display_powerup_status(state, state.status[agent_id])
                 display_inventory(state, state.inventory[agent_id])
@@ -554,6 +609,7 @@ with tab_game:
     with middle_col:
         if env.state and env.state.win:
             st.success("🎉 **Goal reached!** 🎉")
+            st.balloons()
         if env.state and env.state.lose:
             st.error("💀 **You have died!** 💀")
         img = env.render(mode="texture")

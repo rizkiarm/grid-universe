@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Optional
-from pyrsistent import PMap, pmap
+from pyrsistent import PMap, PSet, pmap
 
 from grid_universe.entity import Entity
 from grid_universe.components.effects import (
@@ -80,6 +80,7 @@ class State:
     status: PMap[EntityID, Status] = pmap()
     ## Extra
     prev_position: PMap[EntityID, Position] = pmap()
+    trail: PMap[Position, PSet[EntityID]] = pmap()
 
     # Status
     turn: int = 0

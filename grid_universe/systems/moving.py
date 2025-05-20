@@ -14,18 +14,17 @@ def move(
     next_pos: Position,
     state_moving: PMap[EntityID, Moving],
     state_position: PMap[EntityID, Position],
-) -> Tuple[PMap[EntityID, Moving], PMap[EntityID, Position]]:
-    moving = state.moving[entity_id]
-    if not is_in_bounds(state, next_pos) or is_blocked_at(
+) -> Tuple[PMap[EntityID, Moving], PMap[EntityID, Position], bool]:
+    moving = state_moving[entity_id]
+    blocked = not is_in_bounds(state, next_pos) or is_blocked_at(
         state, next_pos, check_collidable=entity_id in state.blocking
-    ):
+    )
+    if blocked:
+        # Reverse direction if bouncing, else leave unchanged
+        new_direction = moving.direction * (-1 if moving.bounce else 1)
         state_moving = state_moving.set(
             entity_id,
-            replace(
-                moving,
-                direction=moving.direction * (-1 if moving.bounce else 1),
-                prev_position=pos,
-            ),
+            replace(moving, direction=new_direction, prev_position=pos),
         )
     else:
         state_position = state_position.set(entity_id, next_pos)
@@ -33,7 +32,7 @@ def move(
             entity_id,
             replace(moving, prev_position=pos),
         )
-    return state_moving, state_position
+    return state_moving, state_position, blocked
 
 
 def moving_system(state: State) -> State:
@@ -44,20 +43,22 @@ def moving_system(state: State) -> State:
         pos = state_position.get(entity_id)
         if pos is None:
             continue
-
-        if moving.direction not in [-1, 1]:
-            raise ValueError("Invalid moving direction:", moving.direction)
-
-        for delta in range(1, moving.speed + 1):
-            pos = state_position[entity_id]
-            dx, dy = (
-                (moving.direction, 0)
-                if moving.axis == MovingAxis.HORIZONTAL
-                else (0, moving.direction)
+        if moving.direction not in (-1, 1):
+            raise ValueError(
+                f"Invalid moving direction for {entity_id}: {moving.direction}"
             )
+        dx, dy = (
+            (moving.direction, 0)
+            if moving.axis == MovingAxis.HORIZONTAL
+            else (0, moving.direction)
+        )
+        for _ in range(moving.speed):
+            pos = state_position[entity_id]
             next_pos = Position(pos.x + dx, pos.y + dy)
-            state_moving, state_position = move(
+            state_moving, state_position, blocked = move(
                 state, entity_id, pos, next_pos, state_moving, state_position
             )
+            if blocked:
+                break
 
     return replace(state, position=state_position, moving=state_moving)

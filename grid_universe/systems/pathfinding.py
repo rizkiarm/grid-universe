@@ -118,7 +118,9 @@ def entity_pathfinding(state: State, entity_id: EntityID) -> State:
     else:
         raise NotImplementedError
 
-    if is_blocked_at(state, next_pos, check_collidable=False):
+    if is_blocked_at(state, next_pos, check_collidable=False) or not is_in_bounds(
+        state, next_pos
+    ):
         return state
 
     return replace(state, position=state.position.set(entity_id, next_pos))

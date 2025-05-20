@@ -9,6 +9,7 @@ from grid_universe.actions import (
 from grid_universe.systems.damage import damage_system
 from grid_universe.systems.pathfinding import pathfinding_system
 from grid_universe.systems.status import status_system
+from grid_universe.systems.trail import trail_system
 from grid_universe.types import MoveFn
 from grid_universe.state import State
 from grid_universe.systems.movement import movement_system
@@ -37,9 +38,11 @@ def step(state: State, action: Action, *, agent_id: EntityID) -> State:
     if not is_valid_state(state, agent_id) or is_terminal_state(state, agent_id):
         return state
 
+    state = position_system(state)  # before movements
     state = moving_system(state)
     state = pathfinding_system(state)
     state = status_system(state)
+    state = trail_system(state)  # after movements
 
     if isinstance(action, MoveAction):
         state = _step_move(state, action, agent_id)
@@ -129,6 +132,5 @@ def _after_step(state: State, agent_id: EntityID) -> State:
     state = win_system(state, agent_id)
     state = lose_system(state, agent_id)
     state = replace(state, turn=state.turn + 1)
-    state = position_system(state)
     state = run_garbage_collector(state)
     return state
