@@ -1,28 +1,14 @@
 from dataclasses import replace
 from typing import Set, Tuple
-from pyrsistent import PMap, pmap, pset
+from pyrsistent import PMap, pset
 from pyrsistent.typing import PSet
-from collections import defaultdict
 from grid_universe.state import State
 from grid_universe.components import Health, Dead, UsageLimit, Position
 from grid_universe.types import EntityID
 from grid_universe.utils.ecs import entities_with_components_at
 from grid_universe.utils.health import apply_damage_and_check_death
 from grid_universe.utils.status import use_status_effect_if_present
-
-
-def get_augmented_trail(state: State) -> PMap[Position, PSet[EntityID]]:
-    pos_to_eids = defaultdict(set)
-    for eid in set(state.health) | set(state.damage) | set(state.lethal_damage):
-        if eid not in state.position:
-            continue
-        pos = state.position[eid]
-        pos_to_eids[pos].add(eid)
-    # Merge with existing trail:
-    for pos, eid_set in state.trail.items():
-        pos_to_eids[pos].update(eid_set)
-    # Convert to persistent structures:
-    return pmap({pos: pset(eids) for pos, eids in pos_to_eids.items()})
+from grid_universe.utils.trail import get_augmented_trail
 
 
 def get_damager_ids(
@@ -104,7 +90,9 @@ def damage_system(state: State) -> State:
     health: PMap[EntityID, Health] = state.health
     dead: PMap[EntityID, Dead] = state.dead
     usage_limit: PMap[EntityID, UsageLimit] = state.usage_limit
-    augmented_trail: PMap[Position, PSet[EntityID]] = get_augmented_trail(state)
+    augmented_trail: PMap[Position, PSet[EntityID]] = get_augmented_trail(
+        state, pset(set(state.health) | set(state.damage) | set(state.lethal_damage))
+    )
 
     for entity_id in state.health:
         health, dead, usage_limit = apply_damage(

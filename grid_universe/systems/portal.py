@@ -1,41 +1,43 @@
 from dataclasses import replace
+from pyrsistent import pset
+from pyrsistent.typing import PMap, PSet
+from grid_universe.components import Position
 from grid_universe.state import State
 from grid_universe.types import EntityID
-from grid_universe.utils.ecs import entities_with_components_at
+from grid_universe.utils.trail import get_augmented_trail
 
 
-def portal_system_entity(state: State, eid: EntityID) -> State:
-    # The entity must exist and have a position
-    entity_pos = state.position.get(eid)
-    if entity_pos is None:
+def portal_system_entity(
+    state: State, augmented_trail: PMap[Position, PSet[EntityID]], portal_id: EntityID
+) -> State:
+    portal = state.portal.get(portal_id)
+    portal_position = state.position.get(portal_id)
+    if portal_position is None or portal is None:
         return state
 
-    # Don't teleport non-entering entities
-    entity_prevpos = state.prev_position.get(eid)
-    if entity_pos == entity_prevpos:
+    pair_position = state.position.get(portal.pair_entity)
+    if pair_position is None:
         return state
 
-    # Find portals at this position
-    portal_ids = entities_with_components_at(state, entity_pos, state.portal)
-    if not portal_ids:
-        return state  # Entity not on a portal
+    entity_ids = set(augmented_trail.get(portal_position, pset())) & set(
+        state.collidable
+    )
+    entering_entity_ids = {
+        eid
+        for eid in entity_ids
+        if state.prev_position.get(eid) != state.position.get(eid)
+    }
 
-    # Use the first portal found
-    portal_id = portal_ids[0]
-    portal = state.portal[portal_id]
-
-    # Find the paired portal's position
-    pair_id = portal.pair_entity
-    pair_pos = state.position.get(pair_id)
-    if pair_pos is None:
-        return state  # Pair portal entity missing or not placed
-
-    # Teleport entity to the paired portal's position
-    new_position = state.position.set(eid, pair_pos)
-    return replace(state, position=new_position)
+    state_position = state.position.update(
+        {eid: pair_position for eid in entering_entity_ids}
+    )
+    return replace(state, position=state_position)
 
 
 def portal_system(state: State) -> State:
-    for eid in state.collidable:
-        state = portal_system_entity(state, eid)
+    augmented_trail: PMap[Position, PSet[EntityID]] = get_augmented_trail(
+        state, pset(state.collidable)
+    )
+    for portal_id in state.portal:
+        state = portal_system_entity(state, augmented_trail, portal_id)
     return state
