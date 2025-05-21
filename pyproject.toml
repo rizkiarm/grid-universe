@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-app = ["streamlit>=1.45.0", "streamlit-keyup>=0.3.0"]
+app = ["streamlit>=1.45.0"]
 gym = ["gymnasium>=1.1.1", "numpy>=2.2.0"]
 dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-Pillow"]
 

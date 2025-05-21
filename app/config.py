@@ -1,20 +1,16 @@
-from dataclasses import dataclass, replace
 import dataclasses
-from pyrsistent import thaw
 import streamlit as st
-import numpy as np
-from typing import List, Tuple, Dict, Optional
-from st_keyup import st_keyup  # type: ignore
-from grid_universe.actions import GymAction
-from grid_universe.components import Inventory
-from grid_universe.components.properties.appearance import AppearanceName
-from grid_universe.components.properties.status import Status
+
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+from grid_universe.components import AppearanceName
 from grid_universe.gym_env import GridUniverseEnv, ObsType
 from grid_universe.levels.maze import (
     DEFAULT_BOXES,
+    DEFAULT_ENEMIES,
     DEFAULT_HAZARDS,
     DEFAULT_POWERUPS,
-    DEFAULT_ENEMIES,
     BoxSpec,
     EnemySpec,
     HazardSpec,
@@ -23,48 +19,11 @@ from grid_universe.levels.maze import (
 )
 from grid_universe.moves import MOVE_FN_REGISTRY, default_move_fn
 from grid_universe.objectives import OBJECTIVE_FN_REGISTRY, default_objective_fn
-from grid_universe.state import State
-from grid_universe.types import (
-    EffectType,
-    EffectLimit,
-    EffectLimitAmount,
-    EntityID,
-    MoveFn,
-    ObjectiveFn,
-)
-
-ITEM_ICONS: Dict[AppearanceName, str] = {
-    AppearanceName.KEY: "🔑",
-    AppearanceName.COIN: "🪙",
-    AppearanceName.CORE: "🌟",
-}
-
-POWERUP_ICONS: Dict[AppearanceName, str] = {
-    AppearanceName.GHOST: "👻",
-    AppearanceName.SHIELD: "🛡️",
-    AppearanceName.BOOTS: "⚡",
-}
-
-st.set_page_config(layout="wide", page_title="Grid Universe")
-st.markdown(
-    """
-    <style>
-        header, footer, #MainMenu { visibility: hidden; }
-        .stMainBlockContainer {
-            padding-top: 0;
-            padding-bottom: 0;
-        }
-        .stToastContainer {
-            align-items: center;
-        }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
+from grid_universe.types import EffectLimit, MoveFn, ObjectiveFn
 
 
 @dataclass(frozen=True)
-class MazeConfig:
+class Config:
     width: int
     height: int
     num_required_items: int
@@ -86,8 +45,8 @@ class MazeConfig:
 
 
 def set_default_config() -> None:
-    if "maze_config" not in st.session_state:
-        st.session_state["maze_config"] = MazeConfig(
+    if "config" not in st.session_state:
+        st.session_state["config"] = Config(
             width=10,
             height=10,
             num_required_items=3,
@@ -110,61 +69,76 @@ def set_default_config() -> None:
         st.session_state["maze_seed_counter"] = 0
 
 
-def get_config_from_widgets() -> MazeConfig:
-    maze_config: MazeConfig = st.session_state["maze_config"]
-
+def maze_size_section(config: Config) -> Tuple[int, int, float, int]:
     st.subheader("Maze Size & Structure")
-    width: int = st.slider("Maze width", 6, 30, maze_config.width, key="width")
-    height: int = st.slider("Maze height", 6, 30, maze_config.height, key="height")
+    width: int = st.slider("Maze width", 6, 30, config.width, key="width")
+    height: int = st.slider("Maze height", 6, 30, config.height, key="height")
     wall_percentage: float = st.slider(
         "Wall percentage (0=open, 1=perfect maze)",
         0.0,
         1.0,
-        maze_config.wall_percentage,
+        config.wall_percentage,
         step=0.01,
         key="wall_percentage",
     )
     movement_cost: int = st.slider(
-        "Floor cost", 0, 10, maze_config.movement_cost, key="movement_cost"
+        "Floor cost", 0, 10, config.movement_cost, key="movement_cost"
     )
+    return width, height, wall_percentage, movement_cost
 
+
+def items_section(config: Config) -> Tuple[int, int, int, int]:
     st.subheader("Items & Rewards")
     num_required_items: int = st.slider(
         "Required Items",
         0,
         10,
-        maze_config.num_required_items,
+        config.num_required_items,
         key="num_required_items",
     )
     num_rewardable_items: int = st.slider(
         "Rewardable Items",
         0,
         10,
-        maze_config.num_rewardable_items,
+        config.num_rewardable_items,
         key="num_rewardable_items",
     )
     required_item_reward: int = st.number_input(
         "Reward per required item",
         min_value=0,
-        value=maze_config.required_item_reward,
+        value=config.required_item_reward,
         key="required_item_reward",
     )
     rewardable_item_reward: int = st.number_input(
         "Reward per rewardable item",
         min_value=0,
-        value=maze_config.rewardable_item_reward,
+        value=config.rewardable_item_reward,
         key="rewardable_item_reward",
     )
+    return (
+        num_required_items,
+        num_rewardable_items,
+        required_item_reward,
+        rewardable_item_reward,
+    )
 
+
+def agent_section(config: Config) -> int:
     st.subheader("Agent")
-    health: int = st.slider("Agent Health", 1, 30, maze_config.health, key="health")
+    health: int = st.slider("Agent Health", 1, 30, config.health, key="health")
+    return health
 
+
+def doors_portals_section(config: Config) -> Tuple[int, int]:
     st.subheader("Doors, Portals")
     num_portals: int = st.slider(
-        "Portals (pairs)", 0, 5, maze_config.num_portals, key="num_portals"
+        "Portals (pairs)", 0, 5, config.num_portals, key="num_portals"
     )
-    num_doors: int = st.slider("Doors", 0, 4, maze_config.num_doors, key="num_doors")
+    num_doors: int = st.slider("Doors", 0, 4, config.num_doors, key="num_doors")
+    return num_portals, num_doors
 
+
+def boxes_section(config: Config) -> List[BoxSpec]:
     st.subheader("Boxes")
     boxes: List[BoxSpec] = list(DEFAULT_BOXES)
     box_count: int = st.number_input(
@@ -191,7 +165,10 @@ def get_config_from_widgets() -> MazeConfig:
                 boxes[idx] = (appearance, pushable, speed)
             else:
                 boxes.append((appearance, pushable, speed))
+    return boxes
 
+
+def hazards_section() -> List[HazardSpec]:
     st.subheader("Hazards")
     hazards: List[HazardSpec] = []
     for hazard_type, hazard_damage, hazard_lethal in DEFAULT_HAZARDS:
@@ -219,7 +196,10 @@ def get_config_from_widgets() -> MazeConfig:
                 st.markdown("Lethal")
                 damage = 0
         hazards.extend([(hazard_type, damage, lethal)] * count)
+    return hazards
 
+
+def powerups_section() -> List[PowerupSpec]:
     st.subheader("Powerups")
     powerups: List[PowerupSpec] = []
     for (
@@ -275,7 +255,10 @@ def get_config_from_widgets() -> MazeConfig:
                 ]
                 * count
             )
+    return powerups
 
+
+def enemies_section(config: Config) -> List[EnemySpec]:
     st.subheader("Enemies")
     enemies: List[EnemySpec] = list(DEFAULT_ENEMIES)  # DEFAULT_ENEMIES
     enemy_count: int = st.number_input(
@@ -336,19 +319,25 @@ def get_config_from_widgets() -> MazeConfig:
                 enemies.append(
                     (appearance, damage, lethal, movement_type, movement_speed)
                 )
+    return enemies
 
+
+def movement_section(config: Config) -> MoveFn:
     st.subheader("Gameplay Movement")
     move_fn_names: List[str] = list(MOVE_FN_REGISTRY.keys())
     move_fn_label: str = st.selectbox(
         "Movement rule",
         move_fn_names,
         index=move_fn_names.index(
-            next(k for k, v in MOVE_FN_REGISTRY.items() if v is maze_config.move_fn)
+            next(k for k, v in MOVE_FN_REGISTRY.items() if v is config.move_fn)
         ),
         key="move_fn",
     )
     move_fn: MoveFn = MOVE_FN_REGISTRY[move_fn_label]
+    return move_fn
 
+
+def objective_section(config: Config) -> ObjectiveFn:
     st.subheader("Gameplay Objective")
     objective_fn_names: List[str] = list(OBJECTIVE_FN_REGISTRY.keys())
     objective_fn_label: str = st.selectbox(
@@ -356,19 +345,42 @@ def get_config_from_widgets() -> MazeConfig:
         objective_fn_names,
         index=objective_fn_names.index(
             next(
-                k
-                for k, v in OBJECTIVE_FN_REGISTRY.items()
-                if v is maze_config.objective_fn
+                k for k, v in OBJECTIVE_FN_REGISTRY.items() if v is config.objective_fn
             )
         ),
         key="objective_fn",
     )
     objective_fn: ObjectiveFn = OBJECTIVE_FN_REGISTRY[objective_fn_label]
+    return objective_fn
 
+
+def seed_section() -> int:
     st.subheader("Random seed")
     seed: int = st.number_input("Random seed", min_value=0, key="maze_seed")
+    return seed
 
-    return MazeConfig(
+
+def get_config_from_widgets() -> Config:
+    config: Config = st.session_state["config"]
+
+    width, height, wall_percentage, movement_cost = maze_size_section(config)
+    (
+        num_required_items,
+        num_rewardable_items,
+        required_item_reward,
+        rewardable_item_reward,
+    ) = items_section(config)
+    health: int = agent_section(config)
+    num_portals, num_doors = doors_portals_section(config)
+    boxes: List[BoxSpec] = boxes_section(config)
+    hazards: List[HazardSpec] = hazards_section()
+    powerups: List[PowerupSpec] = powerups_section()
+    enemies: List[EnemySpec] = enemies_section(config)
+    move_fn: MoveFn = movement_section(config)
+    objective_fn: ObjectiveFn = objective_section(config)
+    seed: int = seed_section()
+
+    return Config(
         width=width,
         height=height,
         num_required_items=num_required_items,
@@ -391,7 +403,7 @@ def get_config_from_widgets() -> MazeConfig:
 
 
 def make_env_and_reset(
-    config: MazeConfig,
+    config: Config,
 ) -> Tuple[GridUniverseEnv, ObsType, Dict[str, object]]:
     config_dict = dataclasses.asdict(config)
     env = GridUniverseEnv(render_mode="texture", **config_dict)
@@ -402,221 +414,3 @@ def make_env_and_reset(
     st.session_state["total_reward"] = 0.0
     st.session_state["prev_health"] = config.health
     return env, obs, info
-
-
-def get_keyboard_action() -> Optional[GymAction]:
-    value: str = (
-        st_keyup(
-            "control",
-            label_visibility="collapsed",
-            key="maze_key_input",
-            placeholder="Type: WASD to move, e pickup, f use key, q wait",
-        )
-        or ""
-    )
-    prev_value: str = st.session_state.get("maze_key_input_prev", "")
-    st.session_state["maze_key_input_prev"] = value
-    if value != prev_value:
-        from collections import Counter
-
-        new_values: List[str] = list((Counter(value) - Counter(prev_value)).elements())
-        if not new_values:
-            return None
-        key: str = new_values[-1]
-        key_map: Dict[str, GymAction] = {
-            "w": GymAction.UP,
-            "s": GymAction.DOWN,
-            "a": GymAction.LEFT,
-            "d": GymAction.RIGHT,
-            "f": GymAction.USE_KEY,
-            "e": GymAction.PICK_UP,
-            "q": GymAction.WAIT,
-        }
-        return key_map.get(key)
-    return None
-
-
-def do_action(env: GridUniverseEnv, action: GymAction) -> None:
-    obs, reward, terminated, truncated, info = env.step(np.uint(action.value))
-    st.session_state["obs"] = obs
-    st.session_state["info"] = info
-    st.session_state["total_reward"] = float(st.session_state["total_reward"]) + reward
-    st.session_state["game_over"] = terminated or truncated
-
-
-def get_effect_types(state: State, effect_id: EntityID) -> List[EffectType]:
-    effect_types: List[EffectType] = []
-    for effect_type, effect_ids in [
-        (EffectType.IMMUNITY, state.immunity),
-        (EffectType.PHASING, state.phasing),
-        (EffectType.SPEED, state.speed),
-    ]:
-        if effect_id in effect_ids:
-            effect_types.append(effect_type)
-    return effect_types
-
-
-def get_effect_limits(
-    state: State, effect_id: EntityID
-) -> List[Tuple[EffectLimit, EffectLimitAmount]]:
-    effect_limits: List[Tuple[EffectLimit, EffectLimitAmount]] = []
-    for limit_type, limit_map in [
-        (EffectLimit.TIME, state.time_limit),
-        (EffectLimit.USAGE, state.usage_limit),
-    ]:
-        if effect_id in limit_map:
-            effect_limits.append((limit_type, limit_map[effect_id].amount))
-    return effect_limits
-
-
-def display_powerup_status(state: State, status: Status) -> None:
-    st.text("PowerUp")
-    with st.container(height=250):
-        if len(status.effect_ids) == 0:
-            st.error("No active powerups")
-        for effect_id in status.effect_ids:
-            effect_name = state.appearance[effect_id].name
-            effect_types = get_effect_types(state, effect_id)
-            effect_limits = get_effect_limits(state, effect_id)
-            icon = POWERUP_ICONS.get(state.appearance[effect_id].name, "✨")
-            st.success(
-                f"{effect_name.capitalize()}"
-                f" [{', '.join(effect_types)}]"
-                f" {', '.join(['(' + ltype + ' ' + str(lamount) + ')' for ltype, lamount in effect_limits])}",
-                icon=icon,
-            )
-
-
-def display_inventory(state: State, inventory: Inventory) -> None:
-    st.text("Inventory")
-    with st.container(height=250):
-        if len(inventory.item_ids) == 0:
-            st.error("No items")
-        for item_id in inventory.item_ids:
-            name = state.appearance[item_id].name
-            icon = ITEM_ICONS.get(name, "🎲")  # fallback icon
-            text = f"{name.replace('_', ' ').capitalize()} #{item_id}"
-            if item_id in state.key:
-                text += f" ({state.key[item_id].key_id})"
-            st.success(text, icon=icon)
-
-
-# --------- Main App ---------
-set_default_config()
-tab_game, tab_config, tab_state = st.tabs(["Game", "Config", "State"])
-
-with tab_config:
-    config: MazeConfig = get_config_from_widgets()
-    st.session_state["maze_config"] = config
-
-    if st.button("🔄 Generate Maze", key="save_config_btn", use_container_width=True):
-        st.session_state["maze_seed_counter"] = 0  # reset counter
-        st.session_state["maze_config"] = replace(
-            st.session_state["maze_config"],
-            seed=st.session_state["maze_config"].seed
-            + st.session_state["maze_seed_counter"],
-        )
-        make_env_and_reset(st.session_state["maze_config"])
-    st.divider()
-
-with tab_game:
-    if "env" not in st.session_state or "obs" not in st.session_state:
-        make_env_and_reset(st.session_state["maze_config"])
-
-    left_col, middle_col, right_col = st.columns([0.25, 0.5, 0.25])
-
-    with right_col:
-        if st.button("🔄 New Maze", key="generate_btn", use_container_width=True):
-            st.session_state["maze_seed_counter"] += 1
-            st.session_state["maze_config"] = replace(
-                st.session_state["maze_config"],
-                seed=st.session_state["maze_config"].seed
-                + st.session_state["maze_seed_counter"],
-            )
-            make_env_and_reset(st.session_state["maze_config"])
-
-        # Need to put after generate maze
-        env: GridUniverseEnv = st.session_state["env"]
-        obs: ObsType = st.session_state["obs"]
-        info: Dict[str, object] = st.session_state["info"]
-
-        if env.state:
-            maze_rule = (
-                env.state.move_fn.__name__.replace("_", " ")
-                .replace("fn", "")
-                .capitalize()
-            )
-            st.info(f"{maze_rule}", icon="🚶")
-
-            objective = (
-                env.state.objective_fn.__name__.replace("_", " ")
-                .replace("fn", "")
-                .capitalize()
-            )
-            st.info(f"{objective}", icon="🎯")
-
-        st.divider()
-
-        action: Optional[GymAction] = get_keyboard_action()
-        if action is not None:
-            do_action(env, action)
-
-        _, up_col, _ = st.columns([1, 1, 1])
-        with up_col:
-            if st.button("⬆️", key="up_btn", use_container_width=True):
-                do_action(env, GymAction.UP)
-        left_btn, down_btn, right_btn = st.columns([1, 1, 1])
-        with left_btn:
-            if st.button("⬅️", key="left_btn", use_container_width=True):
-                do_action(env, GymAction.LEFT)
-        with down_btn:
-            if st.button("⬇️", key="down_btn", use_container_width=True):
-                do_action(env, GymAction.DOWN)
-        with right_btn:
-            if st.button("➡️", key="right_btn", use_container_width=True):
-                do_action(env, GymAction.RIGHT)
-
-        pickup_btn, usekey_btn, wait_btn = st.columns([1, 1, 1])
-        with pickup_btn:
-            if st.button("🤲 Pickup", key="pickup_btn", use_container_width=True):
-                do_action(env, GymAction.PICK_UP)
-        with usekey_btn:
-            if st.button("🔑 Use", key="usekey_btn", use_container_width=True):
-                do_action(env, GymAction.USE_KEY)
-        with wait_btn:
-            if st.button("⏳ Wait", key="wait_btn", use_container_width=True):
-                do_action(env, GymAction.WAIT)
-
-    with left_col:
-        state = env.state
-        if state is not None:
-            st.info(f"**Total Reward:** {st.session_state['total_reward']}", icon="🏅")
-
-            agent_id = env.agent_id
-
-            if agent_id is not None:
-                health = state.health[agent_id]
-                st.info(
-                    f"**Health Point:** {health.health} / {health.max_health}", icon="❤️"
-                )
-                prev_health = st.session_state["prev_health"]
-                if health.health < prev_health:
-                    st.toast(f"Taking {health.health - prev_health} damage!", icon="🔥")
-                    st.session_state["prev_health"] = health.health
-
-                display_powerup_status(state, state.status[agent_id])
-                display_inventory(state, state.inventory[agent_id])
-
-    with middle_col:
-        if env.state and env.state.win:
-            st.success("🎉 **Goal reached!** 🎉")
-            st.balloons()
-        if env.state and env.state.lose:
-            st.error("💀 **You have died!** 💀")
-        img = env.render(mode="texture")
-        if img is not None:
-            st.image(img, use_container_width=True)
-
-with tab_state:
-    if env.state:
-        st.json(thaw(env.state.description), expanded=1)

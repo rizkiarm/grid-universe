@@ -1,0 +1,12 @@
+header,
+footer,
+#MainMenu {
+    visibility: hidden;
+}
+.stMainBlockContainer {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+.stToastContainer {
+    align-items: center;
+}

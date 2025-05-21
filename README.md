@@ -71,7 +71,7 @@ The project includes a `.devcontainer` directory supporting [Dev Containers](htt
 
 ### Streamlit App
 
-The `app.py` file provides an interactive web interface for Grid Universe using [Streamlit](https://streamlit.io/).
+The `app/main.py` file provides an interactive web interface for Grid Universe using [Streamlit](https://streamlit.io/).
 
 **Features:**
 - **Game:** Play using keyboard or UI, see agent HP, inventory, powerup status, and receive live feedback.
@@ -80,7 +80,7 @@ The `app.py` file provides an interactive web interface for Grid Universe using 
 
 To run the web app locally:
 ```
-streamlit run app.py
+streamlit run app/main.py
 ```
 
 Alternatively, you can access the hosted version at [grid-universe.streamlit.app](https://grid-universe.streamlit.app/)
@@ -138,7 +138,9 @@ The RL env returns a dict:
 
 ## Project Structure
 ```
-app.py                 # Streamlit App
+app/
+    main.py            # Streamlit App
+    ...
 grid_universe/
     actions.py         # Action types (Move, PickUp, UseKey, etc.)
     components/        # ECS component classes (Agent, Position, Wall, etc.)
