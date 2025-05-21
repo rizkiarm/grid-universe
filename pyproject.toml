@@ -10,11 +10,12 @@ license = { file = "LICENSE" }
 dependencies = [
     "pyrsistent>=0.20.0",     # for immutable dicts/sets
     "Pillow>=11.2.1",         # for image loading/rendering
+    "gymnasium>=1.1.1",       # for Gymnasium API
+    "numpy>=2.2.0",
 ]
 
 [project.optional-dependencies]
 app = ["streamlit>=1.45.0"]
-gym = ["gymnasium>=1.1.1", "numpy>=2.2.0"]
 dev = ["pytest", "pytest-cov", "mypy", "ruff", "types-Pillow"]
 
 [tool.setuptools.packages.find]

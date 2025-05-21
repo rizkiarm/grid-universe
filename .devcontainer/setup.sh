@@ -14,7 +14,7 @@ pip install --upgrade pip
 if [ -f "requirements.txt" ]; then
     pip install -r requirements.txt
 elif [ -f "pyproject.toml" ]; then
-    pip install -e .[app,gym,dev]
+    pip install -e .[app,dev]
 fi
 
 # For convenience: add venv activate command to .bashrc if not already present

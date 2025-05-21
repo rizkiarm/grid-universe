@@ -39,10 +39,10 @@ Designed from the ground up, Grid Universe serves as an ideal environment for re
 - Python 3.11+
 - [pyrsistent](https://github.com/tobgu/pyrsistent)
 - [Pillow](https://pillow.readthedocs.io/en/stable/)
-
-**Extra Dependencies:**
 - [gymnasium](https://github.com/Farama-Foundation/Gymnasium)
 - [numpy](https://numpy.org)
+
+**Extra Dependencies:**
 - [Streamlit](https://streamlit.io)
 
 Install dependencies:
@@ -54,7 +54,6 @@ pip install -e .
 Install with extra dependencies:
 
 ```
-pip install -e .[gym] # Gymnasium API
 pip install -e .[app] # Streamlit App
 pip install -e .[dev] # Development
 ```
