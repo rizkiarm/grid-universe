@@ -14,7 +14,7 @@ from grid_universe.components import (
     Position,
 )
 from grid_universe.entity import Entity
-from grid_universe.actions import MoveAction, Direction
+from grid_universe.actions import Action
 from grid_universe.step import step
 
 
@@ -70,9 +70,7 @@ def test_win_when_on_exit_and_all_required_collected() -> None:
         collected_required_ids=[3, 4],
         agent_dead=False,
     )
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.win
     assert not new_state.lose
 
@@ -84,9 +82,7 @@ def test_no_win_if_required_not_collected() -> None:
         collected_required_ids=[3],
         agent_dead=False,
     )
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert not new_state.win
 
 
@@ -97,9 +93,7 @@ def test_no_win_if_not_on_exit() -> None:
         collected_required_ids=[3],
         agent_dead=False,
     )
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert not new_state.win
 
 
@@ -107,9 +101,7 @@ def test_lose_if_agent_dead() -> None:
     state, agent_id, required_ids, exit_id = make_terminal_state(
         agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=True
     )
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.lose
 
 
@@ -117,9 +109,7 @@ def test_no_lose_if_agent_alive() -> None:
     state, agent_id, required_ids, exit_id = make_terminal_state(
         agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False
     )
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert not new_state.lose
 
 
@@ -129,9 +119,7 @@ def test_win_when_on_exit_no_required_items() -> None:
     )
     # Remove all required items from state
     state = replace(state, required=pmap())
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.win
 
 
@@ -142,12 +130,8 @@ def test_dead_agent_on_exit_no_win() -> None:
         collected_required_ids=[3],
         agent_dead=True,
     )
-    win_state = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
-    lose_state = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    win_state = step(state, Action.UP, agent_id=agent_id)
+    lose_state = step(state, Action.UP, agent_id=agent_id)
     assert lose_state.lose
     assert not win_state.win
 
@@ -157,9 +141,7 @@ def test_win_state_is_idempotent() -> None:
         agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False
     )
     state = replace(state, win=True)
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.win
 
 
@@ -168,9 +150,7 @@ def test_lose_state_is_idempotent() -> None:
         agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=True
     )
     state = replace(state, lose=True)
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.lose
 
 
@@ -182,9 +162,7 @@ def test_no_win_if_agent_position_missing() -> None:
         agent_dead=False,
     )
     state = replace(state, position=state.position.remove(agent_id))
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert not new_state.win
 
 
@@ -196,9 +174,7 @@ def test_no_win_if_no_agent_in_state() -> None:
         agent_dead=False,
     )
     state = replace(state, agent=state.agent.remove(agent_id))
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert not new_state.win
 
 
@@ -215,7 +191,5 @@ def test_win_when_on_any_exit() -> None:
     exits = state.exit.set(exit2_id, Exit())
     entity = state.entity.set(exit2_id, Entity())
     state = replace(state, exit=exits, position=pos, entity=entity)
-    new_state: State = step(
-        state, MoveAction(entity_id=agent_id, direction=Direction.UP), agent_id=agent_id
-    )
+    new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.win

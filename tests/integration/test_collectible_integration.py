@@ -18,8 +18,8 @@ from grid_universe.components import (
     UsageLimit,
 )
 from grid_universe.types import EntityID
-from grid_universe.entity import Entity  # <-- ADD THIS IMPORT
-from grid_universe.actions import MoveAction, PickUpAction, Direction
+from grid_universe.entity import Entity
+from grid_universe.actions import Action
 from grid_universe.step import step
 
 
@@ -92,11 +92,9 @@ def make_agent_with_collectible_state(
     return state, agent_id, collectible_id
 
 
-def move_and_pickup(state: State, agent_id: EntityID, direction: Direction) -> State:
-    state2: State = step(
-        state, MoveAction(entity_id=agent_id, direction=direction), agent_id=agent_id
-    )
-    state3: State = step(state2, PickUpAction(entity_id=agent_id), agent_id=agent_id)
+def move_and_pickup(state: State, agent_id: EntityID, action: Action) -> State:
+    state2: State = step(state, action, agent_id=agent_id)
+    state3: State = step(state2, Action.PICK_UP, agent_id=agent_id)
     return state3
 
 
@@ -108,7 +106,7 @@ def get_agent_status_effect_ids(state: State, agent_id: EntityID) -> Set[EntityI
 
 def test_agent_picks_up_item() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state((0, 0), (1, 0))
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert collectible_id in state2.inventory[agent_id].item_ids
     assert collectible_id not in state2.collectible
     assert collectible_id not in state2.position
@@ -118,7 +116,7 @@ def test_agent_picks_up_rewardable() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state(
         (0, 0), (1, 0), reward=10
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert collectible_id in state2.inventory[agent_id].item_ids
     assert state2.score == 10
 
@@ -127,7 +125,7 @@ def test_agent_picks_up_powerup_immunity_usage() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state(
         (0, 0), (1, 0), effect=Immunity(), limit_type="usage", limit_amount=2
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert collectible_id in get_agent_status_effect_ids(state2, agent_id)
     assert collectible_id not in state2.collectible
     assert collectible_id not in state2.position
@@ -138,7 +136,7 @@ def test_agent_picks_up_powerup_phasing_time() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state(
         (0, 0), (1, 0), effect=Phasing(), limit_type="time", limit_amount=3
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert collectible_id in get_agent_status_effect_ids(state2, agent_id)
     assert state2.time_limit[collectible_id].amount == 3
 
@@ -147,7 +145,7 @@ def test_agent_picks_up_powerup_speed_unlimited() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state(
         (0, 0), (1, 0), effect=Speed(multiplier=2)
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert collectible_id in get_agent_status_effect_ids(state2, agent_id)
     assert collectible_id in state2.speed
     assert collectible_id not in state2.time_limit
@@ -174,7 +172,7 @@ def test_pickup_powerup_stacks_usage() -> None:
         usage_limit=state.usage_limit.set(effect_id2, UsageLimit(amount=3)),
         entity=state.entity.set(effect_id2, Entity()),  # Use Entity()
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert state2.usage_limit[effect_id1].amount == 2
     assert state2.usage_limit[effect_id2].amount == 3
 
@@ -184,7 +182,7 @@ def test_pickup_powerup_unlimited_usage() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state(
         (0, 0), (1, 0), effect=Immunity()
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert collectible_id in get_agent_status_effect_ids(state2, agent_id)
     assert collectible_id not in state2.usage_limit
 
@@ -193,7 +191,7 @@ def test_agent_picks_up_required() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state(
         (0, 0), (1, 0), required=True
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert collectible_id in state2.inventory[agent_id].item_ids
 
 
@@ -239,7 +237,7 @@ def test_agent_picks_up_multiple_types() -> None:
         required=pmap(required_map),
         inventory=pmap(inventory_map),
     )
-    state2 = move_and_pickup(state, agent_id, Direction.DOWN)
+    state2 = move_and_pickup(state, agent_id, Action.DOWN)
     assert item_id in state2.inventory[agent_id].item_ids
     assert rewardable_id in state2.inventory[agent_id].item_ids
     assert required_id in state2.inventory[agent_id].item_ids
@@ -253,11 +251,11 @@ def test_pickup_defensive_edge_cases() -> None:
     # No inventory
     state, agent_id, collectible_id = make_agent_with_collectible_state((0, 0), (0, 0))
     state2 = replace(state, inventory=pmap())
-    state3 = step(state2, PickUpAction(entity_id=agent_id), agent_id=agent_id)
+    state3 = step(state2, Action.PICK_UP, agent_id=agent_id)
     assert collectible_id in state3.collectible
     # Nothing present
     state4, agent_id2, _ = make_agent_with_collectible_state((0, 0), (1, 0))
-    step(state4, PickUpAction(entity_id=agent_id2), agent_id=agent_id2)
+    step(state4, Action.PICK_UP, agent_id=agent_id2)
     # Already collected
     state6, agent_id3, collectible_id3 = make_agent_with_collectible_state(
         (0, 0), (0, 0)
@@ -267,7 +265,7 @@ def test_pickup_defensive_edge_cases() -> None:
         collectible=state6.collectible.remove(collectible_id3),
         position=state6.position.remove(collectible_id3),
     )
-    step(state7, PickUpAction(entity_id=agent_id3), agent_id=agent_id3)
+    step(state7, Action.PICK_UP, agent_id=agent_id3)
     # Should do nothing and not crash
 
 
@@ -275,7 +273,7 @@ def test_pickup_required_updates_win_condition() -> None:
     state, agent_id, _ = make_agent_with_collectible_state(
         (0, 0), (1, 0), required=True
     )
-    move_and_pickup(state, agent_id, Direction.RIGHT)
+    move_and_pickup(state, agent_id, Action.RIGHT)
     # Not asserting win here, just verifying that state is valid after required pickup
 
 
@@ -283,15 +281,15 @@ def test_pickup_removes_from_all_relevant_stores() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state(
         (0, 0), (1, 0), reward=5, required=True
     )
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     for store in [state2.collectible, state2.position]:
         assert collectible_id not in store
 
 
 def test_pickup_inventory_not_duplicated() -> None:
     state, agent_id, collectible_id = make_agent_with_collectible_state((0, 0), (1, 0))
-    state2 = move_and_pickup(state, agent_id, Direction.RIGHT)
-    state3 = step(state2, PickUpAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = move_and_pickup(state, agent_id, Action.RIGHT)
+    state3 = step(state2, Action.PICK_UP, agent_id=agent_id)
     items: PSet[EntityID] = state3.inventory[agent_id].item_ids
     assert len(items) == len(set(items))
 
@@ -335,10 +333,10 @@ def test_pickup_collectible_with_score_cost() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
-    state3 = step(state2, PickUpAction(entity_id=agent_id), agent_id=agent_id)
+    state3 = step(state2, Action.PICK_UP, agent_id=agent_id)
     assert state3.score == 3
     assert collectible_id in state3.inventory[agent_id].item_ids
     assert collectible_id not in state3.collectible

@@ -2,7 +2,7 @@ from typing import Tuple, Sequence
 import pytest
 
 from pyrsistent import pset
-from grid_universe.actions import MoveAction, Direction
+from grid_universe.actions import Action
 from grid_universe.components import (
     Exit,
     Pushable,
@@ -28,51 +28,47 @@ def test_agent_moves_right() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (2, 1)
 
 
 @pytest.mark.parametrize(
-    "start, direction, expected",
+    "start, action, expected",
     [
-        ((1, 1), Direction.UP, (1, 0)),
-        ((1, 1), Direction.DOWN, (1, 2)),
-        ((1, 1), Direction.LEFT, (0, 1)),
-        ((1, 1), Direction.RIGHT, (2, 1)),
+        ((1, 1), Action.UP, (1, 0)),
+        ((1, 1), Action.DOWN, (1, 2)),
+        ((1, 1), Action.LEFT, (0, 1)),
+        ((1, 1), Action.RIGHT, (2, 1)),
     ],
 )
-def test_agent_moves_in_all_directions(
-    start: Tuple[int, int], direction: Direction, expected: Tuple[int, int]
+def test_agent_moves_in_all_actions(
+    start: Tuple[int, int], action: Action, expected: Tuple[int, int]
 ) -> None:
     agent_id: EntityID = 1
     state, _ = make_agent_state(
         agent_id=agent_id, agent_pos=start, move_fn=default_move_fn
     )
-    state2 = step(
-        state, MoveAction(entity_id=agent_id, direction=direction), agent_id=agent_id
-    )
+    state2 = step(state, action, agent_id=agent_id)
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == expected
 
 
 @pytest.mark.parametrize(
-    "start, direction",
+    "start, action",
     [
-        ((0, 0), Direction.LEFT),
-        ((0, 0), Direction.UP),
-        ((4, 4), Direction.RIGHT),
-        ((4, 4), Direction.DOWN),
+        ((0, 0), Action.LEFT),
+        ((0, 0), Action.UP),
+        ((4, 4), Action.RIGHT),
+        ((4, 4), Action.DOWN),
     ],
 )
-def test_agent_blocked_by_edge(start: Tuple[int, int], direction: Direction) -> None:
+def test_agent_blocked_by_edge(start: Tuple[int, int], action: Action) -> None:
     agent_id: EntityID = 1
     state, _ = make_agent_state(
         agent_id=agent_id, agent_pos=start, move_fn=default_move_fn
     )
-    state2 = step(
-        state, MoveAction(entity_id=agent_id, direction=direction), agent_id=agent_id
-    )
+    state2 = step(state, action, agent_id=agent_id)
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == start
 
 
@@ -89,7 +85,7 @@ def test_agent_blocked_by_wall() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (1, 1)
@@ -111,7 +107,7 @@ def test_agent_pushes_single_box() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (2, 1)
@@ -135,7 +131,7 @@ def test_agent_blocked_by_chain_of_boxes() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (1, 1)
@@ -162,7 +158,7 @@ def test_agent_with_ghost_moves_through_wall() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (2, 1)
@@ -184,7 +180,7 @@ def test_agent_with_double_speed_moves_two_steps() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (3, 1)
@@ -206,7 +202,7 @@ def test_agent_wins_on_exit() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (2, 1)
@@ -230,7 +226,7 @@ def test_agent_loses_on_hazard() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (2, 1)
@@ -240,7 +236,7 @@ def test_agent_loses_on_hazard() -> None:
 def test_agent_move_fn_returns_empty_list() -> None:
     agent_id: EntityID = 1
 
-    def empty_move_fn(state, eid, direction) -> Sequence[Position]:
+    def empty_move_fn(state, eid, action) -> Sequence[Position]:
         return []
 
     state, _ = make_agent_state(
@@ -248,7 +244,7 @@ def test_agent_move_fn_returns_empty_list() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (1, 1)

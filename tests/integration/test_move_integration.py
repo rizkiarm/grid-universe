@@ -15,7 +15,7 @@ from grid_universe.components import (
 )
 from grid_universe.objectives import default_objective_fn
 from grid_universe.step import step
-from grid_universe.actions import MoveAction, Direction, Action
+from grid_universe.actions import Action
 from pyrsistent import pmap, pset
 from tests.test_utils import (
     make_agent_box_wall_state,
@@ -26,7 +26,7 @@ from tests.test_utils import (
 
 def test_move_valid() -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(agent_pos=(0, 0))
-    action: Action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action: Action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (1, 0)})
 
@@ -35,7 +35,7 @@ def test_move_blocked_by_wall() -> None:
     state, agent_id, _, wall_ids = make_agent_box_wall_state(
         agent_pos=(0, 0), wall_positions=[(1, 0)]
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (0, 0), wall_ids[0]: (1, 0)})
 
@@ -44,7 +44,7 @@ def test_move_pushes_box() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
         agent_pos=(0, 0), box_positions=[(1, 0)]
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (1, 0), box_ids[0]: (2, 0)})
 
@@ -53,7 +53,7 @@ def test_move_push_blocked_by_wall_after_box() -> None:
     state, agent_id, box_ids, wall_ids = make_agent_box_wall_state(
         agent_pos=(0, 0), box_positions=[(1, 0)], wall_positions=[(2, 0)]
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(
         new_state,
@@ -69,7 +69,7 @@ def test_move_pushes_box_out_of_bounds() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
         agent_pos=(3, 0), box_positions=[(4, 0)], width=5, height=1
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (3, 0), box_ids[0]: (4, 0)})
 
@@ -81,7 +81,7 @@ def test_move_wrapping_enabled() -> None:
         agent_pos=(4, 0), width=5, height=1
     )
     state = replace(state, move_fn=wrap_around_move_fn)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (0, 0)})
 
@@ -97,7 +97,7 @@ def test_move_ghost_powerup_ignores_wall_box() -> None:
         status=state.status.set(agent_id, Status(effect_ids=pset([effect_id]))),
         phasing=state.phasing.set(effect_id, Phasing()),
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(
         new_state, {agent_id: (1, 0), wall_ids[0]: (1, 0), box_ids[0]: (2, 0)}
@@ -115,7 +115,7 @@ def test_move_onto_portal_teleports_agent() -> None:
         }
     )
     state = replace(state, position=pos, portal=portal)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (3, 0)})
 
@@ -128,7 +128,7 @@ def test_move_onto_hazard_takes_damage() -> None:
     damage = pmap({hazard_id: Damage(amount=1)})
     # No "Hazard" class, just use correct damage
     state = replace(state, position=pos, health=health, damage=damage)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.health[agent_id].health == 4
 
@@ -140,7 +140,7 @@ def test_move_onto_enemy_takes_damage() -> None:
     health = pmap({agent_id: Health(health=5, max_health=5)})
     damage = pmap({enemy_id: Damage(amount=2)})
     state = replace(state, position=pos, health=health, damage=damage)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.health[agent_id].health == 3
 
@@ -159,7 +159,7 @@ def test_move_onto_reward_cost_collectible_tile() -> None:
     state = replace(
         state, position=pos, rewardable=rewardable, cost=cost, collectible=collectible
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.score == 8  # 14 - 6
 
@@ -174,7 +174,7 @@ def test_move_double_speed_powerup_moves_twice_and_blocks_at_wall() -> None:
         status=state.status.set(agent_id, Status(effect_ids=pset([effect_id]))),
         speed=state.speed.set(effect_id, Speed(multiplier=2)),
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (1, 0), wall_ids[0]: (2, 0)})
 
@@ -185,7 +185,7 @@ def test_move_onto_exit_triggers_win() -> None:
     pos = state.position.update(exit_pos)
     entity = state.entity.update(entity_map)
     state = replace(state, exit=pmap(exit_map), position=pos, entity=entity)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.win
 
@@ -193,7 +193,7 @@ def test_move_onto_exit_triggers_win() -> None:
 def test_move_dead_agent_does_nothing() -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(agent_pos=(0, 0))
     state = replace(state, dead=pmap({agent_id: Dead()}))
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (0, 0)})
 
@@ -202,7 +202,7 @@ def test_move_after_win_or_lose_does_nothing() -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(agent_pos=(0, 0))
     state_win = replace(state, win=True)
     state_lose = replace(state, lose=True)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state_win = step(state_win, action, agent_id=agent_id)
     new_state_lose = step(state_lose, action, agent_id=agent_id)
     assert_entity_positions(new_state_win, {agent_id: (0, 0)})
@@ -225,7 +225,7 @@ def test_move_chained_portal_no_loop() -> None:
         }
     )
     state = replace(state, position=pos, portal=portal)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.position[agent_id] in [Position(2, 0), Position(3, 0)]
 
@@ -240,7 +240,7 @@ def test_move_push_box_onto_portal_box_teleported() -> None:
         {portal_a: Portal(pair_entity=portal_b), portal_b: Portal(pair_entity=portal_a)}
     )
     state = replace(state, position=pos, portal=portal)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     box_pos = new_state.position[box_ids[0]]
     assert new_state.position[agent_id] == Position(1, 0)
@@ -251,7 +251,7 @@ def test_move_box_chain_blocked() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
         agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)]
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(
         new_state, {agent_id: (0, 0), box_ids[0]: (1, 0), box_ids[1]: (2, 0)}
@@ -265,16 +265,16 @@ def test_move_on_hazard_and_enemy_both_damage() -> None:
     health = pmap({agent_id: Health(health=10, max_health=10)})
     damage = pmap({hazard_id: Damage(amount=2), enemy_id: Damage(amount=3)})
     state = replace(state, position=pos, health=health, damage=damage)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.health[agent_id].health == 5
 
 
-def test_move_out_of_bounds_direction_negative_index() -> None:
+def test_move_out_of_bounds_action_negative_index() -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(
         agent_pos=(0, 0), width=1, height=1
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.LEFT)
+    action = Action.LEFT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(new_state, {agent_id: (0, 0)})
 
@@ -282,7 +282,7 @@ def test_move_out_of_bounds_direction_negative_index() -> None:
 def test_move_agent_not_in_agent_map() -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(agent_pos=(0, 0))
     state = replace(state, agent=state.agent.remove(agent_id))
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert agent_id in new_state.position
     assert new_state.position[agent_id] == Position(0, 0)
@@ -298,7 +298,7 @@ def test_move_with_minimal_state() -> None:
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
     )
-    action = MoveAction(entity_id=9999, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=9999)
     assert isinstance(new_state, State)
     assert len(new_state.position) == 0
@@ -314,7 +314,7 @@ def test_move_double_speed_powerup_both_steps_blocked() -> None:
         status=state.status.set(agent_id, Status(effect_ids=pset([effect_id]))),
         speed=state.speed.set(effect_id, Speed(multiplier=2)),
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(
         new_state, {agent_id: (0, 0), wall_ids[0]: (1, 0), wall_ids[1]: (2, 0)}
@@ -335,7 +335,7 @@ def test_move_ghost_and_double_speed_combo() -> None:
         phasing=state.phasing.set(effect_ghost, Phasing()),
         speed=state.speed.set(effect_speed, Speed(multiplier=2)),
     )
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.position[agent_id] == Position(2, 0)
 
@@ -348,7 +348,7 @@ def test_push_box_onto_exit_agent_doesnt_win() -> None:
     pos = state.position.update(exit_pos)
     entity = state.entity.update(entity_map)
     state = replace(state, exit=pmap(exit_map), position=pos, entity=entity)
-    action = MoveAction(entity_id=agent_id, direction=Direction.RIGHT)
+    action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     # Agent should not win
     assert not new_state.win

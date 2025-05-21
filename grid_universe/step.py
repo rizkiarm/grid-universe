@@ -1,11 +1,6 @@
 from dataclasses import replace
-from grid_universe.actions import (
-    Action,
-    MoveAction,
-    UseKeyAction,
-    PickUpAction,
-    WaitAction,
-)
+from typing import Optional
+from grid_universe.actions import Action, MOVE_ACTIONS
 from grid_universe.systems.damage import damage_system
 from grid_universe.systems.pathfinding import pathfinding_system
 from grid_universe.systems.status import status_system
@@ -27,11 +22,14 @@ from grid_universe.utils.status import use_status_effect_if_present
 from grid_universe.utils.terminal import is_terminal_state, is_valid_state
 
 
-def step(state: State, action: Action, *, agent_id: EntityID) -> State:
+def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> State:
     """
     Main ECS reducer: applies one action, all relevant systems, and returns new state.
     Exits early if state is terminal.
     """
+    if agent_id is None and (agent_id := next(iter(state.agent.keys()), None)) is None:
+        raise ValueError("State contains no agent")
+
     if agent_id in state.dead:
         return replace(state, lose=True)
 
@@ -44,26 +42,26 @@ def step(state: State, action: Action, *, agent_id: EntityID) -> State:
     state = status_system(state)
     state = trail_system(state)  # after movements
 
-    if isinstance(action, MoveAction):
+    if action in MOVE_ACTIONS:
         state = _step_move(state, action, agent_id)
-    elif isinstance(action, UseKeyAction):
+    elif action == Action.USE_KEY:
         state = _step_usekey(state, action, agent_id)
-    elif isinstance(action, PickUpAction):
+    elif action == Action.PICK_UP:
         state = _step_pickup(state, action, agent_id)
-    elif isinstance(action, WaitAction):
+    elif action == Action.WAIT:
         state = _step_wait(state, action, agent_id)
     else:
         raise ValueError("Action is not valid")
 
-    if not isinstance(action, MoveAction):
+    if action not in MOVE_ACTIONS:
         state = _after_substep(state, action, agent_id)
 
     return _after_step(state, agent_id)
 
 
-def _step_move(state: State, action: MoveAction, agent_id: EntityID) -> State:
+def _step_move(state: State, action: Action, agent_id: EntityID) -> State:
     move_fn: MoveFn = state.move_fn
-    current_pos = state.position.get(action.entity_id)
+    current_pos = state.position.get(agent_id)
     if not current_pos:
         return state
 
@@ -83,13 +81,13 @@ def _step_move(state: State, action: MoveAction, agent_id: EntityID) -> State:
     blocked: bool = False
 
     for _ in range(move_count):
-        for next_pos in move_fn(state, action.entity_id, action.direction):
+        for next_pos in move_fn(state, agent_id, action):
             # Try to push
-            pushed_state = push_system(state, action.entity_id, next_pos)
+            pushed_state = push_system(state, agent_id, next_pos)
             if pushed_state != state:
                 state = pushed_state
             else:
-                moved_state = movement_system(state, action.entity_id, next_pos)
+                moved_state = movement_system(state, agent_id, next_pos)
                 if moved_state == state:
                     # Blocked; post-move systems, then break
                     blocked = True
@@ -98,23 +96,23 @@ def _step_move(state: State, action: MoveAction, agent_id: EntityID) -> State:
             # Post-move systems for this step
             state = _after_substep(state, action, agent_id)
 
-            if state.win or state.lose or action.entity_id in state.dead or blocked:
+            if state.win or state.lose or agent_id in state.dead or blocked:
                 return state
 
     return state
 
 
-def _step_usekey(state: State, action: UseKeyAction, agent_id: EntityID) -> State:
-    state = unlock_system(state, action.entity_id)
+def _step_usekey(state: State, action: Action, agent_id: EntityID) -> State:
+    state = unlock_system(state, agent_id)
     return state
 
 
-def _step_pickup(state: State, action: PickUpAction, agent_id: EntityID) -> State:
-    state = collectible_system(state, action.entity_id)
+def _step_pickup(state: State, action: Action, agent_id: EntityID) -> State:
+    state = collectible_system(state, agent_id)
     return state
 
 
-def _step_wait(state: State, action: WaitAction, agent_id: EntityID) -> State:
+def _step_wait(state: State, action: Action, agent_id: EntityID) -> State:
     return state
 
 

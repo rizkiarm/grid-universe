@@ -20,7 +20,7 @@ from grid_universe.components import (
     Damage,
 )
 from grid_universe.entity import EntityID, Entity
-from grid_universe.actions import MoveAction, PickUpAction, Direction, WaitAction
+from grid_universe.actions import Action
 from grid_universe.step import step
 
 
@@ -31,7 +31,7 @@ def agent_has_effect(state: State, agent_id: EntityID, effect_id: EntityID) -> b
 
 def tick_turns(state: State, agent_id: EntityID, turns: int) -> State:
     for _ in range(turns):
-        state = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+        state = step(state, Action.WAIT, agent_id=agent_id)
     return state
 
 
@@ -91,9 +91,9 @@ def make_agent_and_powerup_state(
         move_fn=lambda s, eid, d: [
             Position(
                 s.position[eid].x
-                + (1 if d == Direction.RIGHT else -1 if d == Direction.LEFT else 0),
+                + (1 if d == Action.RIGHT else -1 if d == Action.LEFT else 0),
                 s.position[eid].y
-                + (1 if d == Direction.DOWN else -1 if d == Direction.UP else 0),
+                + (1 if d == Action.DOWN else -1 if d == Action.UP else 0),
             )
         ],
         objective_fn=default_objective_fn,
@@ -113,11 +113,9 @@ def make_agent_and_powerup_state(
     return state, agent_id, powerup_id
 
 
-def move_and_pickup(state: State, agent_id: EntityID, direction: Direction) -> State:
-    state = step(
-        state, MoveAction(entity_id=agent_id, direction=direction), agent_id=agent_id
-    )
-    state = step(state, PickUpAction(entity_id=agent_id), agent_id=agent_id)
+def move_and_pickup(state: State, agent_id: EntityID, action: Action) -> State:
+    state = step(state, action, agent_id=agent_id)
+    state = step(state, Action.PICK_UP, agent_id=agent_id)
     return state
 
 
@@ -125,7 +123,7 @@ def test_agent_picks_up_usage_limited_powerup() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="immunity", usage_limit=2
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     assert agent_has_effect(state, agent_id, powerup_id)
     assert state.usage_limit[powerup_id].amount == 2
     assert powerup_id not in state.collectible
@@ -136,7 +134,7 @@ def test_agent_picks_up_time_limited_powerup() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="phasing", time_limit=3
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     assert agent_has_effect(state, agent_id, powerup_id)
     assert state.time_limit[powerup_id].amount == 3
 
@@ -145,7 +143,7 @@ def test_agent_picks_up_unlimited_powerup() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="speed", speed_multiplier=2
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     assert agent_has_effect(state, agent_id, powerup_id)
     assert powerup_id in state.speed
     assert powerup_id not in state.time_limit
@@ -165,8 +163,8 @@ def test_agent_stacks_same_type_powerup() -> None:
         immunity=state.immunity.set(powerup2, Immunity()),
         usage_limit=state.usage_limit.set(powerup2, UsageLimit(amount=3)),
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     effect_ids: Set[EntityID] = get_agent_status_effects(state, agent_id)
     assert powerup1 in effect_ids
     assert powerup2 in effect_ids
@@ -187,8 +185,8 @@ def test_agent_collects_different_effect_powerups() -> None:
         phasing=state.phasing.set(powerup2, Phasing()),
         time_limit=state.time_limit.set(powerup2, TimeLimit(amount=4)),
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     effect_ids: Set[EntityID] = get_agent_status_effects(state, agent_id)
     assert powerup1 in effect_ids
     assert powerup2 in effect_ids
@@ -200,7 +198,7 @@ def test_powerup_entity_removed_on_pickup() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="speed", speed_multiplier=2
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     assert powerup_id not in state.collectible
     assert powerup_id not in state.position
 
@@ -209,7 +207,7 @@ def test_time_limited_powerup_expires() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="phasing", time_limit=2
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = tick_turns(state, agent_id, 2)
     assert not agent_has_effect(state, agent_id, powerup_id)
     assert powerup_id not in state.phasing
@@ -219,7 +217,7 @@ def test_unlimited_powerup_does_not_expire() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="immunity"
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = tick_turns(state, agent_id, 5)
     assert agent_has_effect(state, agent_id, powerup_id)
 
@@ -228,7 +226,7 @@ def test_expired_powerup_is_cleaned_from_state() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="phasing", time_limit=1
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = tick_turns(state, agent_id, 1)
     assert powerup_id not in get_agent_status_effects(state, agent_id)
     assert powerup_id not in state.phasing
@@ -249,8 +247,8 @@ def test_multiple_powerups_tick_independently() -> None:
         phasing=state.phasing.set(p2, Phasing()),
         time_limit=state.time_limit.set(p2, TimeLimit(amount=3)),
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = tick_turns(state, agent_id, 1)
     effect_ids: Set[EntityID] = get_agent_status_effects(state, agent_id)
     assert p1 not in effect_ids
@@ -263,12 +261,12 @@ def test_powerup_not_added_if_limit_zero_or_negative() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="phasing", time_limit=0
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     assert not agent_has_effect(state, agent_id, powerup_id)
     state2, agent_id2, powerup_id2 = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="immunity", usage_limit=-2
     )
-    state2 = move_and_pickup(state2, agent_id2, Direction.RIGHT)
+    state2 = move_and_pickup(state2, agent_id2, Action.RIGHT)
     assert not agent_has_effect(state2, agent_id2, powerup_id2)
 
 
@@ -276,7 +274,7 @@ def test_powerup_effect_applies_on_pickup_turn() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="phasing", time_limit=2
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     assert agent_has_effect(state, agent_id, powerup_id)
 
 
@@ -288,7 +286,7 @@ def test_powerup_effect_removed_after_expiry() -> None:
         time_limit=1,
         speed_multiplier=2,
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = tick_turns(state, agent_id, 1)
     assert not agent_has_effect(state, agent_id, powerup_id)
 
@@ -298,7 +296,7 @@ def test_powerup_entity_not_collectible_not_picked_up() -> None:
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="immunity"
     )
     state = replace(state, collectible=state.collectible.remove(powerup_id))
-    state = step(state, PickUpAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.PICK_UP, agent_id=agent_id)
     assert not agent_has_effect(state, agent_id, powerup_id)
     assert powerup_id in state.immunity
 
@@ -308,7 +306,7 @@ def test_usage_limited_powerup_consumed_on_damage() -> None:
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="immunity", usage_limit=1
     )
     damage_id: EntityID = 88
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = replace(
         state,
         position=state.position.set(agent_id, Position(2, 0)).set(
@@ -317,12 +315,12 @@ def test_usage_limited_powerup_consumed_on_damage() -> None:
         entity=state.entity.set(damage_id, Entity()),
         damage=state.damage.set(damage_id, Damage(amount=5)),
     )
-    state = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.WAIT, agent_id=agent_id)
     assert powerup_id in state.usage_limit
     assert (
         state.usage_limit[powerup_id].amount == 0 or powerup_id not in state.usage_limit
     )
-    state = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.WAIT, agent_id=agent_id)
     assert not agent_has_effect(state, agent_id, powerup_id)
 
 
@@ -335,7 +333,7 @@ def test_immunity_blocks_hazard_functionally() -> None:
         agent_health=7,
     )
     damage_id: EntityID = 101
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = replace(
         state,
         position=state.position.set(agent_id, Position(2, 0)).set(
@@ -345,10 +343,10 @@ def test_immunity_blocks_hazard_functionally() -> None:
         damage=state.damage.set(damage_id, Damage(amount=5)),
     )
     # Damage should be blocked, health stays 7
-    state = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.WAIT, agent_id=agent_id)
     assert state.health[agent_id].health == 7
     # On next turn, immunity is gone, next damage applies
-    state = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.WAIT, agent_id=agent_id)
     assert state.health[agent_id].health == 2
 
 
@@ -364,12 +362,12 @@ def test_phasing_allows_movement_through_blocking_functionally() -> None:
         entity=state.entity.set(block_id, Entity()),
     )
     state = move_and_pickup(
-        state, agent_id, Direction.RIGHT
+        state, agent_id, Action.RIGHT
     )  # Move to (1,0) and pick up phasing
     # Next, move right into blocking tile at (2,0): with phasing, should succeed
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert state.position[agent_id] == Position(2, 0)
@@ -379,11 +377,11 @@ def test_speed_powerup_moves_twice_functionally() -> None:
     state, agent_id, powerup_id = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="speed", speed_multiplier=2
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     # Move should land agent at (1,0), now try a MoveAction: with speed=2, agent should end at (3,0) if unblocked and grid is wide enough
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     # Since our move_fn only moves one step at a time (for generality), but speed multiplier is present.
@@ -407,8 +405,8 @@ def test_stack_unlimited_and_limited_powerups() -> None:
         immunity=state.immunity.set(limited_id, Immunity()),
         usage_limit=state.usage_limit.set(limited_id, UsageLimit(amount=2)),
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     effect_ids = get_agent_status_effects(state, agent_id)
     assert unlimited_id in effect_ids
     assert limited_id in effect_ids
@@ -421,7 +419,7 @@ def test_effect_cleanup_removes_all_components() -> None:
     state, agent_id, eid = make_agent_and_powerup_state(
         agent_pos=(0, 0), powerup_pos=(1, 0), effect_type="phasing", time_limit=1
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = tick_turns(state, agent_id, 1)
     effect_ids = get_agent_status_effects(state, agent_id)
     assert eid not in effect_ids
@@ -460,8 +458,8 @@ def test_multi_agent_powerup_isolation() -> None:
         usage_limit=state1.usage_limit.update(state2.usage_limit),
         time_limit=state1.time_limit.update(state2.time_limit),
     )
-    state = move_and_pickup(state, agent1, Direction.RIGHT)
-    state = move_and_pickup(state, agent2, Direction.RIGHT)
+    state = move_and_pickup(state, agent1, Action.RIGHT)
+    state = move_and_pickup(state, agent2, Action.RIGHT)
     assert agent_has_effect(state, agent1, eid1)
     assert agent_has_effect(state, agent2, eid2)
     state = tick_turns(state, agent1, 2)
@@ -490,9 +488,9 @@ def test_effect_priority_with_multiple_powerups() -> None:
         ),
         time_limit=state.time_limit.set(limited_id, TimeLimit(amount=1)),
     )
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
-    state = move_and_pickup(state, agent_id, Direction.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
+    state = move_and_pickup(state, agent_id, Action.RIGHT)
     state = tick_turns(state, agent_id, 2)
     effect_ids = get_agent_status_effects(state, agent_id)
     assert unlimited_id in effect_ids

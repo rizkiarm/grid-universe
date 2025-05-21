@@ -1,6 +1,7 @@
 from dataclasses import replace
 from typing import Dict, List, Tuple, Optional
 from pyrsistent import pmap, pset
+from grid_universe.actions import Action
 from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.types import EntityID
@@ -14,7 +15,6 @@ from grid_universe.components import (
     Dead,
 )
 from grid_universe.entity import Entity
-from grid_universe.actions import WaitAction
 from grid_universe.step import step
 
 
@@ -71,7 +71,7 @@ def make_agent_tile_state(
 
 
 def agent_step_and_score(state: State, agent_id: EntityID) -> int:
-    next_state: State = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    next_state: State = step(state, Action.WAIT, agent_id=agent_id)
     return next_state.score
 
 

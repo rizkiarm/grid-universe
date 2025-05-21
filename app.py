@@ -5,10 +5,11 @@ import streamlit as st
 import numpy as np
 from typing import List, Tuple, Dict, Optional
 from st_keyup import st_keyup  # type: ignore
+from grid_universe.actions import GymAction
 from grid_universe.components import Inventory
 from grid_universe.components.properties.appearance import AppearanceName
 from grid_universe.components.properties.status import Status
-from grid_universe.gym_env import GridUniverseEnv, MazeEnvAction, ObsType
+from grid_universe.gym_env import GridUniverseEnv, ObsType
 from grid_universe.levels.maze import (
     DEFAULT_BOXES,
     DEFAULT_HAZARDS,
@@ -403,7 +404,7 @@ def make_env_and_reset(
     return env, obs, info
 
 
-def get_keyboard_action() -> Optional[MazeEnvAction]:
+def get_keyboard_action() -> Optional[GymAction]:
     value: str = (
         st_keyup(
             "control",
@@ -422,21 +423,21 @@ def get_keyboard_action() -> Optional[MazeEnvAction]:
         if not new_values:
             return None
         key: str = new_values[-1]
-        key_map: Dict[str, MazeEnvAction] = {
-            "w": MazeEnvAction.UP,
-            "s": MazeEnvAction.DOWN,
-            "a": MazeEnvAction.LEFT,
-            "d": MazeEnvAction.RIGHT,
-            "f": MazeEnvAction.USEKEY,
-            "e": MazeEnvAction.PICKUP,
-            "q": MazeEnvAction.WAIT,
+        key_map: Dict[str, GymAction] = {
+            "w": GymAction.UP,
+            "s": GymAction.DOWN,
+            "a": GymAction.LEFT,
+            "d": GymAction.RIGHT,
+            "f": GymAction.USE_KEY,
+            "e": GymAction.PICK_UP,
+            "q": GymAction.WAIT,
         }
         return key_map.get(key)
     return None
 
 
-def do_action(env: GridUniverseEnv, action_idx: MazeEnvAction) -> None:
-    obs, reward, terminated, truncated, info = env.step(np.uint(action_idx))
+def do_action(env: GridUniverseEnv, action: GymAction) -> None:
+    obs, reward, terminated, truncated, info = env.step(np.uint(action.value))
     st.session_state["obs"] = obs
     st.session_state["info"] = info
     st.session_state["total_reward"] = float(st.session_state["total_reward"]) + reward
@@ -556,35 +557,35 @@ with tab_game:
 
         st.divider()
 
-        action_idx: Optional[int] = get_keyboard_action()
-        if action_idx is not None:
-            do_action(env, action_idx)
+        action: Optional[GymAction] = get_keyboard_action()
+        if action is not None:
+            do_action(env, action)
 
         _, up_col, _ = st.columns([1, 1, 1])
         with up_col:
             if st.button("⬆️", key="up_btn", use_container_width=True):
-                do_action(env, MazeEnvAction.UP)
+                do_action(env, GymAction.UP)
         left_btn, down_btn, right_btn = st.columns([1, 1, 1])
         with left_btn:
             if st.button("⬅️", key="left_btn", use_container_width=True):
-                do_action(env, MazeEnvAction.LEFT)
+                do_action(env, GymAction.LEFT)
         with down_btn:
             if st.button("⬇️", key="down_btn", use_container_width=True):
-                do_action(env, MazeEnvAction.DOWN)
+                do_action(env, GymAction.DOWN)
         with right_btn:
             if st.button("➡️", key="right_btn", use_container_width=True):
-                do_action(env, MazeEnvAction.RIGHT)
+                do_action(env, GymAction.RIGHT)
 
         pickup_btn, usekey_btn, wait_btn = st.columns([1, 1, 1])
         with pickup_btn:
             if st.button("🤲 Pickup", key="pickup_btn", use_container_width=True):
-                do_action(env, MazeEnvAction.PICKUP)
+                do_action(env, GymAction.PICK_UP)
         with usekey_btn:
             if st.button("🔑 Use", key="usekey_btn", use_container_width=True):
-                do_action(env, MazeEnvAction.USEKEY)
+                do_action(env, GymAction.USE_KEY)
         with wait_btn:
             if st.button("⏳ Wait", key="wait_btn", use_container_width=True):
-                do_action(env, MazeEnvAction.WAIT)
+                do_action(env, GymAction.WAIT)
 
     with left_col:
         state = env.state

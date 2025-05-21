@@ -1,34 +1,32 @@
 import random
 from typing import Sequence, Dict
 from grid_universe.components import Position
-from grid_universe.actions import Direction
+from grid_universe.actions import Action
 from grid_universe.state import State
 from grid_universe.types import EntityID, MoveFn
 
 
-def default_move_fn(
-    state: State, eid: EntityID, direction: Direction
-) -> Sequence[Position]:
+def default_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
     pos = state.position[eid]
     dx, dy = {
-        Direction.UP: (0, -1),
-        Direction.DOWN: (0, 1),
-        Direction.LEFT: (-1, 0),
-        Direction.RIGHT: (1, 0),
-    }[direction]
+        Action.UP: (0, -1),
+        Action.DOWN: (0, 1),
+        Action.LEFT: (-1, 0),
+        Action.RIGHT: (1, 0),
+    }[action]
     return [Position(pos.x + dx, pos.y + dy)]
 
 
 def wrap_around_move_fn(
-    state: State, eid: EntityID, direction: Direction
+    state: State, eid: EntityID, action: Action
 ) -> Sequence[Position]:
     pos = state.position[eid]
     dx, dy = {
-        Direction.UP: (0, -1),
-        Direction.DOWN: (0, 1),
-        Direction.LEFT: (-1, 0),
-        Direction.RIGHT: (1, 0),
-    }[direction]
+        Action.UP: (0, -1),
+        Action.DOWN: (0, 1),
+        Action.LEFT: (-1, 0),
+        Action.RIGHT: (1, 0),
+    }[action]
     width = getattr(state, "width", None)
     height = getattr(state, "height", None)
     if width is None or height is None:
@@ -38,29 +36,25 @@ def wrap_around_move_fn(
     return [Position(new_x, new_y)]
 
 
-def mirror_move_fn(
-    state: State, eid: EntityID, direction: Direction
-) -> Sequence[Position]:
-    mirror_map: Dict[Direction, Direction] = {
-        Direction.LEFT: Direction.RIGHT,
-        Direction.RIGHT: Direction.LEFT,
-        Direction.UP: Direction.UP,
-        Direction.DOWN: Direction.DOWN,
+def mirror_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
+    mirror_map: Dict[Action, Action] = {
+        Action.LEFT: Action.RIGHT,
+        Action.RIGHT: Action.LEFT,
+        Action.UP: Action.UP,
+        Action.DOWN: Action.DOWN,
     }
-    mirrored = mirror_map[direction]
+    mirrored = mirror_map[action]
     return default_move_fn(state, eid, mirrored)
 
 
-def slippery_move_fn(
-    state: State, eid: EntityID, direction: Direction
-) -> Sequence[Position]:
+def slippery_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
     pos = state.position[eid]
     dx, dy = {
-        Direction.UP: (0, -1),
-        Direction.DOWN: (0, 1),
-        Direction.LEFT: (-1, 0),
-        Direction.RIGHT: (1, 0),
-    }[direction]
+        Action.UP: (0, -1),
+        Action.DOWN: (0, 1),
+        Action.LEFT: (-1, 0),
+        Action.RIGHT: (1, 0),
+    }[action]
     width, height = state.width, state.height
     nx, ny = pos.x + dx, pos.y + dy
     path: list[Position] = []
@@ -79,16 +73,14 @@ def slippery_move_fn(
     return path if path else [pos]
 
 
-def windy_move_fn(
-    state: State, eid: EntityID, direction: Direction
-) -> Sequence[Position]:
+def windy_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
     pos = state.position[eid]
     dx, dy = {
-        Direction.UP: (0, -1),
-        Direction.DOWN: (0, 1),
-        Direction.LEFT: (-1, 0),
-        Direction.RIGHT: (1, 0),
-    }[direction]
+        Action.UP: (0, -1),
+        Action.DOWN: (0, 1),
+        Action.LEFT: (-1, 0),
+        Action.RIGHT: (1, 0),
+    }[action]
     width, height = state.width, state.height
     path: list[Position] = []
     # First move
@@ -105,16 +97,14 @@ def windy_move_fn(
     return path if path else [pos]
 
 
-def gravity_move_fn(
-    state: State, eid: EntityID, direction: Direction
-) -> Sequence[Position]:
+def gravity_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
     pos = state.position[eid]
     dx, dy = {
-        Direction.UP: (0, -1),
-        Direction.DOWN: (0, 1),
-        Direction.LEFT: (-1, 0),
-        Direction.RIGHT: (1, 0),
-    }[direction]
+        Action.UP: (0, -1),
+        Action.DOWN: (0, 1),
+        Action.LEFT: (-1, 0),
+        Action.RIGHT: (1, 0),
+    }[action]
     width, height = state.width, state.height
     nx, ny = pos.x + dx, pos.y + dy
 

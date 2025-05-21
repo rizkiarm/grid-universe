@@ -5,7 +5,7 @@ from pyrsistent import pmap, pset
 from grid_universe.entity import Entity
 from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
-from grid_universe.actions import MoveAction, WaitAction, Direction
+from grid_universe.actions import Action
 from grid_universe.components import (
     Health,
     Damage,
@@ -120,11 +120,9 @@ def agent_is_dead(state: State, agent_id: EntityID) -> bool:
     return agent_id in state.dead
 
 
-def step_on_tile(state: State, agent_id: EntityID, direction: Direction) -> State:
-    """Move agent in direction using step, then Wait to apply damage if needed."""
-    state2: State = step(
-        state, MoveAction(entity_id=agent_id, direction=direction), agent_id=agent_id
-    )
+def step_on_tile(state: State, agent_id: EntityID, action: Action) -> State:
+    """Move agent in action using step, then Wait to apply damage if needed."""
+    state2: State = step(state, action, agent_id=agent_id)
     # Optionally, call WaitAction to represent a turn passing if needed
     return state2
 
@@ -140,7 +138,7 @@ def test_agent_takes_damage() -> None:
         agent_hp=10,
     )
     state2 = move_agent_to(state, agent_id, (1, 0))
-    state3 = step(state2, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state3 = step(state2, Action.WAIT, agent_id=agent_id)
     assert agent_health(state3, agent_id) == 6
 
 
@@ -151,7 +149,7 @@ def test_agent_dies_from_lethal_damage() -> None:
         agent_hp=10,
         agent_pos=(2, 0),
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_is_dead(state2, agent_id)
 
 
@@ -162,7 +160,7 @@ def test_agent_takes_accumulated_damage_from_multiple_sources() -> None:
         agent_pos=(0, 0),
         agent_hp=12,
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_health(state2, agent_id) == 5
 
 
@@ -173,7 +171,7 @@ def test_agent_damage_does_not_underflow() -> None:
         agent_hp=6,
         agent_pos=(0, 0),
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_health(state2, agent_id) == 0
 
 
@@ -184,7 +182,7 @@ def test_no_damage_when_agent_not_on_source() -> None:
         agent_pos=(1, 1),
         agent_hp=7,
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_health(state2, agent_id) == 7
 
 
@@ -196,7 +194,7 @@ def test_dead_agent_is_not_damaged() -> None:
         agent_hp=10,
         agent_dead=True,
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_health(state2, agent_id) == 10
 
 
@@ -207,7 +205,7 @@ def test_zero_damage_has_no_effect() -> None:
         agent_pos=(0, 0),
         agent_hp=8,
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_health(state2, agent_id) == 8
 
 
@@ -219,7 +217,7 @@ def test_negative_damage_raises() -> None:
         agent_hp=7,
     )
     with pytest.raises(ValueError):
-        step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+        step(state, Action.WAIT, agent_id=agent_id)
 
 
 def test_lethal_damage_precedence() -> None:
@@ -230,7 +228,7 @@ def test_lethal_damage_precedence() -> None:
         agent_pos=(4, 4),
         agent_hp=10,
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_is_dead(state2, agent_id)
 
 
@@ -242,7 +240,7 @@ def test_immunity_blocks_damage() -> None:
         agent_hp=10,
         immunity_effect=True,
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_health(state2, agent_id) == 10
 
 
@@ -255,10 +253,10 @@ def test_usage_limited_immunity_blocks_then_expires() -> None:
         usage_limited_immunity=1,
     )
     # Immunity blocks first time
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_health(state2, agent_id) == 10
     # Immunity is now expired; next tick, agent is damaged
-    state3 = step(state2, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state3 = step(state2, Action.WAIT, agent_id=agent_id)
     assert agent_health(state3, agent_id) == 7
 
 
@@ -286,8 +284,8 @@ def test_multiple_agents_take_appropriate_damage() -> None:
         entity=state1.entity.update(state2.entity),
     )
     print(state.position)
-    state = step(state, WaitAction(entity_id=agent1), agent_id=agent1)
-    state = step(state, WaitAction(entity_id=agent2), agent_id=agent2)
+    state = step(state, Action.WAIT, agent_id=agent1)
+    state = step(state, Action.WAIT, agent_id=agent2)
     assert agent_health(state, agent1) == 3
     assert agent_health(state, agent2) == 1
 
@@ -310,7 +308,7 @@ def test_damage_and_collectible_both_apply() -> None:
         position=state.position.set(collectible_id, Position(1, 0)),
         inventory=state.inventory.set(agent_id, Inventory(pset())),
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     state3 = collectible_system(state2, agent_id)
     assert agent_health(state3, agent_id) == 7
     assert collectible_id in state3.inventory[agent_id].item_ids
@@ -331,7 +329,7 @@ def test_damage_and_exit_simultaneous_lose_overrides_win() -> None:
         exit=state.exit.set(exit_id, Exit()),
         position=state.position.set(exit_id, Position(2, 2)),
     )
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_is_dead(state2, agent_id)
     assert not state2.win
 
@@ -343,5 +341,5 @@ def test_no_health_component_is_robust() -> None:
         agent_pos=(0, 0),
     )
     state = replace(state, health=pmap())  # Remove all health
-    state2 = step(state, WaitAction(entity_id=agent_id), agent_id=agent_id)
+    state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_id not in state2.health

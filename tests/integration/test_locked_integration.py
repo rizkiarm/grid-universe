@@ -14,7 +14,7 @@ from grid_universe.components import (
     Blocking,
     Collectible,
 )
-from grid_universe.actions import UseKeyAction
+from grid_universe.actions import Action
 from tests.test_utils import make_minimal_key_door_state
 
 
@@ -70,7 +70,7 @@ def test_unlock_door_with_matching_key() -> None:
     door_id: EntityID = entities["door_id"]
     state = add_key_to_inventory(state, agent_id, key_id)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id not in state.locked
     assert door_id not in state.blocking
     assert key_id not in state.inventory[agent_id].item_ids
@@ -81,7 +81,7 @@ def test_unlock_door_without_matching_key() -> None:
     agent_id: EntityID = entities["agent_id"]
     door_id: EntityID = entities["door_id"]
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id in state.locked
 
 
@@ -95,7 +95,7 @@ def test_unlock_door_with_wrong_key_id() -> None:
     )
     door_id: EntityID = entities["door_id"]
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id in state.locked
     assert wrong_key_id in state.inventory[agent_id].item_ids
 
@@ -107,7 +107,7 @@ def test_unlock_consumes_key() -> None:
     door_id: EntityID = entities["door_id"]
     state = add_key_to_inventory(state, agent_id, key_id)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert key_id not in state.inventory[agent_id].item_ids
     assert key_id not in state.key
 
@@ -118,7 +118,7 @@ def test_unlock_door_with_no_inventory() -> None:
     door_id: EntityID = entities["door_id"]
     state = replace(state, inventory=state.inventory.remove(agent_id))
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id in state.locked
 
 
@@ -128,7 +128,7 @@ def test_unlock_door_with_empty_inventory() -> None:
     door_id: EntityID = entities["door_id"]
     state = set_inventory(state, agent_id, pset())
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id in state.locked
 
 
@@ -148,9 +148,9 @@ def test_unlock_multiple_doors_with_enough_keys() -> None:
     )
     # Move next to both doors, call UseKeyAction twice to unlock both
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id2])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id1 not in state.locked
     assert door_id2 not in state.locked
     assert key_id not in state.inventory[agent_id].item_ids
@@ -171,9 +171,9 @@ def test_unlock_multiple_doors_with_limited_keys() -> None:
     )
     # Move to each locked door, attempt to unlock both sequentially
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id2])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     unlocked_count: int = int(door_id1 not in state.locked) + int(
         door_id2 not in state.locked
     )
@@ -190,7 +190,7 @@ def test_unlock_with_key_not_in_key_store() -> None:
         state, agent_id, state.inventory[agent_id].item_ids.add(key_id)
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id in state.locked
     assert key_id in state.inventory[agent_id].item_ids
 
@@ -205,7 +205,7 @@ def test_unlock_with_nonkey_item_in_inventory() -> None:
         state, agent_id, state.inventory[agent_id].item_ids.add(nonkey_id)
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id in state.locked
     assert nonkey_id in state.inventory[agent_id].item_ids
 
@@ -217,7 +217,7 @@ def test_unlock_at_nonlocked_position() -> None:
     unused_pos: Position = Position(2, 0)  # Some position with no locked door
     state = add_key_to_inventory(state, agent_id, key_id)
     state = move_agent_adjacent_to(state, agent_id, unused_pos)
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert key_id in state.inventory[agent_id].item_ids
 
 
@@ -229,7 +229,7 @@ def test_unlock_after_picking_up_key() -> None:
     # Simulate picking up the key by adding to inventory
     state = add_key_to_inventory(state, agent_id, key_id)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id not in state.locked
     assert key_id not in state.inventory[agent_id].item_ids
 
@@ -249,9 +249,9 @@ def test_unlock_multiple_doors_same_key_id() -> None:
         state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2)
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id2])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     assert door_id1 not in state.locked
     assert door_id2 not in state.locked
 
@@ -279,7 +279,7 @@ def test_multi_agent_unlock_affects_only_actor() -> None:
     )
     state = add_key_to_inventory(state, agent_id1, key_id1)
     state = move_agent_adjacent_to(state, agent_id1, state.position[door_id1])
-    state = step(state, UseKeyAction(entity_id=agent_id1), agent_id=agent_id1)
+    state = step(state, Action.USE_KEY, agent_id=agent_id1)
     assert door_id2 in state.locked
     assert key_id2 in state.inventory[agent_id2].item_ids
     assert door_id1 not in state.locked
@@ -301,7 +301,7 @@ def test_unlock_adjacent_to_multiple_locked() -> None:
     )
     # Move agent adjacent to both doors (let's use the position next to door_id1)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
-    state = step(state, UseKeyAction(entity_id=agent_id), agent_id=agent_id)
+    state = step(state, Action.USE_KEY, agent_id=agent_id)
     # Agent may need to move again and use key to unlock the other if ECS only unlocks one per action
     unlocked_count: int = int(door_id1 not in state.locked) + int(
         door_id2 not in state.locked

@@ -1,49 +1,24 @@
-from dataclasses import dataclass
-from enum import Enum, auto
+from enum import IntEnum, StrEnum, auto
 
 
-class Direction(Enum):
+class Action(StrEnum):
     UP = auto()
     DOWN = auto()
     LEFT = auto()
     RIGHT = auto()
+    USE_KEY = auto()
+    PICK_UP = auto()
+    WAIT = auto()
 
 
-@dataclass(frozen=True)
-class MoveAction:
-    """
-    Move the agent in a given direction.
-    """
-
-    entity_id: int  # The agent or entity performing the move
-    direction: Direction
+MOVE_ACTIONS = [Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT]
 
 
-@dataclass(frozen=True)
-class UseKeyAction:
-    """
-    Attempt to use a key at the current agent location (e.g., to unlock a door).
-    """
-
-    entity_id: int
-
-
-@dataclass(frozen=True)
-class PickUpAction:
-    """
-    Attempt to pick up an item (collectible, key, powerup) at the current location.
-    """
-
-    entity_id: int  # Usually the agent
-
-
-@dataclass(frozen=True)
-class WaitAction:
-    """
-    Take no action this turn (useful for multi-agent or turn-based games).
-    """
-
-    entity_id: int
-
-
-Action = MoveAction | UseKeyAction | PickUpAction | WaitAction
+class GymAction(IntEnum):
+    UP = 0  # start at 0
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    USE_KEY = auto()
+    PICK_UP = auto()
+    WAIT = auto()

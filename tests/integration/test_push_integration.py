@@ -18,7 +18,7 @@ from grid_universe.components import (
     AppearanceName,
 )
 from grid_universe.entity import Entity
-from grid_universe.actions import MoveAction, Direction
+from grid_universe.actions import Action
 from grid_universe.step import step
 
 
@@ -72,9 +72,9 @@ def make_push_state(
         move_fn=lambda s, eid, dir: [
             Position(
                 s.position[eid].x
-                + (1 if dir == Direction.RIGHT else -1 if dir == Direction.LEFT else 0),
+                + (1 if dir == Action.RIGHT else -1 if dir == Action.LEFT else 0),
                 s.position[eid].y
-                + (1 if dir == Direction.DOWN else -1 if dir == Direction.UP else 0),
+                + (1 if dir == Action.DOWN else -1 if dir == Action.UP else 0),
             )
         ],
         objective_fn=default_objective_fn,
@@ -101,7 +101,7 @@ def test_agent_pushes_box_successfully() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -119,7 +119,7 @@ def test_push_blocked_by_wall() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -138,7 +138,7 @@ def test_push_blocked_by_another_box() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -157,7 +157,7 @@ def test_push_box_out_of_bounds() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -182,7 +182,7 @@ def test_push_box_onto_collectible() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -208,7 +208,7 @@ def test_push_box_onto_exit() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -222,18 +222,18 @@ def test_push_box_onto_exit() -> None:
 
 
 def test_push_box_left_right_up_down() -> None:
-    for direction, agent_pos, box_pos, dest_pos in [
-        (Direction.RIGHT, (0, 0), (1, 0), (2, 0)),
-        (Direction.LEFT, (2, 0), (1, 0), (0, 0)),
-        (Direction.DOWN, (0, 0), (0, 1), (0, 2)),
-        (Direction.UP, (0, 2), (0, 1), (0, 0)),
+    for action, agent_pos, box_pos, dest_pos in [
+        (Action.RIGHT, (0, 0), (1, 0), (2, 0)),
+        (Action.LEFT, (2, 0), (1, 0), (0, 0)),
+        (Action.DOWN, (0, 0), (0, 1), (0, 2)),
+        (Action.UP, (0, 2), (0, 1), (0, 0)),
     ]:
         state, agent_id, box_ids, _ = make_push_state(
             agent_pos=agent_pos, box_positions=[box_pos], width=3, height=3
         )
         state = step(
             state,
-            MoveAction(entity_id=agent_id, direction=direction),
+            action,
             agent_id=agent_id,
         )
         check_positions(
@@ -251,7 +251,7 @@ def test_push_box_on_narrow_grid_edge() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     check_positions(
@@ -269,7 +269,7 @@ def test_push_chain_of_boxes_blocked() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -288,7 +288,7 @@ def test_push_not_adjacent() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert state.position[agent_id] == Position(1, 0)
@@ -299,7 +299,7 @@ def test_push_no_pushable_at_destination() -> None:
     state, agent_id, _, _ = make_push_state(agent_pos=(0, 0))
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -325,7 +325,7 @@ def test_push_box_blocked_by_agent() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     check_positions(
@@ -353,7 +353,7 @@ def test_push_box_missing_position_component() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert missing_box_id not in state.position
@@ -366,7 +366,7 @@ def test_push_missing_agent_position() -> None:
     state = replace(state, position=state.position.remove(agent_id))
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert box_ids[0] in state.position
@@ -386,7 +386,7 @@ def test_push_box_at_narrow_grid_edge() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     check_positions(
@@ -404,12 +404,12 @@ def test_push_after_agent_moves_multiple_times() -> None:
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.LEFT),
+        Action.LEFT,
         agent_id=agent_id,
     )
     state = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert state.position[agent_id] == Position(1, 0)

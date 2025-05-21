@@ -3,17 +3,9 @@ import numpy as np
 import numpy.typing as npt
 from typing import Optional, Dict, Tuple, Any, List
 from PIL.Image import Image as PILImage
-from enum import IntEnum
 
 from grid_universe.state import State
-from grid_universe.actions import (
-    Action,
-    MoveAction,
-    Direction,
-    PickUpAction,
-    UseKeyAction,
-    WaitAction,
-)
+from grid_universe.actions import Action
 from grid_universe.levels.maze import generate
 from grid_universe.renderer.texture import TextureRenderer
 from grid_universe.step import step
@@ -21,16 +13,6 @@ from grid_universe.types import EffectType, EntityID
 
 # --- Observation type ---
 ObsType = Dict[str, npt.NDArray[Any]]
-
-
-class MazeEnvAction(IntEnum):
-    UP = 0
-    DOWN = 1
-    LEFT = 2
-    RIGHT = 3
-    WAIT = 4
-    PICKUP = 5
-    USEKEY = 6
 
 
 def agent_feature_vector(
@@ -83,12 +65,6 @@ def agent_feature_vector(
 
 class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     metadata = {"render_modes": ["human", "texture"]}
-    DIR_ACTIONS: Dict[int, Direction] = {
-        MazeEnvAction.UP: Direction.UP,
-        MazeEnvAction.DOWN: Direction.DOWN,
-        MazeEnvAction.LEFT: Direction.LEFT,
-        MazeEnvAction.RIGHT: Direction.RIGHT,
-    }
 
     def __init__(
         self,
@@ -159,21 +135,13 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         self, action: np.integer
     ) -> Tuple[ObsType, float, bool, bool, Dict[str, object]]:
         assert self.state is not None and self.agent_id is not None
-        if action in self.DIR_ACTIONS:
-            ecs_action: Action = MoveAction(
-                entity_id=self.agent_id, direction=self.DIR_ACTIONS[int(action)]
-            )
-        elif action == MazeEnvAction.WAIT:
-            ecs_action = WaitAction(entity_id=self.agent_id)
-        elif action == MazeEnvAction.PICKUP:
-            ecs_action = PickUpAction(entity_id=self.agent_id)
-        elif action == MazeEnvAction.USEKEY:
-            ecs_action = UseKeyAction(entity_id=self.agent_id)
-        else:
-            raise ValueError("Invalid action")
+
+        if action >= len(Action):
+            raise ValueError("Invalid action:", action)
+        step_action: Action = [a for a in Action][action]
 
         prev_score = self.state.score
-        self.state = step(self.state, ecs_action, agent_id=self.agent_id)
+        self.state = step(self.state, step_action, agent_id=self.agent_id)
         reward = float(self.state.score - prev_score)
         obs = self._get_obs()
         terminated = self.state.win

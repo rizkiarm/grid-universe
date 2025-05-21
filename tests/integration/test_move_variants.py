@@ -1,6 +1,6 @@
 from typing import Tuple
 import pytest
-from grid_universe.actions import MoveAction, Direction
+from grid_universe.actions import Action
 from grid_universe.components import (
     Exit,
     Position,
@@ -24,23 +24,21 @@ from tests.test_utils import make_agent_state
 
 
 @pytest.mark.parametrize(
-    "start, direction, expected",
+    "start, action, expected",
     [
-        ((0, 2), Direction.LEFT, (4, 2)),
-        ((4, 2), Direction.RIGHT, (0, 2)),
-        ((3, 0), Direction.UP, (3, 4)),
-        ((3, 4), Direction.DOWN, (3, 0)),
+        ((0, 2), Action.LEFT, (4, 2)),
+        ((4, 2), Action.RIGHT, (0, 2)),
+        ((3, 0), Action.UP, (3, 4)),
+        ((3, 4), Action.DOWN, (3, 0)),
     ],
 )
 def test_wrap_around_at_edges(
-    start: Tuple[int, int], direction: Direction, expected: Tuple[int, int]
+    start: Tuple[int, int], action: Action, expected: Tuple[int, int]
 ) -> None:
     state, agent_id = make_agent_state(
         agent_pos=start, move_fn=wrap_around_move_fn, width=5, height=5
     )
-    state2 = step(
-        state, MoveAction(entity_id=agent_id, direction=direction), agent_id=agent_id
-    )
+    state2 = step(state, action, agent_id=agent_id)
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == expected
 
 
@@ -52,7 +50,7 @@ def test_wrap_around_blocked_destination() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     # Should not move; destination is blocked
@@ -70,7 +68,7 @@ def test_wrap_around_push_box() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     # Agent wraps to (0,2), box moves to (1,2)
@@ -89,7 +87,7 @@ def test_wrap_around_push_box_from_edge():
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (0, 2)
@@ -107,7 +105,7 @@ def test_wrap_around_win_on_exit() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (0, 2)
@@ -132,7 +130,7 @@ def test_wrap_around_lose_on_hazard() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (0, 2)
@@ -150,7 +148,7 @@ def test_slippery_slides_until_blocked() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     # Should stop before wall at (4,2): lands at (3,2)
@@ -163,7 +161,7 @@ def test_slippery_slides_to_edge() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.LEFT),
+        Action.LEFT,
         agent_id=agent_id,
     )
     # Should slide to (0,2)
@@ -181,7 +179,7 @@ def test_slippery_push_box_and_slide() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     # With no blocker, agent should end at (3,2), box at (4,2)
@@ -200,7 +198,7 @@ def test_slippery_slide_win_on_exit() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (4, 2)
@@ -225,7 +223,7 @@ def test_slippery_slide_lose_on_hazard() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.RIGHT),
+        Action.RIGHT,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (4, 2)
@@ -244,7 +242,7 @@ def test_windy_random_move(monkeypatch) -> None:
     state, agent_id = make_agent_state(agent_pos=(1, 1), move_fn=windy_move_fn)
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     # Moves down, then right due to wind
@@ -263,7 +261,7 @@ def test_windy_blocked_by_wall(monkeypatch) -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     # Moves down to (1,2), then wind tries right to (2,2) but blocked, so stays at (1,2)
@@ -285,7 +283,7 @@ def test_windy_win_on_exit(monkeypatch) -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (2, 2)
@@ -313,7 +311,7 @@ def test_windy_lose_on_hazard(monkeypatch) -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (2, 2)
@@ -331,7 +329,7 @@ def test_gravity_falls_until_blocked() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     # Should fall to (1,3), stopped before wall at (1,4)
@@ -344,7 +342,7 @@ def test_gravity_stops_at_bottom() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     # Should fall to (1,4)
@@ -362,7 +360,7 @@ def test_gravity_win_by_falling_on_exit() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (1, 4)
@@ -387,7 +385,7 @@ def test_gravity_lose_by_falling_on_hazard() -> None:
     )
     state2 = step(
         state,
-        MoveAction(entity_id=agent_id, direction=Direction.DOWN),
+        Action.DOWN,
         agent_id=agent_id,
     )
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == (1, 4)

@@ -19,7 +19,7 @@ from grid_universe.components import (
 )
 from grid_universe.systems.push import push_system
 from grid_universe.entity import new_entity_id, Entity
-from grid_universe.actions import Direction
+from grid_universe.actions import Action
 
 
 def make_push_state(
@@ -74,9 +74,9 @@ def make_push_state(
         move_fn=lambda s, eid, dir: [
             Position(
                 s.position[eid].x
-                + (1 if dir == Direction.RIGHT else -1 if dir == Direction.LEFT else 0),
+                + (1 if dir == Action.RIGHT else -1 if dir == Action.LEFT else 0),
                 s.position[eid].y
-                + (1 if dir == Direction.DOWN else -1 if dir == Direction.UP else 0),
+                + (1 if dir == Action.DOWN else -1 if dir == Action.UP else 0),
             )
         ],
         objective_fn=default_objective_fn,
@@ -253,11 +253,11 @@ def test_push_box_onto_agent() -> None:
 
 
 def test_push_box_left_right_up_down() -> None:
-    cases: List[Tuple[Direction, Tuple[int, int], Tuple[int, int], Tuple[int, int]]] = [
-        (Direction.RIGHT, (0, 0), (1, 0), (2, 0)),
-        (Direction.LEFT, (2, 0), (1, 0), (0, 0)),
-        (Direction.DOWN, (0, 0), (0, 1), (0, 2)),
-        (Direction.UP, (0, 2), (0, 1), (0, 0)),
+    cases: List[Tuple[Action, Tuple[int, int], Tuple[int, int], Tuple[int, int]]] = [
+        (Action.RIGHT, (0, 0), (1, 0), (2, 0)),
+        (Action.LEFT, (2, 0), (1, 0), (0, 0)),
+        (Action.DOWN, (0, 0), (0, 1), (0, 2)),
+        (Action.UP, (0, 2), (0, 1), (0, 0)),
     ]
     for direction, agent_p, box_p, dest_p in cases:
         state, agent_id, box_ids, _ = make_push_state(
