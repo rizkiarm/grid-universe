@@ -143,7 +143,8 @@ with tab_game:
             st.error("💀 **You have died!** 💀")
         img = env.render(mode="texture")
         if img is not None:
-            st.image(img, use_container_width=True)
+            img_compressed = img.convert("P")  # Converts to 8-bit palette mode
+            st.image(img_compressed, use_container_width=True)
 
 with tab_state:
     if env.state:

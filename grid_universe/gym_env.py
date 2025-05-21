@@ -7,7 +7,7 @@ from PIL.Image import Image as PILImage
 from grid_universe.state import State
 from grid_universe.actions import Action
 from grid_universe.levels.maze import generate
-from grid_universe.renderer.texture import TextureRenderer
+from grid_universe.renderer.texture import DEFAULT_RESOLUTION, TextureRenderer
 from grid_universe.step import step
 from grid_universe.types import EffectType, EntityID
 
@@ -69,7 +69,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     def __init__(
         self,
         render_mode: str = "texture",
-        renderer_cell_size: int = 64,
+        render_resolution: int = DEFAULT_RESOLUTION,
         **kwargs: Any,
     ):
         self._generator_kwargs = kwargs
@@ -82,7 +82,9 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
             EffectType.PHASING,
             EffectType.SPEED,
         ]
-        self._renderer_cell_size = renderer_cell_size
+        self._render_resolution = render_resolution
+        render_width: int = render_resolution
+        render_height: int = int(self.height / self.width * render_width)
         self._texture_renderer: Optional[TextureRenderer] = None
         # We'll initialize self._key_ids after first reset (when keys are known)
         self._max_key_types = 8
@@ -95,8 +97,8 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
                     low=0,
                     high=255,
                     shape=(
-                        self.height * renderer_cell_size,
-                        self.width * renderer_cell_size,
+                        render_height,
+                        render_width,
                         4,
                     ),
                     dtype=np.uint8,
@@ -119,7 +121,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         self.state = generate(**self._generator_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
         if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(cell_size=self._renderer_cell_size)
+            self._texture_renderer = TextureRenderer(resolution=self._render_resolution)
         # Find all key_id strings in this level, padded to self._max_key_types
         key_ids_set = {key.key_id for key in self.state.key.values()}
         self._key_ids = sorted(key_ids_set)
@@ -153,7 +155,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         render_mode = mode or self._render_mode
         assert self.state is not None
         if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(cell_size=self._renderer_cell_size)
+            self._texture_renderer = TextureRenderer(resolution=self._render_resolution)
         img = self._texture_renderer.render(self.state)
         if render_mode == "human":
             img.show()
@@ -166,7 +168,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     def _get_obs(self) -> ObsType:
         assert self.state is not None and self.agent_id is not None
         if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(cell_size=self._renderer_cell_size)
+            self._texture_renderer = TextureRenderer(resolution=self._render_resolution)
         img = self._texture_renderer.render(self.state)
         img_np = np.array(img)
         agent_vec = agent_feature_vector(

@@ -8,6 +8,9 @@ from grid_universe.state import State
 from grid_universe.types import EntityID
 
 
+DEFAULT_RESOLUTION = 640
+DEFAULT_SUBICON_PERCENT = 0.4
+
 ObjectAsset = Tuple[AppearanceName, Tuple[str, ...]]
 
 
@@ -144,8 +147,8 @@ def get_path(
 
 def render(
     state: State,
-    cell_size: int = 32,
-    subicon_size: int = 20,
+    resolution: int = DEFAULT_RESOLUTION,
+    subicon_percent: float = DEFAULT_SUBICON_PERCENT,
     texture_map: Optional[TextureMap] = None,
     asset_root: str = "assets/images",
     tex_lookup_fn: Optional[TexLookupFn] = None,
@@ -154,6 +157,9 @@ def render(
     """
     Renders ECS state as a PIL Image, with prioritized center and up to 4 corners per tile.
     """
+    cell_size: int = resolution // state.width
+    subicon_size: int = int(cell_size * subicon_percent)
+
     if texture_map is None:
         texture_map = TEXTURE_MAP
 
@@ -213,22 +219,22 @@ def render(
 
 
 class TextureRenderer:
-    cell_size: int
-    subicon_size: int
+    resolution: int
+    subicon_percent: float
     texture_map: TextureMap
     asset_root: str
     tex_lookup_fn: Optional[TexLookupFn]
 
     def __init__(
         self,
-        cell_size: int = 32,
-        subicon_size: int = 20,
+        resolution: int = DEFAULT_RESOLUTION,
+        subicon_percent: float = DEFAULT_SUBICON_PERCENT,
         texture_map: Optional[TextureMap] = None,
         asset_root: str = "assets/images",
         tex_lookup_fn: Optional[TexLookupFn] = None,
     ):
-        self.cell_size = cell_size
-        self.subicon_size = subicon_size
+        self.resolution = resolution
+        self.subicon_percent = subicon_percent
         self.texture_map = texture_map or TEXTURE_MAP
         self.asset_root = asset_root
         self.tex_lookup_fn = tex_lookup_fn
@@ -236,8 +242,8 @@ class TextureRenderer:
     def render(self, state: State) -> Image.Image:
         return render(
             state,
-            cell_size=self.cell_size,
-            subicon_size=self.subicon_size,
+            resolution=self.resolution,
+            subicon_percent=self.subicon_percent,
             texture_map=self.texture_map,
             asset_root=self.asset_root,
             tex_lookup_fn=self.tex_lookup_fn,
