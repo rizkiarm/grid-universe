@@ -2,7 +2,8 @@ from dataclasses import replace
 from typing import Dict, List, Tuple
 
 from pyrsistent import pvector
-from grid_universe.components import PathfindingType, Position
+from pyrsistent.typing import PMap
+from grid_universe.components import PathfindingType, Position, UsageLimit
 from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.utils.grid import is_blocked_at, is_in_bounds
@@ -12,6 +13,7 @@ from grid_universe.utils.math import (
     vector_dot_product,
     vector_substract,
 )
+from grid_universe.utils.status import use_status_effect_if_present
 
 from queue import PriorityQueue
 from itertools import count
@@ -101,7 +103,9 @@ def get_straight_line_next_position(
     )
 
 
-def entity_pathfinding(state: State, entity_id: EntityID) -> State:
+def entity_pathfinding(
+    state: State, usage_limit: PMap[EntityID, UsageLimit], entity_id: EntityID
+) -> State:
     if entity_id not in state.position or entity_id not in state.pathfinding:
         return state
 
@@ -110,6 +114,16 @@ def entity_pathfinding(state: State, entity_id: EntityID) -> State:
 
     if pathfinding_target is None:
         return state
+
+    if pathfinding_target in state.status:
+        usage_limit, effect_id = use_status_effect_if_present(
+            state.status[pathfinding_target].effect_ids,
+            state.phasing,
+            state.time_limit,
+            usage_limit,
+        )
+        if effect_id is not None:
+            return state
 
     if pathfinding_type == PathfindingType.STRAIGHT_LINE:
         next_pos = get_straight_line_next_position(state, entity_id, pathfinding_target)
@@ -127,6 +141,7 @@ def entity_pathfinding(state: State, entity_id: EntityID) -> State:
 
 
 def pathfinding_system(state: State) -> State:
+    usage_limit: PMap[EntityID, UsageLimit] = state.usage_limit
     for entity_id in state.pathfinding:
-        state = entity_pathfinding(state, entity_id)
+        state = entity_pathfinding(state, usage_limit, entity_id)
     return state

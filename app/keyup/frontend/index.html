@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
     <head>
         <title>KeyUp Component</title>
@@ -9,46 +9,55 @@
         <link rel="stylesheet" href="styles.css" />
         <script>
             function sendMessageToStreamlitClient(type, data) {
-                const outData = Object.assign({
-                    isStreamlitMessage: true,
-                    type: type,
-                }, data);
+                const outData = Object.assign(
+                    {
+                        isStreamlitMessage: true,
+                        type: type,
+                    },
+                    data,
+                );
                 window.parent.postMessage(outData, "*");
             }
 
             const Streamlit = {
-                setComponentReady: function() {
-                    sendMessageToStreamlitClient("streamlit:componentReady", {apiVersion: 1});
+                setComponentReady: function () {
+                    sendMessageToStreamlitClient("streamlit:componentReady", {
+                        apiVersion: 1,
+                    });
                 },
-                setFrameHeight: function() {
-                    sendMessageToStreamlitClient("streamlit:setFrameHeight", {height: document.body.scrollHeight});
+                setFrameHeight: function () {
+                    sendMessageToStreamlitClient("streamlit:setFrameHeight", {
+                        height: document.body.scrollHeight,
+                    });
                 },
-                setComponentValue: function(value) {
-                    sendMessageToStreamlitClient("streamlit:setComponentValue", {value: value});
+                setComponentValue: function (value) {
+                    sendMessageToStreamlitClient(
+                        "streamlit:setComponentValue",
+                        { value: value },
+                    );
                 },
                 RENDER_EVENT: "streamlit:render",
                 events: {
-                    addEventListener: function(type, callback) {
-                        window.addEventListener("message", function(event) {
+                    addEventListener: function (type, callback) {
+                        window.addEventListener("message", function (event) {
                             if (event.data.type === type) {
-                                event.detail = event.data
+                                event.detail = event.data;
                                 callback(event);
                             }
                         });
-                    }
-                }
-            }
+                    },
+                },
+            };
         </script>
     </head>
-    <body style="background-color: transparent;">
+    <body style="background-color: transparent">
         <noscript>You need to enable JavaScript to run this app.</noscript>
-        <div id="root" class="alert">
-        </div>
+        <div id="root" class="alert"></div>
     </body>
     <script>
         root = document.getElementById("root");
-        let default_text = 'Click Here';
-        let focused_text = 'Focused';
+        let default_text = "Default";
+        let focused_text = "Focused";
 
         function focus() {
             root.className = "alert alert-info text-center";
@@ -57,7 +66,7 @@
         }
 
         function blur() {
-            root.className = "alert alert-light text-center";;
+            root.className = "alert alert-light text-center";
             root.innerHTML = default_text;
             Streamlit.setFrameHeight();
         }
@@ -68,11 +77,11 @@
 
                 blur();
 
-                document.addEventListener("keyup", function(event){
+                document.addEventListener("keyup", function (event) {
                     Streamlit.setComponentValue(event.key);
                 });
-                window.addEventListener('focus', focus);
-                window.addEventListener('blur', blur);
+                window.addEventListener("focus", focus);
+                window.addEventListener("blur", blur);
 
                 window.rendered = true;
             }

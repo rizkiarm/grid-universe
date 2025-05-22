@@ -10,8 +10,8 @@ component = components.declare_component(component_name, path=frontend_dir)
 
 
 def keyup(
-    default_text: str = "Click here to use keyboard",
-    focused_text: str = "W,A,S,D to move, E to collect, F to use key, and Q to wait",
+    default_text: str = "Default",
+    focused_text: str = "Focused",
     key: Optional[str] = None,
 ):
     return component(default_text=default_text, focused_text=focused_text, key=key)

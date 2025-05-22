@@ -93,7 +93,10 @@ def get_keyboard_action() -> Optional[GymAction]:
         "e": GymAction.PICK_UP,
         "q": GymAction.WAIT,
     }
-    value = keyup()
+    value = keyup(
+        default_text="Click here to use keyboard",
+        focused_text="W,A,S,D to move, E to collect, F to use key, and Q to wait",
+    )
     return key_map.get(value, None)
 
 
