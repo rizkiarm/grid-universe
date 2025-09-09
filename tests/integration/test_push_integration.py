@@ -1,42 +1,42 @@
 from dataclasses import replace
-from typing import Tuple, List, Dict
+
 from pyrsistent import pmap, pset
 
-from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State
-from grid_universe.types import EntityID
+from grid_universe.actions import Action
 from grid_universe.components import (
     Agent,
-    Inventory,
-    Pushable,
-    Collidable,
-    Blocking,
-    Position,
-    Collectible,
-    Exit,
     Appearance,
     AppearanceName,
+    Blocking,
+    Collectible,
+    Collidable,
+    Exit,
+    Inventory,
+    Position,
+    Pushable,
 )
 from grid_universe.entity import Entity
-from grid_universe.actions import Action
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
 from grid_universe.step import step
+from grid_universe.types import EntityID
 
 
 def make_push_state(
-    agent_pos: Tuple[int, int],
-    box_positions: List[Tuple[int, int]] = [],
-    wall_positions: List[Tuple[int, int]] = [],
+    agent_pos: tuple[int, int],
+    box_positions: list[tuple[int, int]] = [],
+    wall_positions: list[tuple[int, int]] = [],
     width: int = 5,
     height: int = 5,
-) -> Tuple[State, EntityID, List[EntityID], List[EntityID]]:
-    pos: Dict[EntityID, Position] = {}
-    agent: Dict[EntityID, Agent] = {}
-    inventory: Dict[EntityID, Inventory] = {}
-    pushable: Dict[EntityID, Pushable] = {}
-    blocking: Dict[EntityID, Blocking] = {}
-    collidable: Dict[EntityID, Collidable] = {}
-    appearance: Dict[EntityID, Appearance] = {}
-    entity: Dict[EntityID, Entity] = {}
+) -> tuple[State, EntityID, list[EntityID], list[EntityID]]:
+    pos: dict[EntityID, Position] = {}
+    agent: dict[EntityID, Agent] = {}
+    inventory: dict[EntityID, Inventory] = {}
+    pushable: dict[EntityID, Pushable] = {}
+    blocking: dict[EntityID, Blocking] = {}
+    collidable: dict[EntityID, Collidable] = {}
+    appearance: dict[EntityID, Appearance] = {}
+    entity: dict[EntityID, Entity] = {}
 
     agent_id: EntityID = 1
     pos[agent_id] = Position(*agent_pos)
@@ -46,7 +46,7 @@ def make_push_state(
     appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
     entity[agent_id] = Entity()
 
-    box_ids: List[EntityID] = []
+    box_ids: list[EntityID] = []
     for bpos in box_positions:
         bid: EntityID = len(pos) + 1
         pos[bid] = Position(*bpos)
@@ -56,7 +56,7 @@ def make_push_state(
         entity[bid] = Entity()
         box_ids.append(bid)
 
-    wall_ids: List[EntityID] = []
+    wall_ids: list[EntityID] = []
     for wpos in wall_positions:
         wid: EntityID = len(pos) + 1
         pos[wid] = Position(*wpos)
@@ -75,7 +75,7 @@ def make_push_state(
                 + (1 if dir == Action.RIGHT else -1 if dir == Action.LEFT else 0),
                 s.position[eid].y
                 + (1 if dir == Action.DOWN else -1 if dir == Action.UP else 0),
-            )
+            ),
         ],
         objective_fn=default_objective_fn,
         entity=pmap(entity),
@@ -90,14 +90,14 @@ def make_push_state(
     return state, agent_id, box_ids, wall_ids
 
 
-def check_positions(state: State, expected: Dict[EntityID, Position]) -> None:
+def check_positions(state: State, expected: dict[EntityID, Position]) -> None:
     for eid, pos in expected.items():
         assert state.position[eid] == pos
 
 
 def test_agent_pushes_box_successfully() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     state = step(
         state,
@@ -115,7 +115,7 @@ def test_agent_pushes_box_successfully() -> None:
 
 def test_push_blocked_by_wall() -> None:
     state, agent_id, box_ids, wall_ids = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)], wall_positions=[(2, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)], wall_positions=[(2, 0)],
     )
     state = step(
         state,
@@ -134,7 +134,7 @@ def test_push_blocked_by_wall() -> None:
 
 def test_push_blocked_by_another_box() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)],
     )
     state = step(
         state,
@@ -153,7 +153,7 @@ def test_push_blocked_by_another_box() -> None:
 
 def test_push_box_out_of_bounds() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(3, 0), box_positions=[(4, 0)], width=5, height=1
+        agent_pos=(3, 0), box_positions=[(4, 0)], width=5, height=1,
     )
     state = step(
         state,
@@ -171,7 +171,7 @@ def test_push_box_out_of_bounds() -> None:
 
 def test_push_box_onto_collectible() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     collectible_id: EntityID = 100
     state = replace(
@@ -197,7 +197,7 @@ def test_push_box_onto_collectible() -> None:
 
 def test_push_box_onto_exit() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     exit_id: EntityID = 101
     state = replace(
@@ -229,7 +229,7 @@ def test_push_box_left_right_up_down() -> None:
         (Action.UP, (0, 2), (0, 1), (0, 0)),
     ]:
         state, agent_id, box_ids, _ = make_push_state(
-            agent_pos=agent_pos, box_positions=[box_pos], width=3, height=3
+            agent_pos=agent_pos, box_positions=[box_pos], width=3, height=3,
         )
         state = step(
             state,
@@ -247,7 +247,7 @@ def test_push_box_left_right_up_down() -> None:
 
 def test_push_box_on_narrow_grid_edge() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(0, 1)], width=1, height=2
+        agent_pos=(0, 0), box_positions=[(0, 1)], width=1, height=2,
     )
     state = step(
         state,
@@ -265,7 +265,7 @@ def test_push_box_on_narrow_grid_edge() -> None:
 
 def test_push_chain_of_boxes_blocked() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)],
     )
     state = step(
         state,
@@ -284,7 +284,7 @@ def test_push_chain_of_boxes_blocked() -> None:
 
 def test_push_not_adjacent() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(2, 0)]
+        agent_pos=(0, 0), box_positions=[(2, 0)],
     )
     state = step(
         state,
@@ -312,7 +312,7 @@ def test_push_no_pushable_at_destination() -> None:
 
 def test_push_box_blocked_by_agent() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     agent2_id: EntityID = 99
     state = replace(
@@ -346,7 +346,7 @@ def test_push_box_missing_position_component() -> None:
         pushable=state.pushable.set(missing_box_id, Pushable()),
         collidable=state.collidable.set(missing_box_id, Collidable()),
         appearance=state.appearance.set(
-            missing_box_id, Appearance(name=AppearanceName.BOX)
+            missing_box_id, Appearance(name=AppearanceName.BOX),
         ),
         entity=state.entity.set(missing_box_id, Entity()),
         # No position for box 42
@@ -361,7 +361,7 @@ def test_push_box_missing_position_component() -> None:
 
 def test_push_missing_agent_position() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     state = replace(state, position=state.position.remove(agent_id))
     state = step(
@@ -375,13 +375,13 @@ def test_push_missing_agent_position() -> None:
 
 def test_push_box_at_narrow_grid_edge() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     state = replace(state, width=1, height=2)
     state = replace(
         state,
         position=state.position.set(agent_id, Position(0, 0)).set(
-            box_ids[0], Position(0, 1)
+            box_ids[0], Position(0, 1),
         ),
     )
     state = step(
@@ -400,7 +400,7 @@ def test_push_box_at_narrow_grid_edge() -> None:
 
 def test_push_after_agent_moves_multiple_times() -> None:
     state, agent_id, box_ids, _ = make_push_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     state = step(
         state,

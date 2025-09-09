@@ -1,12 +1,12 @@
+from collections.abc import Callable, Sequence
 from enum import StrEnum, auto
-from typing import Callable, Sequence, TYPE_CHECKING
-
+from typing import TYPE_CHECKING
 
 # Forward declaration for MoveFn typing to avoid circular imports:
 if TYPE_CHECKING:
-    from grid_universe.state import State
     from grid_universe.actions import Action
     from grid_universe.components import Position
+    from grid_universe.state import State
 
 EntityID = int
 

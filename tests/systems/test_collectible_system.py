@@ -1,31 +1,31 @@
-from typing import Tuple, Dict
+
+from pyrsistent import pmap, pset
 from pyrsistent.typing import PMap
-from grid_universe.objectives import default_objective_fn
-from grid_universe.systems.collectible import collectible_system
+
 from grid_universe.components import (
     Agent,
-    Inventory,
-    Collectible,
-    Rewardable,
-    Position,
-    Required,
     Appearance,
     AppearanceName,
+    Collectible,
+    Inventory,
+    Position,
+    Required,
+    Rewardable,
 )
 from grid_universe.entity import Entity, new_entity_id
-from grid_universe.types import EntityID
-from pyrsistent import pmap, pset
+from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
+from grid_universe.systems.collectible import collectible_system
+from grid_universe.types import EntityID
 
 
 def make_collectible_state(
-    agent_pos: Tuple[int, int],
-    collectible_pos: Tuple[int, int],
+    agent_pos: tuple[int, int],
+    collectible_pos: tuple[int, int],
     collectible_id: EntityID,
     collect_type: str = "item",
-) -> Tuple[State, EntityID]:
-    """
-    Build a minimal state with an agent and one collectible of given type at the same position.
+) -> tuple[State, EntityID]:
+    """Build a minimal state with an agent and one collectible of given type at the same position.
     `collect_type` can be "item", "rewardable".
     Returns (state, agent_id)
     """
@@ -39,13 +39,13 @@ def make_collectible_state(
     collectible = pmap({collectible_id: Collectible()})
     rewardable: PMap[EntityID, Rewardable] = pmap()
     required: PMap[EntityID, Required] = pmap()
-    appearance: Dict[EntityID, Appearance] = {
+    appearance: dict[EntityID, Appearance] = {
         agent_id: Appearance(name=AppearanceName.HUMAN),
         collectible_id: Appearance(
-            name=AppearanceName.COIN if collect_type == "item" else AppearanceName.CORE
+            name=AppearanceName.COIN if collect_type == "item" else AppearanceName.CORE,
         ),
     }
-    entity: Dict[EntityID, Entity] = {
+    entity: dict[EntityID, Entity] = {
         agent_id: Entity(),
         collectible_id: Entity(),
     }
@@ -112,7 +112,7 @@ def test_pickup_multiple_collectibles_all_types() -> None:
             item_id: Collectible(),
             rewardable_id: Collectible(),
             required_id: Collectible(),
-        }
+        },
     )
     rewardable = pmap({rewardable_id: Rewardable(amount=10)})
     required = pmap({required_id: Required()})

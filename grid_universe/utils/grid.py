@@ -1,4 +1,4 @@
-from typing import Optional
+
 from grid_universe.components import Position
 from grid_universe.moves import wrap_around_move_fn
 from grid_universe.state import State
@@ -25,8 +25,8 @@ def is_blocked_at(state: State, pos: Position, check_collidable: bool = True) ->
 
 
 def compute_destination(
-    state: State, current_pos: Position, next_pos: Position
-) -> Optional[Position]:
+    state: State, current_pos: Position, next_pos: Position,
+) -> Position | None:
     """Compute where an entity would move from `current_pos` to `next_pos`."""
     dx = next_pos.x - current_pos.x
     dy = next_pos.y - current_pos.y

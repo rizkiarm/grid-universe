@@ -41,6 +41,16 @@ skip_covered = true
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+select = ["ALL"]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**/*.py" = [
+    "S101",
+    "ARG",
+    "FBT",
+    "PLR2004",
+    "S311",
+]
 
 [tool.mypy]
 python_version = "3.11"

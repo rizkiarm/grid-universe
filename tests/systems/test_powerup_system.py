@@ -1,24 +1,26 @@
 from dataclasses import replace
-from typing import List, Dict, Tuple, Optional, TypedDict, Literal
-from pyrsistent import pmap, pset, PMap, PSet
-from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State
+from typing import Literal, TypedDict
+
+from pyrsistent import PMap, PSet, pmap, pset
+
 from grid_universe.components import (
-    Status,
     Agent,
-    Position,
-    Inventory,
     Appearance,
     AppearanceName,
     Immunity,
-    Speed,
+    Inventory,
     Phasing,
+    Position,
+    Speed,
+    Status,
     TimeLimit,
     UsageLimit,
 )
 from grid_universe.entity import Entity, new_entity_id
-from grid_universe.types import EntityID
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
 from grid_universe.systems.status import status_system
+from grid_universe.types import EntityID
 from grid_universe.utils.status import use_status_effect
 
 
@@ -33,19 +35,19 @@ class EffectSpec(RequiredEffectSpec, total=False):
 
 
 def build_agent_with_effects(
-    agent_id: Optional[EntityID] = None,
-    effects: Optional[List[EffectSpec]] = None,
-) -> Tuple[State, EntityID, List[EntityID]]:
-    entity: Dict[EntityID, Entity] = {}
-    agent: Dict[EntityID, Agent] = {}
-    inventory: Dict[EntityID, Inventory] = {}
-    appearance: Dict[EntityID, Appearance] = {}
-    immunity: Dict[EntityID, Immunity] = {}
-    speed: Dict[EntityID, Speed] = {}
-    phasing: Dict[EntityID, Phasing] = {}
-    time_limit: Dict[EntityID, TimeLimit] = {}
-    usage_limit: Dict[EntityID, UsageLimit] = {}
-    effect_ids: List[EntityID] = []
+    agent_id: EntityID | None = None,
+    effects: list[EffectSpec] | None = None,
+) -> tuple[State, EntityID, list[EntityID]]:
+    entity: dict[EntityID, Entity] = {}
+    agent: dict[EntityID, Agent] = {}
+    inventory: dict[EntityID, Inventory] = {}
+    appearance: dict[EntityID, Appearance] = {}
+    immunity: dict[EntityID, Immunity] = {}
+    speed: dict[EntityID, Speed] = {}
+    phasing: dict[EntityID, Phasing] = {}
+    time_limit: dict[EntityID, TimeLimit] = {}
+    usage_limit: dict[EntityID, UsageLimit] = {}
+    effect_ids: list[EntityID] = []
     status_effect_ids: PSet[EntityID] = pset()
 
     if agent_id is None:
@@ -79,7 +81,7 @@ def build_agent_with_effects(
         status_effect_ids = status_effect_ids.add(eid)
 
     status: PMap[EntityID, Status] = pmap(
-        {agent_id: Status(effect_ids=status_effect_ids)}
+        {agent_id: Status(effect_ids=status_effect_ids)},
     )
 
     state: State = State(
@@ -107,7 +109,7 @@ def build_agent_with_effects(
 
 def test_time_limited_immunity_ticks_and_expires() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="immunity", limit="time", amount=2)]
+        effects=[EffectSpec(type="immunity", limit="time", amount=2)],
     )
     state1 = status_system(state)
     state2 = status_system(state1)
@@ -116,7 +118,7 @@ def test_time_limited_immunity_ticks_and_expires() -> None:
 
 def test_time_limited_speed_ticks_and_expires() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="speed", limit="time", amount=1)]
+        effects=[EffectSpec(type="speed", limit="time", amount=1)],
     )
     state1 = status_system(state)
     assert not state1.status[agent_id].effect_ids
@@ -124,7 +126,7 @@ def test_time_limited_speed_ticks_and_expires() -> None:
 
 def test_time_limited_phasing_ticks_and_expires() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="phasing", limit="time", amount=2)]
+        effects=[EffectSpec(type="phasing", limit="time", amount=2)],
     )
     state1 = status_system(state)
     state2 = status_system(state1)
@@ -133,7 +135,7 @@ def test_time_limited_phasing_ticks_and_expires() -> None:
 
 def test_usage_limited_immunity_does_not_tick() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="immunity", limit="usage", amount=3)]
+        effects=[EffectSpec(type="immunity", limit="usage", amount=3)],
     )
     state2 = status_system(state)
     assert state2.usage_limit[effect_ids[0]].amount == 3
@@ -142,7 +144,7 @@ def test_usage_limited_immunity_does_not_tick() -> None:
 
 def test_usage_limited_speed_does_not_tick() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="speed", limit="usage", amount=2)]
+        effects=[EffectSpec(type="speed", limit="usage", amount=2)],
     )
     state2 = status_system(state)
     assert state2.usage_limit[effect_ids[0]].amount == 2
@@ -151,7 +153,7 @@ def test_usage_limited_speed_does_not_tick() -> None:
 
 def test_usage_limited_phasing_does_not_tick() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="phasing", limit="usage", amount=2)]
+        effects=[EffectSpec(type="phasing", limit="usage", amount=2)],
     )
     state2 = status_system(state)
     assert state2.usage_limit[effect_ids[0]].amount == 2
@@ -160,7 +162,7 @@ def test_usage_limited_phasing_does_not_tick() -> None:
 
 def test_unlimited_time_immunity_does_not_expire() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="immunity")]
+        effects=[EffectSpec(type="immunity")],
     )
     state2 = status_system(state)
     assert state2.status[agent_id].effect_ids
@@ -168,7 +170,7 @@ def test_unlimited_time_immunity_does_not_expire() -> None:
 
 def test_unlimited_time_speed_does_not_expire() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="speed")]
+        effects=[EffectSpec(type="speed")],
     )
     state2 = status_system(state)
     assert state2.status[agent_id].effect_ids
@@ -176,7 +178,7 @@ def test_unlimited_time_speed_does_not_expire() -> None:
 
 def test_unlimited_time_phasing_does_not_expire() -> None:
     state, agent_id, effect_ids = build_agent_with_effects(
-        effects=[EffectSpec(type="phasing")]
+        effects=[EffectSpec(type="phasing")],
     )
     state2 = status_system(state)
     assert state2.status[agent_id].effect_ids
@@ -188,7 +190,7 @@ def test_multiple_effects_tick_independently() -> None:
             EffectSpec(type="immunity", limit="time", amount=1),
             EffectSpec(type="speed", limit="usage", amount=2),
             EffectSpec(type="phasing", limit="time", amount=2),
-        ]
+        ],
     )
     state1 = status_system(state)
     remaining = state1.status[agent_id].effect_ids
@@ -204,10 +206,10 @@ def test_multiple_effects_tick_independently() -> None:
 
 def test_multi_agent_effects_are_isolated() -> None:
     state1, agent1, eff1 = build_agent_with_effects(
-        agent_id=1, effects=[EffectSpec(type="immunity", limit="time", amount=1)]
+        agent_id=1, effects=[EffectSpec(type="immunity", limit="time", amount=1)],
     )
     state2, agent2, eff2 = build_agent_with_effects(
-        agent_id=2, effects=[EffectSpec(type="speed", limit="usage", amount=2)]
+        agent_id=2, effects=[EffectSpec(type="speed", limit="usage", amount=2)],
     )
     state = replace(
         state1,
@@ -250,7 +252,7 @@ def test_multiple_same_type_time_limited_effects_tick_independently() -> None:
         effects=[
             EffectSpec(type="speed", limit="time", amount=1),
             EffectSpec(type="speed", limit="time", amount=3),
-        ]
+        ],
     )
     state1 = status_system(state)
     assert effect_ids[0] not in state1.status[agent_id].effect_ids
@@ -266,7 +268,7 @@ def test_multiple_usage_limited_effects_are_used_one_at_a_time() -> None:
         effects=[
             EffectSpec(type="speed", limit="usage", amount=1),
             EffectSpec(type="speed", limit="usage", amount=2),
-        ]
+        ],
     )
     use1 = use_status_effect(effect_ids[0], state.usage_limit)
     assert use1[effect_ids[0]].amount == 0

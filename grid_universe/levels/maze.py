@@ -1,23 +1,10 @@
+import random
 from dataclasses import replace
 from enum import StrEnum, auto
-from typing import Any, Optional, List, Dict, Tuple, Set, Union
-import random
+from typing import Any
 
 from pyrsistent import pset
 
-from grid_universe.components.properties.pathfinding import Pathfinding, PathfindingType
-from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State
-from grid_universe.entity import Entity, new_entity_id
-from grid_universe.moves import default_move_fn
-from grid_universe.types import (
-    EffectLimit,
-    EffectLimitAmount,
-    EffectType,
-    EntityID,
-    MoveFn,
-    ObjectiveFn,
-)
 from grid_universe.components.effects import (
     Immunity,
     Phasing,
@@ -50,25 +37,36 @@ from grid_universe.components.properties import (
     Rewardable,
     Status,
 )
-
+from grid_universe.components.properties.pathfinding import Pathfinding, PathfindingType
+from grid_universe.entity import Entity, new_entity_id
+from grid_universe.moves import default_move_fn
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
+from grid_universe.types import (
+    EffectLimit,
+    EffectLimitAmount,
+    EffectType,
+    EntityID,
+    MoveFn,
+    ObjectiveFn,
+)
 from grid_universe.utils.maze import (
-    generate_perfect_maze,
-    all_required_path_positions,
     adjust_maze_wall_percentage,
+    all_required_path_positions,
+    generate_perfect_maze,
 )
 
+EffectOption = dict[str, Any]
 
-EffectOption = Dict[str, Any]
-
-PowerupSpec = Tuple[
+PowerupSpec = tuple[
     AppearanceName,
-    List[EffectType],
-    Optional[EffectLimit],
-    Optional[EffectLimitAmount],
+    list[EffectType],
+    EffectLimit | None,
+    EffectLimitAmount | None,
     EffectOption,
 ]
 
-DEFAULT_POWERUPS: List[PowerupSpec] = [
+DEFAULT_POWERUPS: list[PowerupSpec] = [
     (AppearanceName.BOOTS, [EffectType.SPEED], EffectLimit.TIME, 10, {"multiplier": 2}),
     (
         AppearanceName.GHOST,
@@ -85,9 +83,9 @@ DamageAmount = int
 MovementSpeed = int
 IsPushable = bool
 
-HazardSpec = Tuple[AppearanceName, DamageAmount, DamageLethal]
+HazardSpec = tuple[AppearanceName, DamageAmount, DamageLethal]
 
-DEFAULT_HAZARDS: List[HazardSpec] = [
+DEFAULT_HAZARDS: list[HazardSpec] = [
     (AppearanceName.LAVA, 5, True),
     (AppearanceName.SPIKE, 3, False),
 ]
@@ -100,19 +98,19 @@ class MovementType(StrEnum):
     PATHFINDING_PATH = auto()
 
 
-EnemySpec = Tuple[
-    AppearanceName, DamageAmount, DamageLethal, MovementType, MovementSpeed
+EnemySpec = tuple[
+    AppearanceName, DamageAmount, DamageLethal, MovementType, MovementSpeed,
 ]
 
-DEFAULT_ENEMIES: List[EnemySpec] = [
+DEFAULT_ENEMIES: list[EnemySpec] = [
     (AppearanceName.MONSTER, 5, True, MovementType.DIRECTIONAL, 2),
     (AppearanceName.MONSTER, 3, False, MovementType.PATHFINDING_LINE, 1),
 ]
 
 
-BoxSpec = Tuple[AppearanceName, IsPushable, MovementSpeed]
+BoxSpec = tuple[AppearanceName, IsPushable, MovementSpeed]
 
-DEFAULT_BOXES: List[BoxSpec] = [
+DEFAULT_BOXES: list[BoxSpec] = [
     (AppearanceName.BOX, True, 0),
     (AppearanceName.BOX, False, 1),
     (AppearanceName.BOX, False, 2),
@@ -121,7 +119,7 @@ DEFAULT_BOXES: List[BoxSpec] = [
 
 def place_floors(
     state: State,
-    empty_positions: List[Tuple[int, int]],
+    empty_positions: list[tuple[int, int]],
     cost: int = 1,
 ) -> State:
     state_entity = state.entity
@@ -132,7 +130,7 @@ def place_floors(
         eid: EntityID = new_entity_id()
         state_entity = state_entity.set(eid, Entity())
         state_appearance = state_appearance.set(
-            eid, Appearance(name=AppearanceName.FLOOR, background=True, priority=10)
+            eid, Appearance(name=AppearanceName.FLOOR, background=True, priority=10),
         )
         state_cost = state_cost.set(eid, Cost(amount=cost))
         state_position = state_position.set(eid, Position(*pos))
@@ -147,7 +145,7 @@ def place_floors(
 
 def place_agent(
     state: State,
-    position: Tuple[int, int],
+    position: tuple[int, int],
     health: int,
 ) -> State:
     agent_id: EntityID = new_entity_id()
@@ -155,7 +153,7 @@ def place_agent(
     state_agent = state.agent.set(agent_id, Agent())
     state_position = state.position.set(agent_id, Position(*position))
     state_appearance = state.appearance.set(
-        agent_id, Appearance(name=AppearanceName.HUMAN, priority=0)
+        agent_id, Appearance(name=AppearanceName.HUMAN, priority=0),
     )
     state_inventory = state.inventory.set(agent_id, Inventory(pset()))
     state_status = state.status.set(agent_id, Status(pset()))
@@ -176,14 +174,14 @@ def place_agent(
 
 def place_exit(
     state: State,
-    position: Tuple[int, int],
+    position: tuple[int, int],
 ) -> State:
     exit_id: EntityID = new_entity_id()
     state_entity = state.entity.set(exit_id, Entity())
     state_exit = state.exit.set(exit_id, Exit())
     state_position = state.position.set(exit_id, Position(*position))
     state_appearance = state.appearance.set(
-        exit_id, Appearance(name=AppearanceName.EXIT, priority=9)
+        exit_id, Appearance(name=AppearanceName.EXIT, priority=9),
     )
     return replace(
         state,
@@ -196,11 +194,11 @@ def place_exit(
 
 def place_collectibles(
     state: State,
-    empty_positions: List[Tuple[int, int]],
+    empty_positions: list[tuple[int, int]],
     num_items: int,
-    reward: Optional[int] = None,
+    reward: int | None = None,
     required: bool = False,
-) -> Tuple[State, List[Tuple[int, int]]]:
+) -> tuple[State, list[tuple[int, int]]]:
     state_entity = state.entity
     state_position = state.position
     state_appearance = state.appearance
@@ -208,7 +206,7 @@ def place_collectibles(
     state_rewardable = state.rewardable
     state_required = state.required
 
-    used_positions: List[Tuple[int, int]] = []
+    used_positions: list[tuple[int, int]] = []
     for _ in range(num_items):
         if not empty_positions:
             break
@@ -246,9 +244,9 @@ def place_collectibles(
 
 def place_boxes(
     state: State,
-    empty_positions: List[Tuple[int, int]],
-    boxes: List[BoxSpec],
-    rng: Optional[random.Random] = None,
+    empty_positions: list[tuple[int, int]],
+    boxes: list[BoxSpec],
+    rng: random.Random | None = None,
 ) -> State:
     if rng is None:
         rng = random.Random()
@@ -269,7 +267,7 @@ def place_boxes(
         state_entity = state_entity.set(box_id, Entity())
         state_position = state_position.set(box_id, Position(*position))
         state_appearance = state_appearance.set(
-            box_id, Appearance(name=appearance, priority=2)
+            box_id, Appearance(name=appearance, priority=2),
         )
         state_blocking = state_blocking.set(box_id, Blocking())
         state_collidable = state_collidable.set(box_id, Collidable())
@@ -299,7 +297,7 @@ def place_boxes(
 
 def place_portals(
     state: State,
-    empty_positions: List[Tuple[int, int]],
+    empty_positions: list[tuple[int, int]],
     num_portals: int,
 ) -> State:
     state_entity = state.entity
@@ -319,10 +317,10 @@ def place_portals(
         state_position = state_position.set(id1, Position(*p1))
         state_position = state_position.set(id2, Position(*p2))
         state_appearance = state_appearance.set(
-            id1, Appearance(name=AppearanceName.PORTAL, priority=7)
+            id1, Appearance(name=AppearanceName.PORTAL, priority=7),
         )
         state_appearance = state_appearance.set(
-            id2, Appearance(name=AppearanceName.PORTAL, priority=7)
+            id2, Appearance(name=AppearanceName.PORTAL, priority=7),
         )
         state_portal = state_portal.set(id1, Portal(pair_entity=id2))
         state_portal = state_portal.set(id2, Portal(pair_entity=id1))
@@ -338,7 +336,7 @@ def place_portals(
 
 def place_doors_and_keys(
     state: State,
-    empty_positions: List[Tuple[int, int]],
+    empty_positions: list[tuple[int, int]],
     n: int,
 ) -> State:
     state_entity = state.entity
@@ -363,10 +361,10 @@ def place_doors_and_keys(
         state_position = state_position.set(key_id, Position(*key_pos))
         state_position = state_position.set(lock_id, Position(*lock_pos))
         state_appearance = state_appearance.set(
-            key_id, Appearance(name=AppearanceName.KEY, priority=4, icon=True)
+            key_id, Appearance(name=AppearanceName.KEY, priority=4, icon=True),
         )
         state_appearance = state_appearance.set(
-            lock_id, Appearance(name=AppearanceName.DOOR, priority=6)
+            lock_id, Appearance(name=AppearanceName.DOOR, priority=6),
         )
         state_collectible = state_collectible.set(key_id, Collectible())
         state_blocking = state_blocking.set(lock_id, Blocking())
@@ -387,10 +385,10 @@ def place_doors_and_keys(
 
 def place_threats(
     state: State,
-    empty_positions: List[Tuple[int, int]],
-    threats: Union[List[EnemySpec], List[HazardSpec]],
+    empty_positions: list[tuple[int, int]],
+    threats: list[EnemySpec] | list[HazardSpec],
     priority: int = 1,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> State:
     if rng is None:
         rng = random.Random()
@@ -414,7 +412,7 @@ def place_threats(
         state_entity = state_entity.set(entity_id, Entity())
         state_position = state_position.set(entity_id, Position(*position))
         state_appearance = state_appearance.set(
-            entity_id, Appearance(name=appearance_name, priority=priority)
+            entity_id, Appearance(name=appearance_name, priority=priority),
         )
         state_collidable = state_collidable.set(entity_id, Collidable())
         state_damage = state_damage.set(entity_id, Damage(amount=damage))
@@ -443,7 +441,7 @@ def place_threats(
                 state_pathfinding = state_pathfinding.set(
                     entity_id,
                     Pathfinding(
-                        target=list(state.agent.keys())[0],
+                        target=next(iter(state.agent.keys())),
                         type=PathfindingType.STRAIGHT_LINE
                         if movement_type == MovementType.PATHFINDING_LINE
                         else PathfindingType.PATH,
@@ -467,8 +465,8 @@ def place_threats(
 
 def place_powerups(
     state: State,
-    empty_positions: List[Tuple[int, int]],
-    powerups: List[PowerupSpec],
+    empty_positions: list[tuple[int, int]],
+    powerups: list[PowerupSpec],
 ) -> State:
     state_entity = state.entity
     state_position = state.position
@@ -488,7 +486,7 @@ def place_powerups(
         state_entity = state_entity.set(powerup_id, Entity())
         state_position = state_position.set(powerup_id, Position(*position))
         state_appearance = state_appearance.set(
-            powerup_id, Appearance(appearance_name, icon=True, priority=4)
+            powerup_id, Appearance(appearance_name, icon=True, priority=4),
         )
         state_collectible = state_collectible.set(powerup_id, Collectible())
         for effect in effects:
@@ -498,17 +496,17 @@ def place_powerups(
                 state_phasing = state_phasing.set(powerup_id, Phasing())
             if effect == EffectType.SPEED:
                 state_speed = state_speed.set(
-                    powerup_id, Speed(effect_option["multiplier"])
+                    powerup_id, Speed(effect_option["multiplier"]),
                 )
         if limit_type is None or limit_amount is None:
             continue
         if limit_type == EffectLimit.TIME:
             state_time_limit = state_time_limit.set(
-                powerup_id, TimeLimit(amount=limit_amount)
+                powerup_id, TimeLimit(amount=limit_amount),
             )
         if limit_type == EffectLimit.USAGE:
             state_usage_limit = state_usage_limit.set(
-                powerup_id, UsageLimit(amount=limit_amount)
+                powerup_id, UsageLimit(amount=limit_amount),
             )
 
     return replace(
@@ -527,7 +525,7 @@ def place_powerups(
 
 def place_walls(
     state: State,
-    maze_grid: Dict[Tuple[int, int], bool],
+    maze_grid: dict[tuple[int, int], bool],
 ) -> State:
     state_entity = state.entity
     state_position = state.position
@@ -564,25 +562,25 @@ def generate(
     movement_cost: int = 1,
     required_item_reward: int = 10,
     rewardable_item_reward: int = 10,
-    boxes: List[BoxSpec] = DEFAULT_BOXES,
-    powerups: List[PowerupSpec] = DEFAULT_POWERUPS,
-    hazards: List[HazardSpec] = DEFAULT_HAZARDS,
-    enemies: List[EnemySpec] = DEFAULT_ENEMIES,
+    boxes: list[BoxSpec] = DEFAULT_BOXES,
+    powerups: list[PowerupSpec] = DEFAULT_POWERUPS,
+    hazards: list[HazardSpec] = DEFAULT_HAZARDS,
+    enemies: list[EnemySpec] = DEFAULT_ENEMIES,
     wall_percentage: float = 0.8,
     move_fn: MoveFn = default_move_fn,
     objective_fn: ObjectiveFn = default_objective_fn,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> State:
     rng: random.Random = random.Random(seed)
-    maze_grid: Dict[Tuple[int, int], bool] = generate_perfect_maze(width, height, rng)
+    maze_grid: dict[tuple[int, int], bool] = generate_perfect_maze(width, height, rng)
     maze_grid = adjust_maze_wall_percentage(maze_grid, wall_percentage, rng)
 
     state = State(
-        width=width, height=height, move_fn=move_fn, objective_fn=objective_fn
+        width=width, height=height, move_fn=move_fn, objective_fn=objective_fn,
     )
 
     # Tiles setup
-    empty_positions: List[Tuple[int, int]] = [
+    empty_positions: list[tuple[int, int]] = [
         pos for pos, open_ in maze_grid.items() if open_
     ]
     rng.shuffle(empty_positions)
@@ -591,24 +589,24 @@ def generate(
     state = place_floors(state, empty_positions[:], cost=1)
 
     # Agent/exit
-    start_pos: Tuple[int, int] = empty_positions.pop()
+    start_pos: tuple[int, int] = empty_positions.pop()
     state = place_agent(state, start_pos, health=health)
-    goal_pos: Tuple[int, int] = empty_positions.pop()
+    goal_pos: tuple[int, int] = empty_positions.pop()
     state = place_exit(state, goal_pos)
 
     # Required collectibles
     state, required_positions = place_collectibles(
-        state, empty_positions, num_required_items, required_item_reward, required=True
+        state, empty_positions, num_required_items, required_item_reward, required=True,
     )
 
     # Essential path for hazard/enemy placement
-    essential_path: Set[Tuple[int, int]] = all_required_path_positions(
-        maze_grid, start_pos, required_positions, goal_pos
+    essential_path: set[tuple[int, int]] = all_required_path_positions(
+        maze_grid, start_pos, required_positions, goal_pos,
     )
 
     # Rewardable collectibles
     state, _ = place_collectibles(
-        state, empty_positions, num_rewardable_items, rewardable_item_reward
+        state, empty_positions, num_rewardable_items, rewardable_item_reward,
     )
 
     # Portals
@@ -628,15 +626,14 @@ def generate(
 
     # Enemies
     state = place_threats(
-        state, empty_non_essential_positions, enemies, priority=1, rng=rng
+        state, empty_non_essential_positions, enemies, priority=1, rng=rng,
     )
 
     # Hazards
     state = place_threats(
-        state, empty_non_essential_positions, hazards, priority=7, rng=rng
+        state, empty_non_essential_positions, hazards, priority=7, rng=rng,
     )
 
     # Walls
-    state = place_walls(state, maze_grid)
+    return place_walls(state, maze_grid)
 
-    return state

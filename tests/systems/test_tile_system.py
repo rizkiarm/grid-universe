@@ -1,44 +1,45 @@
 from dataclasses import replace
-from typing import Dict, List, Optional, Tuple
-from pyrsistent import pmap, pset, PMap
-from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State
+
+from pyrsistent import PMap, pmap, pset
+
 from grid_universe.components import (
     Agent,
-    Rewardable,
-    Cost,
-    Collectible,
-    Inventory,
-    Dead,
-    Position,
     Appearance,
     AppearanceName,
+    Collectible,
+    Cost,
+    Dead,
+    Inventory,
+    Position,
+    Rewardable,
 )
-from grid_universe.systems.tile import tile_reward_system, tile_cost_system
-from grid_universe.types import EntityID
 from grid_universe.entity import Entity
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
+from grid_universe.systems.tile import tile_cost_system, tile_reward_system
+from grid_universe.types import EntityID
 
 
 def make_tile_state(
-    rewardable_ids: Optional[List[EntityID]] = None,
-    cost_ids: Optional[List[EntityID]] = None,
-    collectible_ids: Optional[List[EntityID]] = None,
-    agent_pos: Tuple[int, int] = (0, 0),
+    rewardable_ids: list[EntityID] | None = None,
+    cost_ids: list[EntityID] | None = None,
+    collectible_ids: list[EntityID] | None = None,
+    agent_pos: tuple[int, int] = (0, 0),
     reward_amount: int = 10,
     cost_amount: int = 2,
     agent_dead: bool = False,
     agent_in_state: bool = True,
-) -> Tuple[State, EntityID]:
-    entity: Dict[EntityID, Entity] = {}
+) -> tuple[State, EntityID]:
+    entity: dict[EntityID, Entity] = {}
     agent_id: EntityID = 1
-    pos: Dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
-    agent_map: Dict[EntityID, Agent] = {agent_id: Agent()} if agent_in_state else {}
-    reward_map: Dict[EntityID, Rewardable] = {}
-    cost_map: Dict[EntityID, Cost] = {}
-    collectible_map: Dict[EntityID, Collectible] = {}
-    inventory: Dict[EntityID, Inventory] = {agent_id: Inventory(pset())}
-    appearance: Dict[EntityID, Appearance] = {
-        agent_id: Appearance(name=AppearanceName.HUMAN)
+    pos: dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
+    agent_map: dict[EntityID, Agent] = {agent_id: Agent()} if agent_in_state else {}
+    reward_map: dict[EntityID, Rewardable] = {}
+    cost_map: dict[EntityID, Cost] = {}
+    collectible_map: dict[EntityID, Collectible] = {}
+    inventory: dict[EntityID, Inventory] = {agent_id: Inventory(pset())}
+    appearance: dict[EntityID, Appearance] = {
+        agent_id: Appearance(name=AppearanceName.HUMAN),
     }
     dead: PMap[EntityID, Dead] = pmap({agent_id: Dead()}) if agent_dead else pmap()
 
@@ -115,7 +116,7 @@ def test_multiple_rewardables_and_costs() -> None:
 
 def test_reward_and_cost_both_collectible_ignored() -> None:
     state, agent_id = make_tile_state(
-        rewardable_ids=[2], cost_ids=[3], collectible_ids=[2, 3]
+        rewardable_ids=[2], cost_ids=[3], collectible_ids=[2, 3],
     )
     assert agent_step_and_score(state, agent_id) == 0
 
@@ -128,7 +129,7 @@ def test_reward_cost_same_tile() -> None:
 
 def test_zero_and_negative_rewards_costs() -> None:
     state, agent_id = make_tile_state(
-        rewardable_ids=[2, 3], cost_ids=[4, 5], reward_amount=0, cost_amount=-6
+        rewardable_ids=[2, 3], cost_ids=[4, 5], reward_amount=0, cost_amount=-6,
     )
     assert agent_step_and_score(state, agent_id) == 0 + 0 - (-6) - (-6)
 
@@ -191,7 +192,7 @@ def test_agent_missing_position() -> None:
 def test_multiple_agents_separate_scores() -> None:
     agent1_id = 1
     agent2_id = 2
-    entity: Dict[EntityID, Entity] = {
+    entity: dict[EntityID, Entity] = {
         agent1_id: Entity(),
         agent2_id: Entity(),
         3: Entity(),
@@ -203,11 +204,11 @@ def test_multiple_agents_separate_scores() -> None:
         3: Position(0, 0),  # rewardable for agent1
         4: Position(1, 0),  # cost for agent2
     }
-    agent_map: Dict[EntityID, Agent] = {agent1_id: Agent(), agent2_id: Agent()}
+    agent_map: dict[EntityID, Agent] = {agent1_id: Agent(), agent2_id: Agent()}
     rewardable = {3: Rewardable(amount=12)}
     cost = {4: Cost(amount=7)}
     inventory = {agent1_id: Inventory(pset()), agent2_id: Inventory(pset())}
-    appearance: Dict[EntityID, Appearance] = {
+    appearance: dict[EntityID, Appearance] = {
         agent1_id: Appearance(name=AppearanceName.HUMAN),
         agent2_id: Appearance(name=AppearanceName.HUMAN),
         3: Appearance(name=AppearanceName.COIN),

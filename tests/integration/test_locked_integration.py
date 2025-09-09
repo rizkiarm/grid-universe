@@ -1,20 +1,21 @@
 from dataclasses import replace
-from pyrsistent import pset, PSet
 
+from pyrsistent import PSet, pset
+
+from grid_universe.actions import Action
+from grid_universe.components import (
+    Agent,
+    Blocking,
+    Collectible,
+    Inventory,
+    Key,
+    Locked,
+    Position,
+)
 from grid_universe.entity import Entity
 from grid_universe.state import State
 from grid_universe.step import step
 from grid_universe.types import EntityID
-from grid_universe.components import (
-    Position,
-    Agent,
-    Inventory,
-    Key,
-    Locked,
-    Blocking,
-    Collectible,
-)
-from grid_universe.actions import Action
 from tests.test_utils import make_minimal_key_door_state
 
 
@@ -26,7 +27,7 @@ def add_key_to_inventory(state: State, agent_id: EntityID, key_id: EntityID) -> 
 
 def set_inventory(state: State, agent_id: EntityID, item_ids: PSet[EntityID]) -> State:
     return replace(
-        state, inventory=state.inventory.set(agent_id, Inventory(item_ids=item_ids))
+        state, inventory=state.inventory.set(agent_id, Inventory(item_ids=item_ids)),
     )
 
 
@@ -39,7 +40,7 @@ def add_key_entity(state: State, key_id: EntityID, key_id_str: str) -> State:
 
 
 def add_door_with_lock(
-    state: State, door_id: EntityID, pos: Position, key_id_str: str
+    state: State, door_id: EntityID, pos: Position, key_id_str: str,
 ) -> State:
     return replace(
         state,
@@ -51,14 +52,14 @@ def add_door_with_lock(
 
 
 def move_agent_adjacent_to(
-    state: State, agent_id: EntityID, target_pos: Position
+    state: State, agent_id: EntityID, target_pos: Position,
 ) -> State:
     # Try all four possible adjacent positions, use the first one that is in-bounds
     for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
         new_x, new_y = target_pos.x + dx, target_pos.y + dy
         if 0 <= new_x < state.width and 0 <= new_y < state.height:
             return replace(
-                state, position=state.position.set(agent_id, Position(new_x, new_y))
+                state, position=state.position.set(agent_id, Position(new_x, new_y)),
             )
     raise ValueError("No adjacent position found in bounds")
 
@@ -91,7 +92,7 @@ def test_unlock_door_with_wrong_key_id() -> None:
     wrong_key_id: EntityID = 999
     state = add_key_entity(state, wrong_key_id, "wrong")
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(wrong_key_id)
+        state, agent_id, state.inventory[agent_id].item_ids.add(wrong_key_id),
     )
     door_id: EntityID = entities["door_id"]
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
@@ -144,7 +145,7 @@ def test_unlock_multiple_doors_with_enough_keys() -> None:
     state = add_key_entity(state, key_id2, keyid_str)
     state = add_door_with_lock(state, door_id2, pos, keyid_str)
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id).add(key_id2)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id).add(key_id2),
     )
     # Move next to both doors, call UseKeyAction twice to unlock both
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
@@ -167,7 +168,7 @@ def test_unlock_multiple_doors_with_limited_keys() -> None:
     pos: Position = Position(0, 2)
     state = add_door_with_lock(state, door_id2, pos, keyid_str)
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id),
     )
     # Move to each locked door, attempt to unlock both sequentially
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
@@ -175,7 +176,7 @@ def test_unlock_multiple_doors_with_limited_keys() -> None:
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id2])
     state = step(state, Action.USE_KEY, agent_id=agent_id)
     unlocked_count: int = int(door_id1 not in state.locked) + int(
-        door_id2 not in state.locked
+        door_id2 not in state.locked,
     )
     assert unlocked_count == 1
     assert key_id not in state.inventory[agent_id].item_ids
@@ -187,7 +188,7 @@ def test_unlock_with_key_not_in_key_store() -> None:
     key_id: EntityID = 98765
     door_id: EntityID = entities["door_id"]
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
     state = step(state, Action.USE_KEY, agent_id=agent_id)
@@ -202,7 +203,7 @@ def test_unlock_with_nonkey_item_in_inventory() -> None:
     door_id: EntityID = entities["door_id"]
     state = replace(state, collectible=state.collectible.set(nonkey_id, Collectible()))
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(nonkey_id)
+        state, agent_id, state.inventory[agent_id].item_ids.add(nonkey_id),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
     state = step(state, Action.USE_KEY, agent_id=agent_id)
@@ -246,7 +247,7 @@ def test_unlock_multiple_doors_same_key_id() -> None:
     state = add_key_entity(state, key_id2, keyid_str)
     state = add_door_with_lock(state, door_id2, pos, keyid_str)
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
     state = step(state, Action.USE_KEY, agent_id=agent_id)
@@ -297,13 +298,13 @@ def test_unlock_adjacent_to_multiple_locked() -> None:
     key_id2: EntityID = key_id1 + 55
     state = add_key_entity(state, key_id2, keyid_str)
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2),
     )
     # Move agent adjacent to both doors (let's use the position next to door_id1)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
     state = step(state, Action.USE_KEY, agent_id=agent_id)
     # Agent may need to move again and use key to unlock the other if ECS only unlocks one per action
     unlocked_count: int = int(door_id1 not in state.locked) + int(
-        door_id2 not in state.locked
+        door_id2 not in state.locked,
     )
     assert unlocked_count >= 1

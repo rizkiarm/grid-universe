@@ -1,4 +1,4 @@
-from typing import Dict
+
 from grid_universe.state import State
 from grid_universe.types import EntityID, ObjectiveFn
 from grid_universe.utils.ecs import entities_with_components_at
@@ -6,7 +6,7 @@ from grid_universe.utils.ecs import entities_with_components_at
 
 def default_objective_fn(state: State, agent_id: EntityID) -> bool:
     return collect_required_objective_fn(state, agent_id) and exit_objective_fn(
-        state, agent_id
+        state, agent_id,
     )
 
 
@@ -34,8 +34,8 @@ def all_pushable_at_exit_objective_fn(state: State, agent_id: EntityID) -> bool:
         if (
             len(
                 entities_with_components_at(
-                    state, state.position[pushable_id], state.exit
-                )
+                    state, state.position[pushable_id], state.exit,
+                ),
             )
             == 0
         ):
@@ -43,7 +43,7 @@ def all_pushable_at_exit_objective_fn(state: State, agent_id: EntityID) -> bool:
     return True
 
 
-OBJECTIVE_FN_REGISTRY: Dict[str, ObjectiveFn] = {
+OBJECTIVE_FN_REGISTRY: dict[str, ObjectiveFn] = {
     "default": default_objective_fn,
     "exit": exit_objective_fn,
     "collect": collect_required_objective_fn,

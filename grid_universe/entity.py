@@ -1,5 +1,5 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Iterator, List
 
 from grid_universe.types import EntityID
 
@@ -30,13 +30,11 @@ _entity_id_gen = entity_id_generator()
 
 
 def new_entity_id() -> EntityID:
-    """
-    Get a new unique entity ID.
-    """
+    """Get a new unique entity ID."""
     return next(_entity_id_gen)
 
 
-def new_entity_ids(n: int) -> List[EntityID]:
+def new_entity_ids(n: int) -> list[EntityID]:
     return [new_entity_id() for _ in range(n)]
 
 

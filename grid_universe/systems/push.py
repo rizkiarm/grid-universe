@@ -1,14 +1,14 @@
 from dataclasses import replace
-from grid_universe.state import State
+
 from grid_universe.components import Position
+from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.utils.ecs import entities_with_components_at
-from grid_universe.utils.grid import is_blocked_at, compute_destination
+from grid_universe.utils.grid import compute_destination, is_blocked_at
 
 
 def push_system(state: State, eid: EntityID, next_pos: Position) -> State:
-    """
-    Handles an entity trying to push a pushable object located at next_pos (adjacent cell).
+    """Handles an entity trying to push a pushable object located at next_pos (adjacent cell).
     Computes push direction vector automatically.
     """
     current_pos = state.position.get(eid)

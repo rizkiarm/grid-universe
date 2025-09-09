@@ -1,4 +1,5 @@
 from typing import Union
+
 from .immunity import Immunity
 from .phasing import Phasing
 from .speed import Speed

@@ -1,8 +1,7 @@
 import dataclasses
-import streamlit as st
-
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+
+import streamlit as st
 
 from grid_universe.components import AppearanceName
 from grid_universe.gym_env import GridUniverseEnv, ObsType
@@ -34,14 +33,14 @@ class Config:
     movement_cost: int
     required_item_reward: int
     rewardable_item_reward: int
-    boxes: List[BoxSpec]
-    powerups: List[PowerupSpec]
-    hazards: List[HazardSpec]
-    enemies: List[EnemySpec]
+    boxes: list[BoxSpec]
+    powerups: list[PowerupSpec]
+    hazards: list[HazardSpec]
+    enemies: list[EnemySpec]
     wall_percentage: float
     move_fn: MoveFn
     objective_fn: ObjectiveFn
-    seed: Optional[int]
+    seed: int | None
 
 
 def set_default_config() -> None:
@@ -69,7 +68,7 @@ def set_default_config() -> None:
         st.session_state["maze_seed_counter"] = 0
 
 
-def maze_size_section(config: Config) -> Tuple[int, int, float, int]:
+def maze_size_section(config: Config) -> tuple[int, int, float, int]:
     st.subheader("Maze Size & Structure")
     width: int = st.slider("Maze width", 6, 30, config.width, key="width")
     height: int = st.slider("Maze height", 6, 30, config.height, key="height")
@@ -82,12 +81,12 @@ def maze_size_section(config: Config) -> Tuple[int, int, float, int]:
         key="wall_percentage",
     )
     movement_cost: int = st.slider(
-        "Floor cost", 0, 10, config.movement_cost, key="movement_cost"
+        "Floor cost", 0, 10, config.movement_cost, key="movement_cost",
     )
     return width, height, wall_percentage, movement_cost
 
 
-def items_section(config: Config) -> Tuple[int, int, int, int]:
+def items_section(config: Config) -> tuple[int, int, int, int]:
     st.subheader("Items & Rewards")
     num_required_items: int = st.slider(
         "Required Items",
@@ -129,20 +128,20 @@ def agent_section(config: Config) -> int:
     return health
 
 
-def doors_portals_section(config: Config) -> Tuple[int, int]:
+def doors_portals_section(config: Config) -> tuple[int, int]:
     st.subheader("Doors, Portals")
     num_portals: int = st.slider(
-        "Portals (pairs)", 0, 5, config.num_portals, key="num_portals"
+        "Portals (pairs)", 0, 5, config.num_portals, key="num_portals",
     )
     num_doors: int = st.slider("Doors", 0, 4, config.num_doors, key="num_doors")
     return num_portals, num_doors
 
 
-def boxes_section(config: Config) -> List[BoxSpec]:
+def boxes_section(config: Config) -> list[BoxSpec]:
     st.subheader("Boxes")
-    boxes: List[BoxSpec] = list(DEFAULT_BOXES)
+    boxes: list[BoxSpec] = list(DEFAULT_BOXES)
     box_count: int = st.number_input(
-        "Number of boxes", min_value=0, value=len(boxes), key="box_count"
+        "Number of boxes", min_value=0, value=len(boxes), key="box_count",
     )
     if box_count > 0:
         for idx in range(box_count):
@@ -155,11 +154,11 @@ def boxes_section(config: Config) -> List[BoxSpec]:
             cols = st.columns([1, 1])
             with cols[0]:
                 pushable = st.checkbox(
-                    "Pushable?", value=pushable, key=f"box_pushable_{idx}"
+                    "Pushable?", value=pushable, key=f"box_pushable_{idx}",
                 )
             with cols[1]:
                 speed = st.number_input(
-                    "Speed", min_value=0, value=speed, key=f"box_speed_{idx}"
+                    "Speed", min_value=0, value=speed, key=f"box_speed_{idx}",
                 )
             if idx < len(boxes):
                 boxes[idx] = (appearance, pushable, speed)
@@ -168,9 +167,9 @@ def boxes_section(config: Config) -> List[BoxSpec]:
     return boxes
 
 
-def hazards_section() -> List[HazardSpec]:
+def hazards_section() -> list[HazardSpec]:
     st.subheader("Hazards")
-    hazards: List[HazardSpec] = []
+    hazards: list[HazardSpec] = []
     for hazard_type, hazard_damage, hazard_lethal in DEFAULT_HAZARDS:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
@@ -182,7 +181,7 @@ def hazards_section() -> List[HazardSpec]:
             )
         with col2:
             lethal: bool = st.checkbox(
-                "Lethal?", value=hazard_lethal, key=f"hazard_lethal_{hazard_type.value}"
+                "Lethal?", value=hazard_lethal, key=f"hazard_lethal_{hazard_type.value}",
             )
         with col3:
             if not lethal:
@@ -199,9 +198,9 @@ def hazards_section() -> List[HazardSpec]:
     return hazards
 
 
-def powerups_section() -> List[PowerupSpec]:
+def powerups_section() -> list[PowerupSpec]:
     st.subheader("Powerups")
-    powerups: List[PowerupSpec] = []
+    powerups: list[PowerupSpec] = []
     for (
         pu_appearance,
         pu_effects,
@@ -224,7 +223,7 @@ def powerups_section() -> List[PowerupSpec]:
                 index=[EffectLimit.TIME, EffectLimit.USAGE, None].index(pu_limit_type),
                 key=f"powerup_limit_type_{pu_appearance.value}",
             )
-            updated_limit_type: Optional[EffectLimit] = None
+            updated_limit_type: EffectLimit | None = None
             if limit_option == "time":
                 updated_limit_type = EffectLimit.TIME
             elif limit_option == "usage":
@@ -233,7 +232,7 @@ def powerups_section() -> List[PowerupSpec]:
                 updated_limit_type = None  # Irrelevant for unlimited
         with col3:
             if limit_option != "unlimited":
-                updated_limit_amount: Optional[int] = st.number_input(
+                updated_limit_amount: int | None = st.number_input(
                     "Limit Amount",
                     min_value=1,
                     value=pu_limit_amount,
@@ -251,18 +250,18 @@ def powerups_section() -> List[PowerupSpec]:
                         updated_limit_type,
                         updated_limit_amount,
                         pu_option,
-                    )
+                    ),
                 ]
-                * count
+                * count,
             )
     return powerups
 
 
-def enemies_section(config: Config) -> List[EnemySpec]:
+def enemies_section(config: Config) -> list[EnemySpec]:
     st.subheader("Enemies")
-    enemies: List[EnemySpec] = list(DEFAULT_ENEMIES)  # DEFAULT_ENEMIES
+    enemies: list[EnemySpec] = list(DEFAULT_ENEMIES)  # DEFAULT_ENEMIES
     enemy_count: int = st.number_input(
-        "Number of enemies", min_value=0, value=len(enemies), key="enemy_count"
+        "Number of enemies", min_value=0, value=len(enemies), key="enemy_count",
     )
     if enemy_count > 0:
         for idx in range(enemy_count):
@@ -284,7 +283,7 @@ def enemies_section(config: Config) -> List[EnemySpec]:
             with cols[1]:
                 if not lethal:
                     damage = st.number_input(
-                        "Damage", min_value=1, value=damage, key=f"enemy_damage_{idx}"
+                        "Damage", min_value=1, value=damage, key=f"enemy_damage_{idx}",
                     )
                 else:
                     st.markdown("Lethal")
@@ -317,19 +316,19 @@ def enemies_section(config: Config) -> List[EnemySpec]:
                 )
             else:
                 enemies.append(
-                    (appearance, damage, lethal, movement_type, movement_speed)
+                    (appearance, damage, lethal, movement_type, movement_speed),
                 )
     return enemies
 
 
 def movement_section(config: Config) -> MoveFn:
     st.subheader("Gameplay Movement")
-    move_fn_names: List[str] = list(MOVE_FN_REGISTRY.keys())
+    move_fn_names: list[str] = list(MOVE_FN_REGISTRY.keys())
     move_fn_label: str = st.selectbox(
         "Movement rule",
         move_fn_names,
         index=move_fn_names.index(
-            next(k for k, v in MOVE_FN_REGISTRY.items() if v is config.move_fn)
+            next(k for k, v in MOVE_FN_REGISTRY.items() if v is config.move_fn),
         ),
         key="move_fn",
     )
@@ -339,14 +338,14 @@ def movement_section(config: Config) -> MoveFn:
 
 def objective_section(config: Config) -> ObjectiveFn:
     st.subheader("Gameplay Objective")
-    objective_fn_names: List[str] = list(OBJECTIVE_FN_REGISTRY.keys())
+    objective_fn_names: list[str] = list(OBJECTIVE_FN_REGISTRY.keys())
     objective_fn_label: str = st.selectbox(
         "Objective",
         objective_fn_names,
         index=objective_fn_names.index(
             next(
                 k for k, v in OBJECTIVE_FN_REGISTRY.items() if v is config.objective_fn
-            )
+            ),
         ),
         key="objective_fn",
     )
@@ -372,10 +371,10 @@ def get_config_from_widgets() -> Config:
     ) = items_section(config)
     health: int = agent_section(config)
     num_portals, num_doors = doors_portals_section(config)
-    boxes: List[BoxSpec] = boxes_section(config)
-    hazards: List[HazardSpec] = hazards_section()
-    powerups: List[PowerupSpec] = powerups_section()
-    enemies: List[EnemySpec] = enemies_section(config)
+    boxes: list[BoxSpec] = boxes_section(config)
+    hazards: list[HazardSpec] = hazards_section()
+    powerups: list[PowerupSpec] = powerups_section()
+    enemies: list[EnemySpec] = enemies_section(config)
     move_fn: MoveFn = movement_section(config)
     objective_fn: ObjectiveFn = objective_section(config)
     seed: int = seed_section()
@@ -404,7 +403,7 @@ def get_config_from_widgets() -> Config:
 
 def make_env_and_reset(
     config: Config,
-) -> Tuple[GridUniverseEnv, ObsType, Dict[str, object]]:
+) -> tuple[GridUniverseEnv, ObsType, dict[str, object]]:
     config_dict = dataclasses.asdict(config)
     env = GridUniverseEnv(render_mode="texture", **config_dict)
     obs, info = env.reset(seed=config.seed)

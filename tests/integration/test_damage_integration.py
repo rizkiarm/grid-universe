@@ -1,49 +1,50 @@
 from dataclasses import replace
-from typing import Any, List, Dict, Tuple
+from typing import Any
+
 import pytest
 from pyrsistent import pmap, pset
+
+from grid_universe.actions import Action
+from grid_universe.components import (
+    Collectible,
+    Damage,
+    Health,
+    Immunity,
+    Inventory,
+    LethalDamage,
+    Position,
+    Status,
+    UsageLimit,
+)
 from grid_universe.entity import Entity
 from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
-from grid_universe.actions import Action
-from grid_universe.components import (
-    Health,
-    Damage,
-    LethalDamage,
-    Inventory,
-    Status,
-    Immunity,
-    UsageLimit,
-    Position,
-    Collectible,
-)
-from grid_universe.types import EntityID
 from grid_universe.step import step
+from grid_universe.types import EntityID
 from tests.test_utils import make_agent_state
 
 
 def make_damage_state(
     *,
     agent_hp: int = 10,
-    agent_pos: Tuple[int, int] = (0, 0),
-    damage_sources: List[Tuple[int, int, int]] = [],
-    lethal_sources: List[Tuple[int, int]] = [],
+    agent_pos: tuple[int, int] = (0, 0),
+    damage_sources: list[tuple[int, int, int]] = [],
+    lethal_sources: list[tuple[int, int]] = [],
     immunity_effect: bool = False,
     usage_limited_immunity: int = 0,
     agent_dead: bool = False,
     width: int = 5,
     height: int = 5,
     agent_id: EntityID = 1,
-) -> Tuple[State, EntityID, List[EntityID], List[EntityID]]:
-    """
-    Returns a state with one agent and any number of Damage and LethalDamage sources.
+) -> tuple[State, EntityID, list[EntityID], list[EntityID]]:
+    """Returns a state with one agent and any number of Damage and LethalDamage sources.
     Optionally adds immunity (permanent or usage-limited).
     Returns (state, agent_id, damage_ids, lethal_ids)
     """
-    extra: Dict[str, Dict[EntityID, Any]] = {}
-    pos_map: Dict[EntityID, Position] = {}
-    damage_ids: List[EntityID] = []
-    lethal_ids: List[EntityID] = []
+    extra: dict[str, dict[EntityID, Any]] = {}
+    pos_map: dict[EntityID, Position] = {}
+    damage_ids: list[EntityID] = []
+    lethal_ids: list[EntityID] = []
 
     # Damage sources
     for i, (x, y, amount) in enumerate(damage_sources):
@@ -64,15 +65,15 @@ def make_damage_state(
         lethal_ids.append(eid)
 
     # Agent Health
-    health: Dict[EntityID, Health] = {
-        agent_id: Health(health=agent_hp, max_health=agent_hp)
+    health: dict[EntityID, Health] = {
+        agent_id: Health(health=agent_hp, max_health=agent_hp),
     }
     extra["health"] = health
 
     # Immunity effect
-    status: Dict[EntityID, Status] = {}
-    immunity: Dict[EntityID, Immunity] = {}
-    usage_limit: Dict[EntityID, UsageLimit] = {}
+    status: dict[EntityID, Status] = {}
+    immunity: dict[EntityID, Immunity] = {}
+    usage_limit: dict[EntityID, UsageLimit] = {}
     if immunity_effect or usage_limited_immunity > 0:
         effect_id: EntityID = 999
         status[agent_id] = Status(effect_ids=pset([effect_id]))
@@ -108,7 +109,7 @@ def make_damage_state(
     return state, agent_id, damage_ids, lethal_ids
 
 
-def move_agent_to(state: State, agent_id: EntityID, pos: Tuple[int, int]) -> State:
+def move_agent_to(state: State, agent_id: EntityID, pos: tuple[int, int]) -> State:
     return replace(state, position=state.position.set(agent_id, Position(*pos)))
 
 

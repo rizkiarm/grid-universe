@@ -1,29 +1,29 @@
-import streamlit as st
+
 import numpy as np
-from typing import Dict, List, Optional, Tuple
+import streamlit as st
 from keyup import keyup
+
 from grid_universe.actions import GymAction
-from grid_universe.components import AppearanceName, Status, Inventory
+from grid_universe.components import AppearanceName, Inventory, Status
 from grid_universe.gym_env import GridUniverseEnv
 from grid_universe.state import State
 from grid_universe.types import EffectLimit, EffectLimitAmount, EffectType, EntityID
 
-
-ITEM_ICONS: Dict[AppearanceName, str] = {
+ITEM_ICONS: dict[AppearanceName, str] = {
     AppearanceName.KEY: "🔑",
     AppearanceName.COIN: "🪙",
     AppearanceName.CORE: "🌟",
 }
 
-POWERUP_ICONS: Dict[AppearanceName, str] = {
+POWERUP_ICONS: dict[AppearanceName, str] = {
     AppearanceName.GHOST: "👻",
     AppearanceName.SHIELD: "🛡️",
     AppearanceName.BOOTS: "⚡",
 }
 
 
-def get_effect_types(state: State, effect_id: EntityID) -> List[EffectType]:
-    effect_types: List[EffectType] = []
+def get_effect_types(state: State, effect_id: EntityID) -> list[EffectType]:
+    effect_types: list[EffectType] = []
     for effect_type, effect_ids in [
         (EffectType.IMMUNITY, state.immunity),
         (EffectType.PHASING, state.phasing),
@@ -35,9 +35,9 @@ def get_effect_types(state: State, effect_id: EntityID) -> List[EffectType]:
 
 
 def get_effect_limits(
-    state: State, effect_id: EntityID
-) -> List[Tuple[EffectLimit, EffectLimitAmount]]:
-    effect_limits: List[Tuple[EffectLimit, EffectLimitAmount]] = []
+    state: State, effect_id: EntityID,
+) -> list[tuple[EffectLimit, EffectLimitAmount]]:
+    effect_limits: list[tuple[EffectLimit, EffectLimitAmount]] = []
     for limit_type, limit_map in [
         (EffectLimit.TIME, state.time_limit),
         (EffectLimit.USAGE, state.usage_limit),
@@ -79,7 +79,7 @@ def display_inventory(state: State, inventory: Inventory) -> None:
             st.success(text, icon=icon)
 
 
-def get_keyboard_action() -> Optional[GymAction]:
+def get_keyboard_action() -> GymAction | None:
     key_map = {
         "ArrowUp": GymAction.UP,
         "ArrowDown": GymAction.DOWN,
@@ -97,7 +97,7 @@ def get_keyboard_action() -> Optional[GymAction]:
         default_text="Click here to use keyboard",
         focused_text="W,A,S,D to move, E to collect, F to use key, and Q to wait",
     )
-    return key_map.get(value, None)
+    return key_map.get(value)
 
 
 def do_action(env: GridUniverseEnv, action: GymAction) -> None:

@@ -1,22 +1,24 @@
 from dataclasses import replace
+
 from pyrsistent import pmap, pset
 from pyrsistent.typing import PSet
-from grid_universe.objectives import default_objective_fn
-from grid_universe.systems.locked import unlock_system
-from grid_universe.state import State
-from grid_universe.types import EntityID
+
 from grid_universe.components import (
-    Position,
     Agent,
+    Appearance,
+    AppearanceName,
+    Blocking,
+    Collidable,
     Inventory,
     Key,
     Locked,
-    Blocking,
-    Collidable,
-    Appearance,
-    AppearanceName,
+    Position,
 )
-from grid_universe.entity import new_entity_id, Entity
+from grid_universe.entity import Entity, new_entity_id
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
+from grid_universe.systems.locked import unlock_system
+from grid_universe.types import EntityID
 
 
 def add_key_to_inventory(state: State, agent_id: EntityID, key_id: EntityID) -> State:
@@ -27,26 +29,25 @@ def add_key_to_inventory(state: State, agent_id: EntityID, key_id: EntityID) -> 
 
 def set_inventory(state: State, agent_id: EntityID, item_ids: PSet[EntityID]) -> State:
     return replace(
-        state, inventory=state.inventory.set(agent_id, Inventory(item_ids=item_ids))
+        state, inventory=state.inventory.set(agent_id, Inventory(item_ids=item_ids)),
     )
 
 
 def move_agent_adjacent_to(
-    state: State, agent_id: EntityID, target_pos: Position
+    state: State, agent_id: EntityID, target_pos: Position,
 ) -> State:
     # Try all four possible adjacent positions, use the first one that is in-bounds
     for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
         new_x, new_y = target_pos.x + dx, target_pos.y + dy
         if 0 <= new_x < state.width and 0 <= new_y < state.height:
             return replace(
-                state, position=state.position.set(agent_id, Position(new_x, new_y))
+                state, position=state.position.set(agent_id, Position(new_x, new_y)),
             )
     raise ValueError("No adjacent position found in bounds")
 
 
 def make_minimal_key_door_state() -> tuple[State, dict]:
-    """
-    Returns a minimal state with: agent, key, locked door.
+    """Returns a minimal state with: agent, key, locked door.
     """
     entity: dict = {}
     pos: dict = {}
@@ -190,7 +191,7 @@ def test_unlock_multiple_doors_with_enough_keys():
         entity=state.entity.set(door_id2, Entity()).set(key_id2, Entity()),
     )
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id).add(key_id2)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id).add(key_id2),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
     state = unlock_system(state, agent_id)
@@ -216,14 +217,14 @@ def test_unlock_multiple_doors_with_limited_keys():
         entity=state.entity.set(door_id2, Entity()),
     )
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
     state = unlock_system(state, agent_id)
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id2])
     state = unlock_system(state, agent_id)
     unlocked_count: int = int(door_id1 not in state.locked) + int(
-        door_id2 not in state.locked
+        door_id2 not in state.locked,
     )
     assert unlocked_count == 1
 
@@ -234,7 +235,7 @@ def test_unlock_with_key_not_in_key_store():
     key_id: EntityID = new_entity_id()
     door_id: EntityID = entities["door_id"]
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
     state = unlock_system(state, agent_id)
@@ -249,7 +250,7 @@ def test_unlock_with_nonkey_item_in_inventory():
     door_id: EntityID = entities["door_id"]
     # Add non-key item to inventory
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(nonkey_id)
+        state, agent_id, state.inventory[agent_id].item_ids.add(nonkey_id),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id])
     state = unlock_system(state, agent_id)
@@ -329,11 +330,11 @@ def test_unlock_adjacent_to_multiple_locked():
         entity=state.entity.set(door_id2, Entity()).set(key_id2, Entity()),
     )
     state = set_inventory(
-        state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2)
+        state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2),
     )
     state = move_agent_adjacent_to(state, agent_id, state.position[door_id1])
     state = unlock_system(state, agent_id)
     unlocked_count: int = int(door_id1 not in state.locked) + int(
-        door_id2 not in state.locked
+        door_id2 not in state.locked,
     )
     assert unlocked_count >= 1

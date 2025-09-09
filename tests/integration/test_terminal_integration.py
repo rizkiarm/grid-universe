@@ -1,40 +1,41 @@
 from dataclasses import replace
-from typing import Dict, List, Tuple
-from pyrsistent import pmap, pset, PMap
-from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State
-from grid_universe.types import EntityID
+
+from pyrsistent import PMap, pmap, pset
+
+from grid_universe.actions import Action
 from grid_universe.components import (
     Agent,
-    Required,
     Collectible,
+    Dead,
     Exit,
     Inventory,
-    Dead,
     Position,
+    Required,
 )
 from grid_universe.entity import Entity
-from grid_universe.actions import Action
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
 from grid_universe.step import step
+from grid_universe.types import EntityID
 
 
 def make_terminal_state(
     *,
     agent_on_exit: bool,
-    required_ids: List[EntityID],
-    collected_required_ids: List[EntityID],
+    required_ids: list[EntityID],
+    collected_required_ids: list[EntityID],
     agent_dead: bool,
-) -> Tuple[State, EntityID, List[EntityID], EntityID]:
+) -> tuple[State, EntityID, list[EntityID], EntityID]:
     agent_id: EntityID = 1
     exit_id: EntityID = 2
-    agent: Dict[EntityID, Agent] = {agent_id: Agent()}
-    pos: Dict[EntityID, Position] = {}
-    inventory: Dict[EntityID, Inventory] = {
-        agent_id: Inventory(pset(collected_required_ids))
+    agent: dict[EntityID, Agent] = {agent_id: Agent()}
+    pos: dict[EntityID, Position] = {}
+    inventory: dict[EntityID, Inventory] = {
+        agent_id: Inventory(pset(collected_required_ids)),
     }
-    required: Dict[EntityID, Required] = {}
-    collectible: Dict[EntityID, Collectible] = {}
-    entity: Dict[EntityID, Entity] = {}
+    required: dict[EntityID, Required] = {}
+    collectible: dict[EntityID, Collectible] = {}
+    entity: dict[EntityID, Entity] = {}
     pos[agent_id] = Position(1, 1) if agent_on_exit else Position(0, 0)
     pos[exit_id] = Position(1, 1)
     entity[agent_id] = Entity()
@@ -99,7 +100,7 @@ def test_no_win_if_not_on_exit() -> None:
 
 def test_lose_if_agent_dead() -> None:
     state, agent_id, required_ids, exit_id = make_terminal_state(
-        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=True
+        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=True,
     )
     new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.lose
@@ -107,7 +108,7 @@ def test_lose_if_agent_dead() -> None:
 
 def test_no_lose_if_agent_alive() -> None:
     state, agent_id, required_ids, exit_id = make_terminal_state(
-        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False
+        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False,
     )
     new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert not new_state.lose
@@ -115,7 +116,7 @@ def test_no_lose_if_agent_alive() -> None:
 
 def test_win_when_on_exit_no_required_items() -> None:
     state, agent_id, required_ids, exit_id = make_terminal_state(
-        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False
+        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False,
     )
     # Remove all required items from state
     state = replace(state, required=pmap())
@@ -138,7 +139,7 @@ def test_dead_agent_on_exit_no_win() -> None:
 
 def test_win_state_is_idempotent() -> None:
     state, agent_id, required_ids, exit_id = make_terminal_state(
-        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False
+        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=False,
     )
     state = replace(state, win=True)
     new_state: State = step(state, Action.UP, agent_id=agent_id)
@@ -147,7 +148,7 @@ def test_win_state_is_idempotent() -> None:
 
 def test_lose_state_is_idempotent() -> None:
     state, agent_id, required_ids, exit_id = make_terminal_state(
-        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=True
+        agent_on_exit=True, required_ids=[], collected_required_ids=[], agent_dead=True,
     )
     state = replace(state, lose=True)
     new_state: State = step(state, Action.UP, agent_id=agent_id)

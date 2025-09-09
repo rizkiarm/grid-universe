@@ -1,13 +1,15 @@
 from collections import defaultdict
+
 from pyrsistent import pmap, pset
 from pyrsistent.typing import PMap, PSet
+
 from grid_universe.components import Position
 from grid_universe.state import State
 from grid_universe.types import EntityID
 
 
 def get_augmented_trail(
-    state: State, entity_ids: PSet[EntityID]
+    state: State, entity_ids: PSet[EntityID],
 ) -> PMap[Position, PSet[EntityID]]:
     pos_to_eids = defaultdict(set)
     for eid in entity_ids:

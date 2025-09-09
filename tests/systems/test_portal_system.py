@@ -1,23 +1,22 @@
 from dataclasses import replace
-from typing import Tuple, List
 
 import pytest
 from pyrsistent import pmap
 
-from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State
-from grid_universe.types import EntityID
 from grid_universe.components import (
-    Collidable,
-    Position,
     Agent,
-    Pushable,
-    Portal,
     Appearance,
     AppearanceName,
+    Collidable,
+    Portal,
+    Position,
+    Pushable,
 )
 from grid_universe.entity import Entity, new_entity_id
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
 from grid_universe.systems.portal import portal_system
+from grid_universe.types import EntityID
 
 
 def make_entity_on_portal_state(
@@ -25,9 +24,9 @@ def make_entity_on_portal_state(
     is_agent: bool,
     portal1_id: EntityID,
     portal2_id: EntityID,
-    entity_pos: Tuple[int, int],
-    portal1_pos: Tuple[int, int],
-    portal2_pos: Tuple[int, int],
+    entity_pos: tuple[int, int],
+    portal1_pos: tuple[int, int],
+    portal2_pos: tuple[int, int],
 ) -> State:
     position = {
         entity_id: Position(*entity_pos),
@@ -46,7 +45,7 @@ def make_entity_on_portal_state(
     collidable = {entity_id: Collidable()}
     appearance = {
         entity_id: Appearance(
-            name=AppearanceName.HUMAN if is_agent else AppearanceName.BOX
+            name=AppearanceName.HUMAN if is_agent else AppearanceName.BOX,
         ),
         portal1_id: Appearance(name=AppearanceName.PORTAL),
         portal2_id: Appearance(name=AppearanceName.PORTAL),
@@ -75,7 +74,7 @@ def make_entity_on_portal_state(
     )
 
 
-ENTITY_TYPES: List[Tuple[str, bool]] = [
+ENTITY_TYPES: list[tuple[str, bool]] = [
     ("agent", True),
     ("pushable", False),
 ]
@@ -89,9 +88,9 @@ def test_entity_standing_on_portal_does_not_teleport(
     entity_id: EntityID = new_entity_id()
     portal1_id: EntityID = new_entity_id()
     portal2_id: EntityID = new_entity_id()
-    entity_pos: Tuple[int, int] = (4, 4)
-    portal1_pos: Tuple[int, int] = (4, 4)
-    portal2_pos: Tuple[int, int] = (7, 7)
+    entity_pos: tuple[int, int] = (4, 4)
+    portal1_pos: tuple[int, int] = (4, 4)
+    portal2_pos: tuple[int, int] = (7, 7)
 
     state: State = make_entity_on_portal_state(
         entity_id,
@@ -115,9 +114,9 @@ def test_entity_teleported_when_entering_portal(
     entity_id: EntityID = new_entity_id()
     portal1_id: EntityID = new_entity_id()
     portal2_id: EntityID = new_entity_id()
-    start_pos: Tuple[int, int] = (1, 1)
-    portal1_pos: Tuple[int, int] = (4, 4)
-    portal2_pos: Tuple[int, int] = (7, 7)
+    start_pos: tuple[int, int] = (1, 1)
+    portal1_pos: tuple[int, int] = (4, 4)
+    portal2_pos: tuple[int, int] = (7, 7)
 
     state: State = make_entity_on_portal_state(
         entity_id,
@@ -145,9 +144,9 @@ def test_entity_not_teleported_if_not_on_portal(
     entity_id: EntityID = new_entity_id()
     portal1_id: EntityID = new_entity_id()
     portal2_id: EntityID = new_entity_id()
-    entity_pos: Tuple[int, int] = (1, 2)
-    portal1_pos: Tuple[int, int] = (3, 5)
-    portal2_pos: Tuple[int, int] = (7, 7)
+    entity_pos: tuple[int, int] = (1, 2)
+    portal1_pos: tuple[int, int] = (3, 5)
+    portal2_pos: tuple[int, int] = (7, 7)
 
     state: State = make_entity_on_portal_state(
         entity_id,
@@ -167,11 +166,11 @@ def test_pushable_teleported_when_pushed_onto_portal() -> None:
     entity_id: EntityID = new_entity_id()
     portal1_id: EntityID = new_entity_id()
     portal2_id: EntityID = new_entity_id()
-    start_pos: Tuple[int, int] = (2, 2)
-    portal1_pos: Tuple[int, int] = (4, 4)
-    portal2_pos: Tuple[int, int] = (8, 8)
+    start_pos: tuple[int, int] = (2, 2)
+    portal1_pos: tuple[int, int] = (4, 4)
+    portal2_pos: tuple[int, int] = (8, 8)
     state: State = make_entity_on_portal_state(
-        entity_id, False, portal1_id, portal2_id, start_pos, portal1_pos, portal2_pos
+        entity_id, False, portal1_id, portal2_id, start_pos, portal1_pos, portal2_pos,
     )
     moved_state: State = replace(
         state,
@@ -185,8 +184,8 @@ def test_pushable_teleported_when_pushed_onto_portal() -> None:
 def test_portal_pair_missing_does_not_crash() -> None:
     agent_id: EntityID = new_entity_id()
     portal1_id: EntityID = new_entity_id()
-    agent_pos: Tuple[int, int] = (2, 2)
-    portal1_pos: Tuple[int, int] = (2, 2)
+    agent_pos: tuple[int, int] = (2, 2)
+    portal1_pos: tuple[int, int] = (2, 2)
     position = {
         agent_id: Position(*agent_pos),
         portal1_id: Position(*portal1_pos),
@@ -220,10 +219,10 @@ def test_multiple_entities_on_portal_all_teleported_on_entry() -> None:
     pushable_id: EntityID = new_entity_id()
     portal1_id: EntityID = new_entity_id()
     portal2_id: EntityID = new_entity_id()
-    portal1_pos: Tuple[int, int] = (2, 2)
-    portal2_pos: Tuple[int, int] = (7, 7)
-    prev_agent_pos: Tuple[int, int] = (1, 2)
-    prev_pushable_pos: Tuple[int, int] = (6, 7)
+    portal1_pos: tuple[int, int] = (2, 2)
+    portal2_pos: tuple[int, int] = (7, 7)
+    prev_agent_pos: tuple[int, int] = (1, 2)
+    prev_pushable_pos: tuple[int, int] = (6, 7)
     position = {
         agent_id: Position(*portal1_pos),
         pushable_id: Position(*portal2_pos),
@@ -273,15 +272,16 @@ def test_multiple_entities_on_portal_all_teleported_on_entry() -> None:
 
 
 def test_entity_chained_portals_no_infinite_teleport() -> None:
+    from pyrsistent import pmap
+
     from grid_universe.components import (
-        Collidable,
-        Portal,
+        Agent,
         Appearance,
         AppearanceName,
-        Agent,
+        Collidable,
+        Portal,
     )
     from grid_universe.entity import Entity, new_entity_id
-    from pyrsistent import pmap
     from grid_universe.state import State
     from grid_universe.systems.portal import portal_system
 
@@ -289,10 +289,10 @@ def test_entity_chained_portals_no_infinite_teleport() -> None:
     portal_a: EntityID = new_entity_id()
     portal_b: EntityID = new_entity_id()
     portal_c: EntityID = new_entity_id()
-    pos_a: Tuple[int, int] = (2, 2)
-    pos_b: Tuple[int, int] = (4, 4)
-    pos_c: Tuple[int, int] = (6, 6)
-    prev_agent_pos: Tuple[int, int] = (1, 2)  # Simulate moving onto portal A
+    pos_a: tuple[int, int] = (2, 2)
+    pos_b: tuple[int, int] = (4, 4)
+    pos_c: tuple[int, int] = (6, 6)
+    prev_agent_pos: tuple[int, int] = (1, 2)  # Simulate moving onto portal A
 
     position = {
         agent_id: Position(*pos_a),

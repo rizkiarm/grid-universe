@@ -1,19 +1,20 @@
 # tests/unit/test_moves.py
 
-import pytest
-from typing import List, Sequence, Tuple, Dict
+from collections.abc import Sequence
 from dataclasses import replace
 
+import pytest
+
+from grid_universe.actions import Action
+from grid_universe.components import Blocking, Position
 from grid_universe.moves import (
     default_move_fn,
-    wrap_around_move_fn,
+    gravity_move_fn,
     mirror_move_fn,
     slippery_move_fn,
     windy_move_fn,
-    gravity_move_fn,
+    wrap_around_move_fn,
 )
-from grid_universe.actions import Action
-from grid_universe.components import Position, Blocking
 from grid_universe.objectives import default_objective_fn
 from grid_universe.types import EntityID, MoveFn
 from tests.test_utils import make_agent_state
@@ -57,14 +58,14 @@ from tests.test_utils import make_agent_state
 )
 def test_simple_moves(
     move_fn: MoveFn,
-    start: Tuple[int, int],
+    start: tuple[int, int],
     Action: Action,
-    expected: Tuple[int, int],
+    expected: tuple[int, int],
 ) -> None:
     width: int = 5
     height: int = 5
     state, agent_id = make_agent_state(
-        agent_pos=start, move_fn=move_fn, width=width, height=height
+        agent_pos=start, move_fn=move_fn, width=width, height=height,
     )
     positions: Sequence[Position] = move_fn(state, agent_id, Action)
     assert positions and positions[0] == Position(*expected)
@@ -87,7 +88,7 @@ def test_move_fn_missing_position_raises(
     width: int = 3
     height: int = 3
     state, agent_id = make_agent_state(
-        agent_pos=(1, 1), move_fn=move_fn, width=width, height=height
+        agent_pos=(1, 1), move_fn=move_fn, width=width, height=height,
     )
     state = replace(state, position=state.position.remove(agent_id))
     with pytest.raises(KeyError):
@@ -119,15 +120,15 @@ def test_wrap_around_move_fn_raises_on_missing_size() -> None:
     ],
 )
 def test_slippery_move_fn(
-    start: Tuple[int, int],
-    blockers: List[Tuple[int, int]],
+    start: tuple[int, int],
+    blockers: list[tuple[int, int]],
     Action: Action,
-    expected: List[Tuple[int, int]],
+    expected: list[tuple[int, int]],
 ) -> None:
     width: int = 5
     height: int = 5
-    blocking_entities: Dict[EntityID, Blocking] = {}
-    pos_map: Dict[EntityID, Position] = {}
+    blocking_entities: dict[EntityID, Blocking] = {}
+    pos_map: dict[EntityID, Position] = {}
     for idx, blocker_pos in enumerate(blockers):
         wid: EntityID = 100 + idx
         blocking_entities[wid] = Blocking()
@@ -158,15 +159,15 @@ def test_slippery_move_fn(
     ],
 )
 def test_gravity_move_fn(
-    start: Tuple[int, int],
-    blockers: List[Tuple[int, int]],
+    start: tuple[int, int],
+    blockers: list[tuple[int, int]],
     Action: Action,
-    expected: List[Tuple[int, int]],
+    expected: list[tuple[int, int]],
 ) -> None:
     width: int = 5
     height: int = 5
-    blocking_entities: Dict[EntityID, Blocking] = {}
-    pos_map: Dict[EntityID, Position] = {}
+    blocking_entities: dict[EntityID, Blocking] = {}
+    pos_map: dict[EntityID, Position] = {}
     for idx, blocker_pos in enumerate(blockers):
         wid: EntityID = 200 + idx
         blocking_entities[wid] = Blocking()
@@ -205,26 +206,26 @@ def test_gravity_move_fn(
 def test_windy_move_fn(
     monkeypatch: pytest.MonkeyPatch,
     wind_first: float,
-    wind_dir: Tuple[int, int],
-    start: Tuple[int, int],
+    wind_dir: tuple[int, int],
+    start: tuple[int, int],
     Action: Action,
-    blockers: List[Tuple[int, int]],
-    expected: List[Tuple[int, int]],
+    blockers: list[tuple[int, int]],
+    expected: list[tuple[int, int]],
 ) -> None:
     import grid_universe.moves as moves_mod
 
     def fake_random() -> float:
         return wind_first
 
-    def fake_choice(seq: List[Tuple[int, int]]) -> Tuple[int, int]:
+    def fake_choice(seq: list[tuple[int, int]]) -> tuple[int, int]:
         return wind_dir
 
     monkeypatch.setattr(moves_mod.random, "random", fake_random)
     monkeypatch.setattr(moves_mod.random, "choice", fake_choice)
     width: int = 5
     height: int = 5
-    blocking_entities: Dict[EntityID, Blocking] = {}
-    pos_map: Dict[EntityID, Position] = {}
+    blocking_entities: dict[EntityID, Blocking] = {}
+    pos_map: dict[EntityID, Position] = {}
     for idx, blocker_pos in enumerate(blockers):
         wid: EntityID = 300 + idx
         blocking_entities[wid] = Blocking()

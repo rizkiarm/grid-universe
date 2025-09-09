@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import StrEnum, auto
-from typing import Optional
 
 from grid_universe.components.properties.position import Position
 
@@ -16,4 +15,4 @@ class Moving:
     direction: int  # 1 or -1
     bounce: bool = True
     speed: int = 1
-    prev_position: Optional[Position] = None
+    prev_position: Position | None = None

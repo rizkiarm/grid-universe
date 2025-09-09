@@ -1,25 +1,26 @@
+from typing import Any
+
 import gymnasium as gym
 import numpy as np
 import numpy.typing as npt
-from typing import Optional, Dict, Tuple, Any, List
 from PIL.Image import Image as PILImage
 
-from grid_universe.state import State
 from grid_universe.actions import Action
 from grid_universe.levels.maze import generate
 from grid_universe.renderer.texture import DEFAULT_RESOLUTION, TextureRenderer
+from grid_universe.state import State
 from grid_universe.step import step
 from grid_universe.types import EffectType, EntityID
 
 # --- Observation type ---
-ObsType = Dict[str, npt.NDArray[Any]]
+ObsType = dict[str, npt.NDArray[Any]]
 
 
 def agent_feature_vector(
     state: State,
     agent_id: EntityID,
-    powerup_types: List[EffectType],
-    key_ids: List[str],
+    powerup_types: list[EffectType],
+    key_ids: list[str],
 ) -> np.ndarray[Any, Any]:
     # Health
     agent_hp = state.health.get(agent_id)
@@ -49,11 +50,7 @@ def agent_feature_vector(
         active = 0
         for eff_id in state.status[agent_id].effect_ids:
             # Check which effect types are present (immunity, phasing, speed)
-            if effect_type == EffectType.IMMUNITY and eff_id in state.immunity:
-                active = 1
-            elif effect_type == EffectType.PHASING and eff_id in state.phasing:
-                active = 1
-            elif effect_type == EffectType.SPEED and eff_id in state.speed:
+            if (effect_type == EffectType.IMMUNITY and eff_id in state.immunity) or (effect_type == EffectType.PHASING and eff_id in state.phasing) or (effect_type == EffectType.SPEED and eff_id in state.speed):
                 active = 1
         powerup_flags.append(active)
 
@@ -71,13 +68,13 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         render_mode: str = "texture",
         render_resolution: int = DEFAULT_RESOLUTION,
         **kwargs: Any,
-    ):
+    ) -> None:
         self._generator_kwargs = kwargs
-        self.state: Optional[State] = None
-        self.agent_id: Optional[EntityID] = None
+        self.state: State | None = None
+        self.agent_id: EntityID | None = None
         self.width: int = int(kwargs.get("width", 9))
         self.height: int = int(kwargs.get("height", 9))
-        self._powerup_types: List[EffectType] = [
+        self._powerup_types: list[EffectType] = [
             EffectType.IMMUNITY,
             EffectType.PHASING,
             EffectType.SPEED,
@@ -85,7 +82,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         self._render_resolution = render_resolution
         render_width: int = render_resolution
         render_height: int = int(self.height / self.width * render_width)
-        self._texture_renderer: Optional[TextureRenderer] = None
+        self._texture_renderer: TextureRenderer | None = None
         # We'll initialize self._key_ids after first reset (when keys are known)
         self._max_key_types = 8
 
@@ -104,20 +101,20 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
                     dtype=np.uint8,
                 ),
                 "agent": gym.spaces.Box(
-                    low=-1e5, high=1e5, shape=(agent_vec_len,), dtype=np.float32
+                    low=-1e5, high=1e5, shape=(agent_vec_len,), dtype=np.float32,
                 ),
-            }
+            },
         )
         self.action_space = gym.spaces.Discrete(7)
         self._render_mode = render_mode
-        self._key_ids: List[
+        self._key_ids: list[
             str
         ] = []  # List of all key types in this level (populated in reset)
         self.reset()
 
     def reset(
-        self, *, seed: Optional[int] = None, options: Optional[Dict[str, object]] = None
-    ) -> Tuple[ObsType, Dict[str, object]]:
+        self, *, seed: int | None = None, options: dict[str, object] | None = None,
+    ) -> tuple[ObsType, dict[str, object]]:
         self.state = generate(**self._generator_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
         if self._texture_renderer is None:
@@ -134,13 +131,15 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         return obs, self._get_info()
 
     def step(
-        self, action: np.integer
-    ) -> Tuple[ObsType, float, bool, bool, Dict[str, object]]:
-        assert self.state is not None and self.agent_id is not None
+        self, action: np.integer,
+    ) -> tuple[ObsType, float, bool, bool, dict[str, object]]:
+        assert self.state is not None
+        assert self.agent_id is not None
 
         if action >= len(Action):
-            raise ValueError("Invalid action:", action)
-        step_action: Action = [a for a in Action][action]
+            msg = "Invalid action:"
+            raise ValueError(msg, action)
+        step_action: Action = list(Action)[action]
 
         prev_score = self.state.score
         self.state = step(self.state, step_action, agent_id=self.agent_id)
@@ -151,7 +150,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         info = self._get_info()
         return obs, reward, terminated, truncated, info
 
-    def render(self, mode: Optional[str] = None) -> Optional[PILImage]:  # type: ignore
+    def render(self, mode: str | None = None) -> PILImage | None:  # type: ignore
         render_mode = mode or self._render_mode
         assert self.state is not None
         if self._texture_renderer is None:
@@ -160,23 +159,24 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         if render_mode == "human":
             img.show()
             return None
-        elif render_mode == "texture":
+        if render_mode == "texture":
             return img
-        else:
-            raise NotImplementedError(f"Render mode '{render_mode}' not supported.")
+        msg = f"Render mode '{render_mode}' not supported."
+        raise NotImplementedError(msg)
 
     def _get_obs(self) -> ObsType:
-        assert self.state is not None and self.agent_id is not None
+        assert self.state is not None
+        assert self.agent_id is not None
         if self._texture_renderer is None:
             self._texture_renderer = TextureRenderer(resolution=self._render_resolution)
         img = self._texture_renderer.render(self.state)
         img_np = np.array(img)
         agent_vec = agent_feature_vector(
-            self.state, self.agent_id, self._powerup_types, self._key_ids
+            self.state, self.agent_id, self._powerup_types, self._key_ids,
         )
         return {"image": img_np, "agent": agent_vec}
 
-    def _get_info(self) -> Dict[str, object]:
+    def _get_info(self) -> dict[str, object]:
         assert self.state is not None
         return {
             "score": self.state.score,

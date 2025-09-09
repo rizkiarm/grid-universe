@@ -1,19 +1,17 @@
-from typing import Dict, Tuple, List, Set
 import random
 from collections import deque
 
 # Type aliases for clarity
-Coord = Tuple[int, int]
-MazeGrid = Dict[Coord, bool]  # True = open/floor; False = wall
+Coord = tuple[int, int]
+MazeGrid = dict[Coord, bool]  # True = open/floor; False = wall
 
-DIRECTIONS: List[Tuple[int, int]] = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+DIRECTIONS: list[tuple[int, int]] = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
 
 def generate_perfect_maze(
-    width: int, height: int, rng: random.Random, open_edge: bool = True
+    width: int, height: int, rng: random.Random, open_edge: bool = True,
 ) -> MazeGrid:
-    """
-    Generates a perfect maze using recursive backtracking.
+    """Generates a perfect maze using recursive backtracking.
     Returns a dict mapping (x, y) -> bool (True is open/floor, False is wall).
     """
     maze: MazeGrid = {(x, y): False for x in range(width) for y in range(height)}
@@ -48,17 +46,16 @@ def generate_perfect_maze(
     return maze
 
 
-def bfs_path(maze: MazeGrid, start: Coord, goal: Coord) -> List[Coord]:
-    """
-    Finds the shortest path from start to goal using BFS.
+def bfs_path(maze: MazeGrid, start: Coord, goal: Coord) -> list[Coord]:
+    """Finds the shortest path from start to goal using BFS.
     Only traverses open/floor cells.
     Returns the path as a list of coordinates (including both start and goal), or [] if unreachable.
     """
     if start == goal:
         return [start]
     queue: deque[Coord] = deque([start])
-    prev: Dict[Coord, Coord] = {}
-    visited: Set[Coord] = {start}
+    prev: dict[Coord, Coord] = {}
+    visited: set[Coord] = {start}
 
     while queue:
         pos = queue.popleft()
@@ -74,7 +71,7 @@ def bfs_path(maze: MazeGrid, start: Coord, goal: Coord) -> List[Coord]:
                     break
 
     # Reconstruct path
-    path: List[Coord] = []
+    path: list[Coord] = []
     if goal in visited:
         p = goal
         while p != start:
@@ -86,14 +83,13 @@ def bfs_path(maze: MazeGrid, start: Coord, goal: Coord) -> List[Coord]:
 
 
 def all_required_path_positions(
-    maze: MazeGrid, start: Coord, required_positions: List[Coord], goal: Coord
-) -> Set[Coord]:
-    """
-    Returns all positions along the shortest paths
+    maze: MazeGrid, start: Coord, required_positions: list[Coord], goal: Coord,
+) -> set[Coord]:
+    """Returns all positions along the shortest paths
     from start -> required_position1 -> required_position2 -> ... -> goal.
     """
-    essential: Set[Coord] = set()
-    waypoints = [start] + required_positions + [goal]
+    essential: set[Coord] = set()
+    waypoints = [start, *required_positions, goal]
     for i in range(len(waypoints) - 1):
         path = bfs_path(maze, waypoints[i], waypoints[i + 1])
         essential.update(path)
@@ -101,10 +97,9 @@ def all_required_path_positions(
 
 
 def adjust_maze_wall_percentage(
-    maze: MazeGrid, wall_percentage: float, rng: random.Random
+    maze: MazeGrid, wall_percentage: float, rng: random.Random,
 ) -> MazeGrid:
-    """
-    Returns a new MazeGrid with wall percentage controlled.
+    """Returns a new MazeGrid with wall percentage controlled.
     wall_percentage=0.0: fully open grid; 1.0: perfect maze (original).
     """
     # All tiles that are not open after maze generation (walls)

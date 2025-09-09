@@ -1,23 +1,24 @@
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Tuple, List
+
 from PIL import Image
 from pyrsistent import pmap
+
 from grid_universe.components.properties.appearance import Appearance, AppearanceName
 from grid_universe.state import State
 from grid_universe.types import EntityID
 
-
 DEFAULT_RESOLUTION = 640
 DEFAULT_SUBICON_PERCENT = 0.4
 
-ObjectAsset = Tuple[AppearanceName, Tuple[str, ...]]
+ObjectAsset = tuple[AppearanceName, tuple[str, ...]]
 
 
 @dataclass(frozen=True)
 class ObjectRendering:
     appearance: Appearance
-    properties: Tuple[str, ...]
+    properties: tuple[str, ...]
 
     def asset(self) -> ObjectAsset:
         return (self.appearance.name, self.properties)
@@ -25,51 +26,51 @@ class ObjectRendering:
 
 ObjectName = str
 ObjectProperty = str
-ObjectPropertiesTextureMap = Dict[ObjectName, Dict[Tuple[ObjectProperty, ...], str]]
+ObjectPropertiesTextureMap = dict[ObjectName, dict[tuple[ObjectProperty, ...], str]]
 
 TexLookupFn = Callable[[ObjectAsset, int], Image.Image]
-TextureMap = Dict[ObjectAsset, str]
+TextureMap = dict[ObjectAsset, str]
 
 
 TEXTURE_MAP: TextureMap = {
     (
         AppearanceName.HUMAN,
-        tuple([]),
+        (),
     ): "animated_characters/male_adventurer/maleAdventurer_idle.png",
     (
         AppearanceName.HUMAN,
-        tuple(["dead"]),
+        ("dead",),
     ): "animated_characters/zombie/zombie_fall.png",
-    (AppearanceName.COIN, tuple([])): "items/coinGold.png",
-    (AppearanceName.CORE, tuple(["required"])): "items/gold_1.png",
-    (AppearanceName.BOX, tuple([])): "tiles/boxCrate.png",
-    (AppearanceName.BOX, tuple(["moving"])): "tiles/boxCrate_double.png",
-    (AppearanceName.MONSTER, tuple([])): "enemies/slimeBlue.png",
-    (AppearanceName.MONSTER, tuple(["moving"])): "enemies/slimeBlue_move.png",
-    (AppearanceName.KEY, tuple([])): "items/keyRed.png",
-    (AppearanceName.PORTAL, tuple([])): "items/star.png",
-    (AppearanceName.DOOR, tuple(["locked"])): "tiles/lockRed.png",
-    (AppearanceName.DOOR, tuple([])): "tiles/doorClosed_mid.png",
-    (AppearanceName.SHIELD, tuple(["immunity"])): "items/gemBlue.png",
-    (AppearanceName.GHOST, tuple(["phasing"])): "items/gemGreen.png",
-    (AppearanceName.BOOTS, tuple(["speed"])): "items/gemRed.png",
-    (AppearanceName.SPIKE, tuple([])): "tiles/spikes.png",
-    (AppearanceName.LAVA, tuple([])): "tiles/lava.png",
-    (AppearanceName.EXIT, tuple([])): "tiles/signExit.png",
-    (AppearanceName.WALL, tuple([])): "tiles/brickBrown.png",
-    (AppearanceName.FLOOR, tuple([])): "tiles/brickGrey.png",
+    (AppearanceName.COIN, ()): "items/coinGold.png",
+    (AppearanceName.CORE, ("required",)): "items/gold_1.png",
+    (AppearanceName.BOX, ()): "tiles/boxCrate.png",
+    (AppearanceName.BOX, ("moving",)): "tiles/boxCrate_double.png",
+    (AppearanceName.MONSTER, ()): "enemies/slimeBlue.png",
+    (AppearanceName.MONSTER, ("moving",)): "enemies/slimeBlue_move.png",
+    (AppearanceName.KEY, ()): "items/keyRed.png",
+    (AppearanceName.PORTAL, ()): "items/star.png",
+    (AppearanceName.DOOR, ("locked",)): "tiles/lockRed.png",
+    (AppearanceName.DOOR, ()): "tiles/doorClosed_mid.png",
+    (AppearanceName.SHIELD, ("immunity",)): "items/gemBlue.png",
+    (AppearanceName.GHOST, ("phasing",)): "items/gemGreen.png",
+    (AppearanceName.BOOTS, ("speed",)): "items/gemRed.png",
+    (AppearanceName.SPIKE, ()): "tiles/spikes.png",
+    (AppearanceName.LAVA, ()): "tiles/lava.png",
+    (AppearanceName.EXIT, ()): "tiles/signExit.png",
+    (AppearanceName.WALL, ()): "tiles/brickBrown.png",
+    (AppearanceName.FLOOR, ()): "tiles/brickGrey.png",
 }
 
 
-def load_texture(path: str, size: int) -> Optional[Image.Image]:
+def load_texture(path: str, size: int) -> Image.Image | None:
     try:
         return Image.open(path).convert("RGBA").resize((size, size))
     except Exception:
         return None
 
 
-def get_object_renderings(state: State, eids: List[EntityID]) -> List[ObjectRendering]:
-    renderings: List[ObjectRendering] = []
+def get_object_renderings(state: State, eids: list[EntityID]) -> list[ObjectRendering]:
+    renderings: list[ObjectRendering] = []
     default_appearance: Appearance = Appearance(name=AppearanceName.NONE)
     for eid in eids:
         appearance = state.appearance.get(eid, default_appearance)
@@ -78,31 +79,32 @@ def get_object_renderings(state: State, eids: List[EntityID]) -> List[ObjectRend
                 component
                 for component, value in state.__dict__.items()
                 if isinstance(value, type(pmap())) and eid in value
-            ]
+            ],
         )
         renderings.append(
             ObjectRendering(
                 appearance=appearance,
                 properties=properties,
-            )
+            ),
         )
     return renderings
 
 
-def choose_background(object_renderings: List[ObjectRendering]) -> ObjectRendering:
+def choose_background(object_renderings: list[ObjectRendering]) -> ObjectRendering:
     items = [
         object_rendering
         for object_rendering in object_renderings
         if object_rendering.appearance.background
     ]
     if len(items) == 0:
-        raise ValueError(f"No matching background: {object_renderings}")
+        msg = f"No matching background: {object_renderings}"
+        raise ValueError(msg)
     return sorted(items, key=lambda x: x.appearance.priority)[
         -1
     ]  # take the lowest priority
 
 
-def choose_main(object_renderings: List[ObjectRendering]) -> Optional[ObjectRendering]:
+def choose_main(object_renderings: list[ObjectRendering]) -> ObjectRendering | None:
     items = [
         object_rendering
         for object_rendering in object_renderings
@@ -116,26 +118,26 @@ def choose_main(object_renderings: List[ObjectRendering]) -> Optional[ObjectRend
 
 
 def choose_corner_icons(
-    object_renderings: List[ObjectRendering], main: Optional[ObjectRendering]
-) -> List[ObjectRendering]:
-    items = set(
-        [
+    object_renderings: list[ObjectRendering], main: ObjectRendering | None,
+) -> list[ObjectRendering]:
+    items = {
+
             object_rendering
             for object_rendering in object_renderings
             if object_rendering.appearance.icon
-        ]
-    ) - set([main])
+        } - {main}
     return sorted(items, key=lambda x: x.appearance.priority)[
         :4
     ]  # take the highest priority
 
 
 def get_path(
-    object_asset: ObjectAsset, texture_hmap: ObjectPropertiesTextureMap
+    object_asset: ObjectAsset, texture_hmap: ObjectPropertiesTextureMap,
 ) -> str:
     object_name, object_properties = object_asset
     if object_name not in texture_hmap:
-        raise ValueError(f"Object rendering {object_asset} is not found in texture map")
+        msg = f"Object rendering {object_asset} is not found in texture map"
+        raise ValueError(msg)
     nearest_object_properties = sorted(
         texture_hmap[object_name].keys(),
         key=lambda x: len(set(x).intersection(object_properties))
@@ -149,14 +151,14 @@ def render(
     state: State,
     resolution: int = DEFAULT_RESOLUTION,
     subicon_percent: float = DEFAULT_SUBICON_PERCENT,
-    texture_map: Optional[TextureMap] = None,
+    texture_map: TextureMap | None = None,
     asset_root: str = "assets/images",
-    tex_lookup_fn: Optional[TexLookupFn] = None,
-    cache: Dict[Tuple[str, int], Optional[Image.Image]] = {},
+    tex_lookup_fn: TexLookupFn | None = None,
+    cache: dict[tuple[str, int], Image.Image | None] | None = None,
 ) -> Image.Image:
-    """
-    Renders ECS state as a PIL Image, with prioritized center and up to 4 corners per tile.
-    """
+    """Renders ECS state as a PIL Image, with prioritized center and up to 4 corners per tile."""
+    if cache is None:
+        cache = {}
     cell_size: int = resolution // state.width
     subicon_size: int = int(cell_size * subicon_percent)
 
@@ -169,10 +171,10 @@ def render(
 
     width, height = state.width, state.height
     img = Image.new(
-        "RGBA", (width * cell_size, height * cell_size), (128, 128, 128, 255)
+        "RGBA", (width * cell_size, height * cell_size), (128, 128, 128, 255),
     )
 
-    def default_get_tex(object_asset: ObjectAsset, size: int) -> Optional[Image.Image]:
+    def default_get_tex(object_asset: ObjectAsset, size: int) -> Image.Image | None:
         path = get_path(object_asset, texture_hmap)
         if not path:
             return None
@@ -183,7 +185,7 @@ def render(
 
     tex_lookup = tex_lookup_fn or default_get_tex
 
-    grid_entities: Dict[Tuple[int, int], List[EntityID]] = {}
+    grid_entities: dict[tuple[int, int], list[EntityID]] = {}
     for eid, pos in state.position.items():
         grid_entities.setdefault((pos.x, pos.y), []).append(eid)
 
@@ -196,10 +198,10 @@ def render(
         main = choose_main(object_renderings)
         corner_icons = choose_corner_icons(object_renderings, main)
         others = list(
-            set(object_renderings) - set([main] + corner_icons + [background])
+            set(object_renderings) - {main, *corner_icons, background},
         )
 
-        primary_renderings: List[ObjectRendering] = (
+        primary_renderings: list[ObjectRendering] = (
             [background] + others + ([main] if main is not None else [])
         )
 
@@ -223,16 +225,16 @@ class TextureRenderer:
     subicon_percent: float
     texture_map: TextureMap
     asset_root: str
-    tex_lookup_fn: Optional[TexLookupFn]
+    tex_lookup_fn: TexLookupFn | None
 
     def __init__(
         self,
         resolution: int = DEFAULT_RESOLUTION,
         subicon_percent: float = DEFAULT_SUBICON_PERCENT,
-        texture_map: Optional[TextureMap] = None,
+        texture_map: TextureMap | None = None,
         asset_root: str = "assets/images",
-        tex_lookup_fn: Optional[TexLookupFn] = None,
-    ):
+        tex_lookup_fn: TexLookupFn | None = None,
+    ) -> None:
         self.resolution = resolution
         self.subicon_percent = subicon_percent
         self.texture_map = texture_map or TEXTURE_MAP

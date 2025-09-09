@@ -1,8 +1,9 @@
 from dataclasses import replace
-from typing import Tuple
+
 from pyrsistent.typing import PMap
-from grid_universe.state import State
+
 from grid_universe.components import Moving, MovingAxis, Position
+from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.utils.grid import is_blocked_at, is_in_bounds
 
@@ -14,10 +15,10 @@ def move(
     next_pos: Position,
     state_moving: PMap[EntityID, Moving],
     state_position: PMap[EntityID, Position],
-) -> Tuple[PMap[EntityID, Moving], PMap[EntityID, Position], bool]:
+) -> tuple[PMap[EntityID, Moving], PMap[EntityID, Position], bool]:
     moving = state_moving[entity_id]
     blocked = not is_in_bounds(state, next_pos) or is_blocked_at(
-        state, next_pos, check_collidable=entity_id in state.blocking
+        state, next_pos, check_collidable=entity_id in state.blocking,
     )
     if blocked:
         # Reverse direction if bouncing, else leave unchanged
@@ -44,8 +45,9 @@ def moving_system(state: State) -> State:
         if pos is None:
             continue
         if moving.direction not in (-1, 1):
+            msg = f"Invalid moving direction for {entity_id}: {moving.direction}"
             raise ValueError(
-                f"Invalid moving direction for {entity_id}: {moving.direction}"
+                msg,
             )
         dx, dy = (
             (moving.direction, 0)
@@ -56,7 +58,7 @@ def moving_system(state: State) -> State:
             pos = state_position[entity_id]
             next_pos = Position(pos.x + dx, pos.y + dy)
             state_moving, state_position, blocked = move(
-                state, entity_id, pos, next_pos, state_moving, state_position
+                state, entity_id, pos, next_pos, state_moving, state_position,
             )
             if blocked:
                 break

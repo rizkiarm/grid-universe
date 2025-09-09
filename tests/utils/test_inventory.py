@@ -1,14 +1,15 @@
 # tests/utils/test_inventory.py
 
-from grid_universe.components import Inventory, Key
-from grid_universe.utils.inventory import (
-    has_key_with_id,
-    add_item,
-    remove_item,
-    all_keys_with_id,
-)
-from grid_universe.types import EntityID
 from pyrsistent import pset
+
+from grid_universe.components import Inventory, Key
+from grid_universe.types import EntityID
+from grid_universe.utils.inventory import (
+    add_item,
+    all_keys_with_id,
+    has_key_with_id,
+    remove_item,
+)
 
 
 def test_add_and_remove_item() -> None:

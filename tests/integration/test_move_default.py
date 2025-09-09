@@ -1,30 +1,31 @@
-from typing import Tuple, Sequence
-import pytest
+from collections.abc import Sequence
 
+import pytest
 from pyrsistent import pset
+
 from grid_universe.actions import Action
 from grid_universe.components import (
-    Exit,
-    Pushable,
-    Position,
-    LethalDamage,
     Blocking,
+    Exit,
     Health,
+    LethalDamage,
+    Phasing,
+    Position,
+    Pushable,
     Speed,
     Status,
-    Phasing,
 )
-from grid_universe.objectives import default_objective_fn
-from grid_universe.types import EntityID
-from grid_universe.step import step
 from grid_universe.moves import default_move_fn
+from grid_universe.objectives import default_objective_fn
+from grid_universe.step import step
+from grid_universe.types import EntityID
 from tests.test_utils import make_agent_state
 
 
 def test_agent_moves_right() -> None:
     agent_id: EntityID = 1
     state, _ = make_agent_state(
-        agent_id=agent_id, agent_pos=(1, 1), move_fn=default_move_fn
+        agent_id=agent_id, agent_pos=(1, 1), move_fn=default_move_fn,
     )
     state2 = step(
         state,
@@ -44,11 +45,11 @@ def test_agent_moves_right() -> None:
     ],
 )
 def test_agent_moves_in_all_actions(
-    start: Tuple[int, int], action: Action, expected: Tuple[int, int]
+    start: tuple[int, int], action: Action, expected: tuple[int, int],
 ) -> None:
     agent_id: EntityID = 1
     state, _ = make_agent_state(
-        agent_id=agent_id, agent_pos=start, move_fn=default_move_fn
+        agent_id=agent_id, agent_pos=start, move_fn=default_move_fn,
     )
     state2 = step(state, action, agent_id=agent_id)
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == expected
@@ -63,10 +64,10 @@ def test_agent_moves_in_all_actions(
         ((4, 4), Action.DOWN),
     ],
 )
-def test_agent_blocked_by_edge(start: Tuple[int, int], action: Action) -> None:
+def test_agent_blocked_by_edge(start: tuple[int, int], action: Action) -> None:
     agent_id: EntityID = 1
     state, _ = make_agent_state(
-        agent_id=agent_id, agent_pos=start, move_fn=default_move_fn
+        agent_id=agent_id, agent_pos=start, move_fn=default_move_fn,
     )
     state2 = step(state, action, agent_id=agent_id)
     assert (state2.position[agent_id].x, state2.position[agent_id].y) == start
@@ -240,7 +241,7 @@ def test_agent_move_fn_returns_empty_list() -> None:
         return []
 
     state, _ = make_agent_state(
-        agent_id=agent_id, agent_pos=(1, 1), move_fn=empty_move_fn
+        agent_id=agent_id, agent_pos=(1, 1), move_fn=empty_move_fn,
     )
     state2 = step(
         state,

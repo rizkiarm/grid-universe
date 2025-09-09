@@ -1,26 +1,27 @@
 from dataclasses import replace
 
+from pyrsistent import pmap, pset
+
+from grid_universe.actions import Action
 from grid_universe.components import (
-    Damage,
-    Position,
-    Health,
-    Portal,
-    Dead,
-    Rewardable,
-    Cost,
     Collectible,
-    Status,
-    Speed,
+    Cost,
+    Damage,
+    Dead,
+    Health,
     Phasing,
+    Portal,
+    Position,
+    Rewardable,
+    Speed,
+    Status,
 )
 from grid_universe.objectives import default_objective_fn
 from grid_universe.step import step
-from grid_universe.actions import Action
-from pyrsistent import pmap, pset
 from tests.test_utils import (
+    assert_entity_positions,
     make_agent_box_wall_state,
     make_exit_entity,
-    assert_entity_positions,
 )
 
 
@@ -33,7 +34,7 @@ def test_move_valid() -> None:
 
 def test_move_blocked_by_wall() -> None:
     state, agent_id, _, wall_ids = make_agent_box_wall_state(
-        agent_pos=(0, 0), wall_positions=[(1, 0)]
+        agent_pos=(0, 0), wall_positions=[(1, 0)],
     )
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
@@ -42,7 +43,7 @@ def test_move_blocked_by_wall() -> None:
 
 def test_move_pushes_box() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
@@ -51,7 +52,7 @@ def test_move_pushes_box() -> None:
 
 def test_move_push_blocked_by_wall_after_box() -> None:
     state, agent_id, box_ids, wall_ids = make_agent_box_wall_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)], wall_positions=[(2, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)], wall_positions=[(2, 0)],
     )
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
@@ -67,7 +68,7 @@ def test_move_push_blocked_by_wall_after_box() -> None:
 
 def test_move_pushes_box_out_of_bounds() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
-        agent_pos=(3, 0), box_positions=[(4, 0)], width=5, height=1
+        agent_pos=(3, 0), box_positions=[(4, 0)], width=5, height=1,
     )
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
@@ -78,7 +79,7 @@ def test_move_wrapping_enabled() -> None:
     from grid_universe.moves import wrap_around_move_fn
 
     state, agent_id, _, _ = make_agent_box_wall_state(
-        agent_pos=(4, 0), width=5, height=1
+        agent_pos=(4, 0), width=5, height=1,
     )
     state = replace(state, move_fn=wrap_around_move_fn)
     action = Action.RIGHT
@@ -88,7 +89,7 @@ def test_move_wrapping_enabled() -> None:
 
 def test_move_ghost_powerup_ignores_wall_box() -> None:
     state, agent_id, box_ids, wall_ids = make_agent_box_wall_state(
-        agent_pos=(0, 0), box_positions=[(2, 0)], wall_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(2, 0)], wall_positions=[(1, 0)],
     )
     effect_id = 99
     # Patch in a phasing effect and status to the state
@@ -100,7 +101,7 @@ def test_move_ghost_powerup_ignores_wall_box() -> None:
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(
-        new_state, {agent_id: (1, 0), wall_ids[0]: (1, 0), box_ids[0]: (2, 0)}
+        new_state, {agent_id: (1, 0), wall_ids[0]: (1, 0), box_ids[0]: (2, 0)},
     )
 
 
@@ -112,7 +113,7 @@ def test_move_onto_portal_teleports_agent() -> None:
         {
             portal1_id: Portal(pair_entity=portal2_id),
             portal2_id: Portal(pair_entity=portal1_id),
-        }
+        },
     )
     state = replace(state, position=pos, portal=portal)
     action = Action.RIGHT
@@ -157,7 +158,7 @@ def test_move_onto_reward_cost_collectible_tile() -> None:
     cost = pmap({cost_id: Cost(amount=6)})
     collectible = pmap({collectible_id: Collectible()})
     state = replace(
-        state, position=pos, rewardable=rewardable, cost=cost, collectible=collectible
+        state, position=pos, rewardable=rewardable, cost=cost, collectible=collectible,
     )
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
@@ -166,7 +167,7 @@ def test_move_onto_reward_cost_collectible_tile() -> None:
 
 def test_move_double_speed_powerup_moves_twice_and_blocks_at_wall() -> None:
     state, agent_id, _, wall_ids = make_agent_box_wall_state(
-        agent_pos=(0, 0), wall_positions=[(2, 0)], width=4, height=1
+        agent_pos=(0, 0), wall_positions=[(2, 0)], width=4, height=1,
     )
     effect_id = 201
     state = replace(
@@ -222,7 +223,7 @@ def test_move_chained_portal_no_loop() -> None:
             portal_a: Portal(pair_entity=portal_b),
             portal_b: Portal(pair_entity=portal_c),
             portal_c: Portal(pair_entity=portal_a),
-        }
+        },
     )
     state = replace(state, position=pos, portal=portal)
     action = Action.RIGHT
@@ -232,12 +233,12 @@ def test_move_chained_portal_no_loop() -> None:
 
 def test_move_push_box_onto_portal_box_teleported() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0)],
     )
     portal_a, portal_b = 110, 111
     pos = state.position.set(portal_a, Position(2, 0)).set(portal_b, Position(4, 0))
     portal = pmap(
-        {portal_a: Portal(pair_entity=portal_b), portal_b: Portal(pair_entity=portal_a)}
+        {portal_a: Portal(pair_entity=portal_b), portal_b: Portal(pair_entity=portal_a)},
     )
     state = replace(state, position=pos, portal=portal)
     action = Action.RIGHT
@@ -249,12 +250,12 @@ def test_move_push_box_onto_portal_box_teleported() -> None:
 
 def test_move_box_chain_blocked() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
-        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)]
+        agent_pos=(0, 0), box_positions=[(1, 0), (2, 0)],
     )
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(
-        new_state, {agent_id: (0, 0), box_ids[0]: (1, 0), box_ids[1]: (2, 0)}
+        new_state, {agent_id: (0, 0), box_ids[0]: (1, 0), box_ids[1]: (2, 0)},
     )
 
 
@@ -272,7 +273,7 @@ def test_move_on_hazard_and_enemy_both_damage() -> None:
 
 def test_move_out_of_bounds_action_negative_index() -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(
-        agent_pos=(0, 0), width=1, height=1
+        agent_pos=(0, 0), width=1, height=1,
     )
     action = Action.LEFT
     new_state = step(state, action, agent_id=agent_id)
@@ -306,7 +307,7 @@ def test_move_with_minimal_state() -> None:
 
 def test_move_double_speed_powerup_both_steps_blocked() -> None:
     state, agent_id, _, wall_ids = make_agent_box_wall_state(
-        agent_pos=(0, 0), wall_positions=[(1, 0), (2, 0)], width=4, height=1
+        agent_pos=(0, 0), wall_positions=[(1, 0), (2, 0)], width=4, height=1,
     )
     effect_id = 301
     state = replace(
@@ -317,20 +318,20 @@ def test_move_double_speed_powerup_both_steps_blocked() -> None:
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert_entity_positions(
-        new_state, {agent_id: (0, 0), wall_ids[0]: (1, 0), wall_ids[1]: (2, 0)}
+        new_state, {agent_id: (0, 0), wall_ids[0]: (1, 0), wall_ids[1]: (2, 0)},
     )
 
 
 def test_move_ghost_and_double_speed_combo() -> None:
     state, agent_id, _, wall_ids = make_agent_box_wall_state(
-        agent_pos=(0, 0), wall_positions=[(1, 0), (2, 0)], width=4, height=1
+        agent_pos=(0, 0), wall_positions=[(1, 0), (2, 0)], width=4, height=1,
     )
     effect_ghost = 401
     effect_speed = 402
     state = replace(
         state,
         status=state.status.set(
-            agent_id, Status(effect_ids=pset([effect_ghost, effect_speed]))
+            agent_id, Status(effect_ids=pset([effect_ghost, effect_speed])),
         ),
         phasing=state.phasing.set(effect_ghost, Phasing()),
         speed=state.speed.set(effect_speed, Speed(multiplier=2)),
@@ -342,7 +343,7 @@ def test_move_ghost_and_double_speed_combo() -> None:
 
 def test_push_box_onto_exit_agent_doesnt_win() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
-        agent_pos=(0, 0), box_positions=[(1, 0)], width=5, height=1
+        agent_pos=(0, 0), box_positions=[(1, 0)], width=5, height=1,
     )
     exit_id, exit_map, exit_pos, entity_map = make_exit_entity((2, 0))
     pos = state.position.update(exit_pos)

@@ -1,11 +1,14 @@
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
-from pyrsistent.typing import PMap
 from grid_universe.components import Position, UsageLimit
 from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.utils.grid import is_blocked_at, is_in_bounds
 from grid_universe.utils.status import use_status_effect_if_present
+
+if TYPE_CHECKING:
+    from pyrsistent.typing import PMap
 
 
 def movement_system(state: State, entity_id: EntityID, next_pos: Position) -> State:

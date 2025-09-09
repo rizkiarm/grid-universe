@@ -1,14 +1,14 @@
+from collections.abc import Generator
 from dataclasses import replace
-from typing import Generator
 
 from pyrsistent import pset
+
 from grid_universe.components import Position
 from grid_universe.state import State
 
 
 def between(pos1: Position, pos2: Position) -> Generator[Position, None, None]:
-    """
-    Yields Manhattan path positions between pos1 and pos2 (exclusive),
+    """Yields Manhattan path positions between pos1 and pos2 (exclusive),
     moving along x first, then y.
     """
     x, y = pos1.x, pos1.y
@@ -32,6 +32,6 @@ def trail_system(state: State) -> State:
             continue
         for pos in between(curr_pos, prev_pos):
             state_trail = state_trail.set(
-                pos, state_trail.get(pos, pset()).add(entity_id)
+                pos, state_trail.get(pos, pset()).add(entity_id),
             )
     return replace(state, trail=state_trail)

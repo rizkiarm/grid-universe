@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
+
 from pyrsistent import PMap, PSet, pmap
 
-from grid_universe.entity import Entity
 from grid_universe.components.effects import (
     Immunity,
     Phasing,
@@ -34,6 +34,7 @@ from grid_universe.components.properties import (
     Rewardable,
     Status,
 )
+from grid_universe.entity import Entity
 from grid_universe.types import EntityID, MoveFn, ObjectiveFn
 
 
@@ -87,7 +88,7 @@ class State:
     score: int = 0
     win: bool = False
     lose: bool = False
-    message: Optional[str] = None
+    message: str | None = None
 
     @property
     def description(self) -> PMap[str, Any]:

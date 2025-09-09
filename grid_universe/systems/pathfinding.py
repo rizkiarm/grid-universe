@@ -1,8 +1,10 @@
 from dataclasses import replace
-from typing import Dict, List, Tuple
+from itertools import count
+from queue import PriorityQueue
 
 from pyrsistent import pvector
 from pyrsistent.typing import PMap
+
 from grid_universe.components import PathfindingType, Position, UsageLimit
 from grid_universe.state import State
 from grid_universe.types import EntityID
@@ -15,15 +17,11 @@ from grid_universe.utils.math import (
 )
 from grid_universe.utils.status import use_status_effect_if_present
 
-from queue import PriorityQueue
-from itertools import count
-
 
 def get_astar_next_position(
-    state: State, entity_id: EntityID, target_id: EntityID
+    state: State, entity_id: EntityID, target_id: EntityID,
 ) -> Position:
-    """
-    Returns the next position along the shortest A* path from entity_id to target_id.
+    """Returns the next position along the shortest A* path from entity_id to target_id.
     If already at the goal or no path, returns current position.
     Only considers blocking as obstacles (not collidable or pushable, consistent with movement_system).
     """
@@ -44,7 +42,7 @@ def get_astar_next_position(
 
     neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
-    def get_valid_next_positions(position: Position) -> List[Position]:
+    def get_valid_next_positions(position: Position) -> list[Position]:
         neighbor_positions = [
             Position(position.x + dx, position.y + dy) for dx, dy in neighbors
         ]
@@ -52,9 +50,9 @@ def get_astar_next_position(
             pos for pos in neighbor_positions if in_bounds(pos) and not is_blocked(pos)
         ]
 
-    frontier: PriorityQueue[Tuple[int, int, Position]] = PriorityQueue()
-    prev_pos: Dict[Position, Position] = {}
-    cost_so_far: Dict[Position, int] = {start: 0}
+    frontier: PriorityQueue[tuple[int, int, Position]] = PriorityQueue()
+    prev_pos: dict[Position, Position] = {}
+    cost_so_far: dict[Position, int] = {start: 0}
 
     tiebreaker = count()  # Unique sequence count
     frontier.put((0, next(tiebreaker), start))
@@ -89,7 +87,7 @@ def get_astar_next_position(
 
 
 def get_straight_line_next_position(
-    state: State, entity_id: EntityID, target_id: EntityID
+    state: State, entity_id: EntityID, target_id: EntityID,
 ) -> Position:
     target_vec = position_to_vector(state.position[target_id])
     entity_vec = position_to_vector(state.position[entity_id])
@@ -104,7 +102,7 @@ def get_straight_line_next_position(
 
 
 def entity_pathfinding(
-    state: State, usage_limit: PMap[EntityID, UsageLimit], entity_id: EntityID
+    state: State, usage_limit: PMap[EntityID, UsageLimit], entity_id: EntityID,
 ) -> State:
     if entity_id not in state.position or entity_id not in state.pathfinding:
         return state
@@ -133,7 +131,7 @@ def entity_pathfinding(
         raise NotImplementedError
 
     if is_blocked_at(state, next_pos, check_collidable=False) or not is_in_bounds(
-        state, next_pos
+        state, next_pos,
     ):
         return state
 

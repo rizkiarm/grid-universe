@@ -1,34 +1,33 @@
 from dataclasses import replace
-from typing import Optional
-from grid_universe.actions import Action, MOVE_ACTIONS
-from grid_universe.systems.damage import damage_system
-from grid_universe.systems.pathfinding import pathfinding_system
-from grid_universe.systems.status import status_system
-from grid_universe.systems.trail import trail_system
-from grid_universe.types import MoveFn
+
+from grid_universe.actions import MOVE_ACTIONS, Action
 from grid_universe.state import State
+from grid_universe.systems.collectible import collectible_system
+from grid_universe.systems.damage import damage_system
+from grid_universe.systems.locked import unlock_system
 from grid_universe.systems.movement import movement_system
 from grid_universe.systems.moving import moving_system
+from grid_universe.systems.pathfinding import pathfinding_system
+from grid_universe.systems.portal import portal_system
 from grid_universe.systems.position import position_system
 from grid_universe.systems.push import push_system
-from grid_universe.systems.portal import portal_system
-from grid_universe.systems.collectible import collectible_system
-from grid_universe.systems.locked import unlock_system
-from grid_universe.systems.terminal import win_system, lose_system
-from grid_universe.systems.tile import tile_reward_system, tile_cost_system
-from grid_universe.types import EntityID
+from grid_universe.systems.status import status_system
+from grid_universe.systems.terminal import lose_system, win_system
+from grid_universe.systems.tile import tile_cost_system, tile_reward_system
+from grid_universe.systems.trail import trail_system
+from grid_universe.types import EntityID, MoveFn
 from grid_universe.utils.gc import run_garbage_collector
 from grid_universe.utils.status import use_status_effect_if_present
 from grid_universe.utils.terminal import is_terminal_state, is_valid_state
 
 
-def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> State:
-    """
-    Main ECS reducer: applies one action, all relevant systems, and returns new state.
+def step(state: State, action: Action, agent_id: EntityID | None = None) -> State:
+    """Main ECS reducer: applies one action, all relevant systems, and returns new state.
     Exits early if state is terminal.
     """
     if agent_id is None and (agent_id := next(iter(state.agent.keys()), None)) is None:
-        raise ValueError("State contains no agent")
+        msg = "State contains no agent"
+        raise ValueError(msg)
 
     if agent_id in state.dead:
         return replace(state, lose=True)
@@ -51,7 +50,8 @@ def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> S
     elif action == Action.WAIT:
         state = _step_wait(state, action, agent_id)
     else:
-        raise ValueError("Action is not valid")
+        msg = "Action is not valid"
+        raise ValueError(msg)
 
     if action not in MOVE_ACTIONS:
         state = _after_substep(state, action, agent_id)
@@ -103,13 +103,11 @@ def _step_move(state: State, action: Action, agent_id: EntityID) -> State:
 
 
 def _step_usekey(state: State, action: Action, agent_id: EntityID) -> State:
-    state = unlock_system(state, agent_id)
-    return state
+    return unlock_system(state, agent_id)
 
 
 def _step_pickup(state: State, action: Action, agent_id: EntityID) -> State:
-    state = collectible_system(state, agent_id)
-    return state
+    return collectible_system(state, agent_id)
 
 
 def _step_wait(state: State, action: Action, agent_id: EntityID) -> State:
@@ -119,16 +117,14 @@ def _step_wait(state: State, action: Action, agent_id: EntityID) -> State:
 def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
     state = portal_system(state)
     state = damage_system(state)
-    state = tile_reward_system(state, agent_id)
-    return state
+    return tile_reward_system(state, agent_id)
 
 
 def _after_step(state: State, agent_id: EntityID) -> State:
     state = tile_cost_system(
-        state, agent_id
+        state, agent_id,
     )  # doesn't penalize faster move (move with submoves)
     state = win_system(state, agent_id)
     state = lose_system(state, agent_id)
     state = replace(state, turn=state.turn + 1)
-    state = run_garbage_collector(state)
-    return state
+    return run_garbage_collector(state)

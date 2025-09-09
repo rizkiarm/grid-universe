@@ -1,12 +1,15 @@
 from dataclasses import replace
-from typing import Optional, Set
-from grid_universe.components import Status
-from grid_universe.components.properties.inventory import Inventory
+from typing import TYPE_CHECKING
+
 from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.utils.ecs import entities_with_components_at
 from grid_universe.utils.inventory import add_item
 from grid_universe.utils.status import add_status, has_effect, valid_effect
+
+if TYPE_CHECKING:
+    from grid_universe.components import Status
+    from grid_universe.components.properties.inventory import Inventory
 
 
 def collectible_system(state: State, entity_id: EntityID) -> State:
@@ -18,10 +21,10 @@ def collectible_system(state: State, entity_id: EntityID) -> State:
     if not collectable_ids:
         return state
 
-    entity_inventory: Optional[Inventory] = state.inventory.get(entity_id)
-    entity_status: Optional[Status] = state.status.get(entity_id)
+    entity_inventory: Inventory | None = state.inventory.get(entity_id)
+    entity_status: Status | None = state.status.get(entity_id)
     state_score = state.score
-    collected_ids: Set[EntityID] = set()
+    collected_ids: set[EntityID] = set()
 
     for collectable_id in collectable_ids:
         # Collectible is a powerup/effect

@@ -1,10 +1,11 @@
 from dataclasses import replace
-from typing import Tuple
+
 from pyrsistent.typing import PMap, PSet
-from grid_universe.components import TimeLimit, UsageLimit, Status
+
+from grid_universe.components import Status, TimeLimit, UsageLimit
 from grid_universe.entity import Entity
 from grid_universe.state import State
-from grid_universe.types import EntityID, EffectType
+from grid_universe.types import EffectType, EntityID
 
 
 def tick_time_limit(
@@ -12,13 +13,11 @@ def tick_time_limit(
     status: Status,
     time_limit: PMap[EntityID, TimeLimit],
 ) -> PMap[EntityID, TimeLimit]:
-    """
-    Decrement the time limit for all effects in `status` that have a time limit.
-    """
+    """Decrement the time limit for all effects in `status` that have a time limit."""
     for effect_id in status.effect_ids:
         if effect_id in time_limit:
             time_limit = time_limit.set(
-                effect_id, TimeLimit(amount=time_limit[effect_id].amount - 1)
+                effect_id, TimeLimit(amount=time_limit[effect_id].amount - 1),
             )
     return time_limit
 
@@ -27,10 +26,8 @@ def cleanup_effect(
     effect_id: EntityID,
     effect_ids: PSet[EntityID],
     entity: PMap[EntityID, Entity],
-) -> Tuple[PSet[EntityID], PMap[EntityID, Entity]]:
-    """
-    Remove the given effect_id from the effect_ids set and entity map.
-    """
+) -> tuple[PSet[EntityID], PMap[EntityID, Entity]]:
+    """Remove the given effect_id from the effect_ids set and entity map."""
     effect_ids = effect_ids.remove(effect_id)
     if effect_id in entity:
         entity = entity.remove(effect_id)
@@ -42,14 +39,10 @@ def is_effect_expired(
     time_limit: PMap[EntityID, TimeLimit],
     usage_limit: PMap[EntityID, UsageLimit],
 ) -> bool:
-    """
-    Returns True if the effect has a time or usage limit that is zero or below.
-    """
+    """Returns True if the effect has a time or usage limit that is zero or below."""
     if effect_id in time_limit and time_limit[effect_id].amount <= 0:
         return True
-    if effect_id in usage_limit and usage_limit[effect_id].amount <= 0:
-        return True
-    return False
+    return bool(effect_id in usage_limit and usage_limit[effect_id].amount <= 0)
 
 
 def garbage_collect(
@@ -58,9 +51,8 @@ def garbage_collect(
     usage_limit: PMap[EntityID, UsageLimit],
     entity: PMap[EntityID, Entity],
     status: Status,
-) -> Tuple[PMap[EntityID, Entity], Status]:
-    """
-    Removes from Status (and the entity map) any effect_ids that:
+) -> tuple[PMap[EntityID, Entity], Status]:
+    """Removes from Status (and the entity map) any effect_ids that:
       - no longer exist as a component (orphaned effect - component deleted)
       - are expired (time/usage limit <= 0)
     Returns updated (entity, status).
@@ -85,11 +77,10 @@ def garbage_collect(
 
 
 def status_system(state: State) -> State:
-    """
-    Updates all entity statuses in the ECS:
-      - Decrements all time-limited effects.
-      - Removes expired or invalid effect_ids from status and entity map.
-      - Returns the new game state.
+    """Updates all entity statuses in the ECS:
+    - Decrements all time-limited effects.
+    - Removes expired or invalid effect_ids from status and entity map.
+    - Returns the new game state.
     """
     state_status = state.status
     state_entity = state.entity
@@ -101,7 +92,7 @@ def status_system(state: State) -> State:
         state_time_limit = tick_time_limit(state, entity_status, state_time_limit)
         # Cleanup expired/invalid effects
         state_entity, entity_status = garbage_collect(
-            state, state_time_limit, state_usage_limit, state_entity, entity_status
+            state, state_time_limit, state_usage_limit, state_entity, entity_status,
         )
         state_status = state_status.set(entity_id, entity_status)
 

@@ -1,7 +1,8 @@
 import random
-from typing import Sequence, Dict
-from grid_universe.components import Position
+from collections.abc import Sequence
+
 from grid_universe.actions import Action
+from grid_universe.components import Position
 from grid_universe.state import State
 from grid_universe.types import EntityID, MoveFn
 
@@ -18,7 +19,7 @@ def default_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Pos
 
 
 def wrap_around_move_fn(
-    state: State, eid: EntityID, action: Action
+    state: State, eid: EntityID, action: Action,
 ) -> Sequence[Position]:
     pos = state.position[eid]
     dx, dy = {
@@ -30,14 +31,15 @@ def wrap_around_move_fn(
     width = getattr(state, "width", None)
     height = getattr(state, "height", None)
     if width is None or height is None:
-        raise ValueError("State must have width and height for wrap_around_move_fn.")
+        msg = "State must have width and height for wrap_around_move_fn."
+        raise ValueError(msg)
     new_x = (pos.x + dx) % width
     new_y = (pos.y + dy) % height
     return [Position(new_x, new_y)]
 
 
 def mirror_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
-    mirror_map: Dict[Action, Action] = {
+    mirror_map: dict[Action, Action] = {
         Action.LEFT: Action.RIGHT,
         Action.RIGHT: Action.LEFT,
         Action.UP: Action.UP,
@@ -131,7 +133,7 @@ def gravity_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Pos
 
 
 # Move function registry for per-level assignment
-MOVE_FN_REGISTRY: Dict[str, MoveFn] = {
+MOVE_FN_REGISTRY: dict[str, MoveFn] = {
     "default": default_move_fn,
     "wrap": wrap_around_move_fn,
     "mirror": mirror_move_fn,

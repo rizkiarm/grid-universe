@@ -1,56 +1,55 @@
 from dataclasses import replace
-from typing import Dict, List, Tuple, Optional
-from pyrsistent import pmap, PMap, pset
-import pytest
 
-from grid_universe.objectives import default_objective_fn
-from grid_universe.state import State
+import pytest
+from pyrsistent import PMap, pmap, pset
+
 from grid_universe.components import (
-    Position,
     Agent,
-    Health,
-    Damage,
-    LethalDamage,
-    Dead,
     Appearance,
     AppearanceName,
     Collidable,
+    Damage,
+    Dead,
+    Health,
     Immunity,
+    LethalDamage,
+    Position,
     Status,
 )
+from grid_universe.entity import Entity
+from grid_universe.objectives import default_objective_fn
+from grid_universe.state import State
 from grid_universe.systems.damage import damage_system
 from grid_universe.types import EntityID
-from grid_universe.entity import Entity
 
 
 def build_agent_with_sources(
     *,
     agent_id: EntityID = 1,
     agent_health: int = 10,
-    agent_pos: Tuple[int, int] = (0, 0),
+    agent_pos: tuple[int, int] = (0, 0),
     agent_immunity: bool = False,
     agent_dead: bool = False,
-    sources: Optional[List[Dict[str, object]]] = None,
-) -> Tuple[State, EntityID, List[EntityID]]:
-    """
-    Build a minimal ECS state with one agent and arbitrary damage/lethal sources at agent's position.
+    sources: list[dict[str, object]] | None = None,
+) -> tuple[State, EntityID, list[EntityID]]:
+    """Build a minimal ECS state with one agent and arbitrary damage/lethal sources at agent's position.
     All IDs are deterministic and all ECS maps are consistent.
     """
     sources = sources or []
     # ECS maps for agent
-    entity: Dict[EntityID, Entity] = {agent_id: Entity()}
-    position: Dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
-    agent_map: Dict[EntityID, Agent] = {agent_id: Agent()}
-    health: Dict[EntityID, Health] = {
-        agent_id: Health(health=agent_health, max_health=agent_health)
+    entity: dict[EntityID, Entity] = {agent_id: Entity()}
+    position: dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
+    agent_map: dict[EntityID, Agent] = {agent_id: Agent()}
+    health: dict[EntityID, Health] = {
+        agent_id: Health(health=agent_health, max_health=agent_health),
     }
-    appearance: Dict[EntityID, Appearance] = {
-        agent_id: Appearance(name=AppearanceName.HUMAN)
+    appearance: dict[EntityID, Appearance] = {
+        agent_id: Appearance(name=AppearanceName.HUMAN),
     }
-    collidable: Dict[EntityID, Collidable] = {agent_id: Collidable()}
-    immunity: Dict[EntityID, Immunity] = {}
-    damage_map: Dict[EntityID, Damage] = {}
-    lethal_damage_map: Dict[EntityID, LethalDamage] = {}
+    collidable: dict[EntityID, Collidable] = {agent_id: Collidable()}
+    immunity: dict[EntityID, Immunity] = {}
+    damage_map: dict[EntityID, Damage] = {}
+    lethal_damage_map: dict[EntityID, LethalDamage] = {}
     dead_map: PMap[EntityID, Dead] = pmap({agent_id: Dead()}) if agent_dead else pmap()
 
     status = {}
@@ -60,11 +59,11 @@ def build_agent_with_sources(
         status = {agent_id: Status(effect_ids=pset([immunity_id]))}
 
     # Add source entities with IDs 2, 3, 4, ...
-    source_ids: List[EntityID] = []
+    source_ids: list[EntityID] = []
     for i, src in enumerate(sources):
         src_id: EntityID = 2 + i
         entity[src_id] = Entity()
-        pos_tuple: Tuple[int, int] = src.get("pos", agent_pos)  # type: ignore
+        pos_tuple: tuple[int, int] = src.get("pos", agent_pos)  # type: ignore
         position[src_id] = Position(*pos_tuple)
         appearance[src_id] = Appearance(name=src.get("appearance", AppearanceName.LAVA))  # type: ignore
         collidable[src_id] = Collidable()
@@ -236,30 +235,30 @@ def test_damage_component_negative_amount_is_robust() -> None:
 def test_multiple_agents_each_take_appropriate_damage() -> None:
     agent1: EntityID = 1
     agent2: EntityID = 2
-    entity: Dict[EntityID, Entity] = {agent1: Entity(), agent2: Entity(), 3: Entity()}
-    position: Dict[EntityID, Position] = {
+    entity: dict[EntityID, Entity] = {agent1: Entity(), agent2: Entity(), 3: Entity()}
+    position: dict[EntityID, Position] = {
         agent1: Position(1, 1),
         agent2: Position(2, 2),
         3: Position(1, 1),
         4: Position(2, 2),
     }
-    agent_map: Dict[EntityID, Agent] = {agent1: Agent(), agent2: Agent()}
-    health: Dict[EntityID, Health] = {
+    agent_map: dict[EntityID, Agent] = {agent1: Agent(), agent2: Agent()}
+    health: dict[EntityID, Health] = {
         agent1: Health(health=10, max_health=10),
         agent2: Health(health=10, max_health=10),
     }
-    appearance: Dict[EntityID, Appearance] = {
+    appearance: dict[EntityID, Appearance] = {
         agent1: Appearance(name=AppearanceName.HUMAN),
         agent2: Appearance(name=AppearanceName.HUMAN),
         3: Appearance(name=AppearanceName.LAVA),
     }
-    collidable: Dict[EntityID, Collidable] = {
+    collidable: dict[EntityID, Collidable] = {
         agent1: Collidable(),
         agent2: Collidable(),
         3: Collidable(),
         4: Collidable(),
     }
-    damage_map: Dict[EntityID, Damage] = {3: Damage(amount=2), 4: Damage(amount=3)}
+    damage_map: dict[EntityID, Damage] = {3: Damage(amount=2), 4: Damage(amount=3)}
 
     state: State = State(
         width=10,
@@ -300,7 +299,7 @@ def test_damage_and_unrelated_components_do_not_interfere() -> None:
         position=state.position.set(unrelated_id, Position(0, 0)),
         rewardable=state.rewardable.set(unrelated_id, object()),  # type: ignore
         appearance=state.appearance.set(
-            unrelated_id, Appearance(name=AppearanceName.COIN)
+            unrelated_id, Appearance(name=AppearanceName.COIN),
         ),
     )
     state2: State = damage_system(state)
@@ -312,7 +311,7 @@ def test_agent_with_multiple_health_entries_is_robust() -> None:
         sources=[{"damage": 2, "pos": (0, 0)}],
     )
     state = replace(
-        state, health=state.health.set(agent_id, Health(health=5, max_health=10))
+        state, health=state.health.set(agent_id, Health(health=5, max_health=10)),
     )
     state2: State = damage_system(state)
     assert_health(state2, agent_id, 3)

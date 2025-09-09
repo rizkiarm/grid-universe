@@ -1,22 +1,21 @@
 import os
-import streamlit as st
-
 from dataclasses import replace
-from typing import Dict, Optional
-from pyrsistent import thaw
 
+import streamlit as st
+from components import (
+    display_inventory,
+    display_powerup_status,
+    do_action,
+    get_keyboard_action,
+)
 from config import (
     Config,
-    set_default_config,
     get_config_from_widgets,
     make_env_and_reset,
+    set_default_config,
 )
-from components import (
-    display_powerup_status,
-    display_inventory,
-    get_keyboard_action,
-    do_action,
-)
+from pyrsistent import thaw
+
 from grid_universe.actions import GymAction
 from grid_universe.gym_env import GridUniverseEnv, ObsType
 
@@ -66,7 +65,7 @@ with tab_game:
         # Need to put after generate maze
         env: GridUniverseEnv = st.session_state["env"]
         obs: ObsType = st.session_state["obs"]
-        info: Dict[str, object] = st.session_state["info"]
+        info: dict[str, object] = st.session_state["info"]
 
         if env.state:
             maze_rule = (
@@ -111,7 +110,7 @@ with tab_game:
             if st.button("⏳ Wait", key="wait_btn", use_container_width=True):
                 do_action(env, GymAction.WAIT)
 
-        action: Optional[GymAction] = get_keyboard_action()
+        action: GymAction | None = get_keyboard_action()
         if action is not None:
             do_action(env, action)
 
@@ -125,7 +124,7 @@ with tab_game:
             if agent_id is not None:
                 health = state.health[agent_id]
                 st.info(
-                    f"**Health Point:** {health.health} / {health.max_health}", icon="❤️"
+                    f"**Health Point:** {health.health} / {health.max_health}", icon="❤️",
                 )
                 prev_health = st.session_state["prev_health"]
                 if health.health < prev_health:
