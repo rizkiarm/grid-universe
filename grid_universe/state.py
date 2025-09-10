@@ -89,6 +89,9 @@ class State:
     lose: bool = False
     message: Optional[str] = None
 
+    # RNG
+    seed: Optional[int] = None
+
     @property
     def description(self) -> PMap[str, Any]:
         description: PMap[str, Any] = pmap()

@@ -7,7 +7,7 @@ from PIL.Image import Image as PILImage
 from grid_universe.state import State
 from grid_universe.actions import Action
 from grid_universe.levels.maze import generate
-from grid_universe.renderer.texture import DEFAULT_RESOLUTION, TextureRenderer
+from grid_universe.renderer.texture import DEFAULT_RESOLUTION, DEFAULT_TEXTURE_MAP, TextureRenderer, TextureMap
 from grid_universe.step import step
 from grid_universe.types import EffectType, EntityID
 
@@ -70,6 +70,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         self,
         render_mode: str = "texture",
         render_resolution: int = DEFAULT_RESOLUTION,
+        render_texture_map: TextureMap = DEFAULT_TEXTURE_MAP,
         **kwargs: Any,
     ):
         self._generator_kwargs = kwargs
@@ -83,6 +84,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
             EffectType.SPEED,
         ]
         self._render_resolution = render_resolution
+        self._render_texture_map = render_texture_map
         render_width: int = render_resolution
         render_height: int = int(self.height / self.width * render_width)
         self._texture_renderer: Optional[TextureRenderer] = None
@@ -121,7 +123,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         self.state = generate(**self._generator_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
         if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(resolution=self._render_resolution)
+            self._texture_renderer = TextureRenderer(resolution=self._render_resolution, texture_map=self._render_texture_map)
         # Find all key_id strings in this level, padded to self._max_key_types
         key_ids_set = {key.key_id for key in self.state.key.values()}
         self._key_ids = sorted(key_ids_set)

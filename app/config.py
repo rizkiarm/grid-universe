@@ -19,6 +19,7 @@ from grid_universe.levels.maze import (
 )
 from grid_universe.moves import MOVE_FN_REGISTRY, default_move_fn
 from grid_universe.objectives import OBJECTIVE_FN_REGISTRY, default_objective_fn
+from grid_universe.renderer.texture import TEXTURE_MAP_REGISTRY, DEFAULT_TEXTURE_MAP, TextureMap
 from grid_universe.types import EffectLimit, MoveFn, ObjectiveFn
 
 
@@ -42,6 +43,7 @@ class Config:
     move_fn: MoveFn
     objective_fn: ObjectiveFn
     seed: Optional[int]
+    render_texture_map: TextureMap
 
 
 def set_default_config() -> None:
@@ -65,6 +67,7 @@ def set_default_config() -> None:
             move_fn=default_move_fn,
             objective_fn=default_objective_fn,
             seed=None,
+            render_texture_map=DEFAULT_TEXTURE_MAP,
         )
         st.session_state["maze_seed_counter"] = 0
 
@@ -360,6 +363,23 @@ def seed_section() -> int:
     return seed
 
 
+def texture_map_section(config: Config) -> TextureMap:
+    st.subheader("Texture Map")
+    texture_map_names: List[str] = list(TEXTURE_MAP_REGISTRY.keys())
+    texture_map_label: str = st.selectbox(
+        "Texture Map",
+        texture_map_names,
+        index=texture_map_names.index(
+            next(
+                k for k, v in TEXTURE_MAP_REGISTRY.items() if v is config.render_texture_map
+            )
+        ),
+        key="texture_map",
+    )
+    texture_map: TextureMap = TEXTURE_MAP_REGISTRY[texture_map_label]
+    return texture_map
+
+
 def get_config_from_widgets() -> Config:
     config: Config = st.session_state["config"]
 
@@ -379,6 +399,7 @@ def get_config_from_widgets() -> Config:
     move_fn: MoveFn = movement_section(config)
     objective_fn: ObjectiveFn = objective_section(config)
     seed: int = seed_section()
+    render_texture_map: TextureMap = texture_map_section(config)
 
     return Config(
         width=width,
@@ -399,6 +420,7 @@ def get_config_from_widgets() -> Config:
         move_fn=move_fn,
         objective_fn=objective_fn,
         seed=seed,
+        render_texture_map=render_texture_map,
     )
 
 

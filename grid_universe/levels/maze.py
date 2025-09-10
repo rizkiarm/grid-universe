@@ -578,7 +578,11 @@ def generate(
     maze_grid = adjust_maze_wall_percentage(maze_grid, wall_percentage, rng)
 
     state = State(
-        width=width, height=height, move_fn=move_fn, objective_fn=objective_fn
+        width=width,
+        height=height,
+        move_fn=move_fn,
+        objective_fn=objective_fn,
+        seed=seed,
     )
 
     # Tiles setup
