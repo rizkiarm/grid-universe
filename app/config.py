@@ -19,7 +19,11 @@ from grid_universe.levels.maze import (
 )
 from grid_universe.moves import MOVE_FN_REGISTRY, default_move_fn
 from grid_universe.objectives import OBJECTIVE_FN_REGISTRY, default_objective_fn
-from grid_universe.renderer.texture import TEXTURE_MAP_REGISTRY, DEFAULT_TEXTURE_MAP, TextureMap
+from grid_universe.renderer.texture import (
+    TEXTURE_MAP_REGISTRY,
+    DEFAULT_TEXTURE_MAP,
+    TextureMap,
+)
 from grid_universe.types import EffectLimit, MoveFn, ObjectiveFn
 
 
@@ -371,7 +375,9 @@ def texture_map_section(config: Config) -> TextureMap:
         texture_map_names,
         index=texture_map_names.index(
             next(
-                k for k, v in TEXTURE_MAP_REGISTRY.items() if v is config.render_texture_map
+                k
+                for k, v in TEXTURE_MAP_REGISTRY.items()
+                if v is config.render_texture_map
             )
         ),
         key="texture_map",

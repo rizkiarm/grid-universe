@@ -7,7 +7,12 @@ from PIL.Image import Image as PILImage
 from grid_universe.state import State
 from grid_universe.actions import Action
 from grid_universe.levels.maze import generate
-from grid_universe.renderer.texture import DEFAULT_RESOLUTION, DEFAULT_TEXTURE_MAP, TextureRenderer, TextureMap
+from grid_universe.renderer.texture import (
+    DEFAULT_RESOLUTION,
+    DEFAULT_TEXTURE_MAP,
+    TextureRenderer,
+    TextureMap,
+)
 from grid_universe.step import step
 from grid_universe.types import EffectType, EntityID
 
@@ -123,7 +128,9 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         self.state = generate(**self._generator_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
         if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(resolution=self._render_resolution, texture_map=self._render_texture_map)
+            self._texture_renderer = TextureRenderer(
+                resolution=self._render_resolution, texture_map=self._render_texture_map
+            )
         # Find all key_id strings in this level, padded to self._max_key_types
         key_ids_set = {key.key_id for key in self.state.key.values()}
         self._key_ids = sorted(key_ids_set)
