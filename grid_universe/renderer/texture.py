@@ -337,6 +337,7 @@ def render(
         "RGBA", (width * cell_size, height * cell_size), (128, 128, 128, 255)
     )
 
+    state_rng = random.Random(state.seed)
     groups = derive_groups(state)
 
     def default_get_tex(
@@ -348,7 +349,7 @@ def render(
 
         asset_path = f"{asset_root}/{path}"
         if os.path.isdir(asset_path):
-            selected_asset_path = select_texture_from_directory(asset_path, state.seed)
+            selected_asset_path = select_texture_from_directory(asset_path, state_rng.randint(0, 2**31))
             if selected_asset_path is None:
                 return None
             asset_path = selected_asset_path
