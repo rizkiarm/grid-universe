@@ -1,7 +1,8 @@
+# ----- grid_universe/gym_env.py -----
 import gymnasium as gym
 import numpy as np
-import numpy.typing as npt
 from typing import Optional, Dict, Tuple, Any, List
+
 from PIL.Image import Image as PILImage
 
 from grid_universe.state import State
@@ -14,58 +15,126 @@ from grid_universe.renderer.texture import (
     TextureMap,
 )
 from grid_universe.step import step
-from grid_universe.types import EffectType, EntityID
+from grid_universe.types import EffectLimit, EffectType, EntityID
 
-# --- Observation type ---
-ObsType = Dict[str, npt.NDArray[Any]]
+# Observation now includes:
+#   - image: np.ndarray (H x W x 4)
+#   - info: dict with agent, status, config
+ObsType = Dict[str, Any]
 
 
-def agent_feature_vector(
-    state: State,
-    agent_id: EntityID,
-    powerup_types: List[EffectType],
-    key_ids: List[str],
-) -> np.ndarray[Any, Any]:
+def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
+    """
+    Convert an effect entity into a serializable dict with type, limits, and any extras.
+    """
+    effect_type: Optional[str] = None
+    extra: Dict[str, Any] = {}
+
+    if effect_id in state.immunity:
+        effect_type = EffectType.IMMUNITY.name
+    elif effect_id in state.phasing:
+        effect_type = EffectType.PHASING.name
+    elif effect_id in state.speed:
+        effect_type = EffectType.SPEED.name
+        extra["multiplier"] = state.speed[effect_id].multiplier
+
+    # Limits (if any)
+    limit_type = None
+    limit_amount = None
+    if effect_id in state.time_limit:
+        limit_type = EffectLimit.TIME.name
+        limit_amount = state.time_limit[effect_id].amount
+    if effect_id in state.usage_limit:
+        # If both exist, report usage, otherwise time
+        limit_type = EffectLimit.USAGE.name
+        limit_amount = state.usage_limit[effect_id].amount
+
+    return {
+        "id": int(effect_id),
+        "type": effect_type,
+        "limit_type": limit_type,
+        "limit_amount": limit_amount,
+        **extra,
+    }
+
+
+def _serialize_inventory_item(state: State, item_id: EntityID) -> Dict[str, Any]:
+    """
+    Convert an inventory entity into a serializable dict with type info and useful fields.
+    """
+    item: Dict[str, Any] = {"id": int(item_id), "type": "item"}
+    # Key?
+    if item_id in state.key:
+        item["type"] = "key"
+        item["key_id"] = state.key[item_id].key_id
+    # Collectibles (categorize core vs coin if we can)
+    elif item_id in state.collectible:
+        if item_id in state.required:
+            item["type"] = "core"
+        else:
+            item["type"] = "coin"
+    # Appearance (optional extra metadata)
+    if item_id in state.appearance:
+        try:
+            item["appearance_name"] = state.appearance[item_id].name.name
+        except Exception:
+            pass
+    return item
+
+
+def agent_observation_dict(state: State, agent_id: EntityID) -> Dict[str, Any]:
     # Health
-    agent_hp = state.health.get(agent_id)
-    health: float = np.nan
-    max_health: float = np.nan
-    if agent_hp:
-        health = agent_hp.health
-        max_health = agent_hp.max_health
+    hp = state.health.get(agent_id)
+    health_dict: Dict[str, Any] = {
+        "health": hp.health if hp else None,
+        "max_health": hp.max_health if hp else None,
+    }
 
-    # Score
-    score = state.score
+    # Active effects (status)
+    effects: List[Dict[str, Any]] = []
+    status = state.status.get(agent_id)
+    if status is not None:
+        for eff_id in status.effect_ids:
+            effects.append(_serialize_effect(state, eff_id))
 
-    # Inventory: count of each key type
-    inventory = state.inventory.get(agent_id)
-    items = inventory.item_ids if inventory else set()
-    key_counts = []
-    for kid in key_ids:
-        count = sum(
-            1 for eid in items if eid in state.key and state.key[eid].key_id == kid
-        )
-        key_counts.append(count)
+    # Inventory items
+    inv_items: List[Dict[str, Any]] = []
+    inv = state.inventory.get(agent_id)
+    if inv:
+        for item_eid in inv.item_ids:
+            inv_items.append(_serialize_inventory_item(state, item_eid))
 
-    # Powerups: active flag (1/0) for each EffectType
-    powerup_flags = []
-    # Simple: active if any effect (of given EffectType) is in agent's status
-    for effect_type in powerup_types:
-        active = 0
-        for eff_id in state.status[agent_id].effect_ids:
-            # Check which effect types are present (immunity, phasing, speed)
-            if effect_type == EffectType.IMMUNITY and eff_id in state.immunity:
-                active = 1
-            elif effect_type == EffectType.PHASING and eff_id in state.phasing:
-                active = 1
-            elif effect_type == EffectType.SPEED and eff_id in state.speed:
-                active = 1
-        powerup_flags.append(active)
+    return {
+        "health": health_dict,
+        "effects": effects,
+        "inventory": inv_items,
+    }
 
-    base_vec = np.array([health, max_health, float(score)], dtype=np.float32)
-    key_count_vec = np.array(key_counts, dtype=np.float32)
-    powerup_flags_vec = np.array(powerup_flags, dtype=np.float32)
-    return np.concatenate([base_vec, key_count_vec, powerup_flags_vec])
+
+def env_status_observation_dict(state: State) -> Dict[str, Any]:
+    # Derive phase for clarity
+    phase = "ongoing"
+    if state.win:
+        phase = "win"
+    elif state.lose:
+        phase = "lose"
+    return {
+        "score": int(state.score),
+        "phase": phase,
+        "turn": int(state.turn),
+    }
+
+
+def env_config_observation_dict(state: State) -> Dict[str, Any]:
+    move_fn_name = getattr(state.move_fn, "__name__", str(state.move_fn))
+    objective_fn_name = getattr(state.objective_fn, "__name__", str(state.objective_fn))
+    return {
+        "move_fn": move_fn_name,
+        "objective_fn": objective_fn_name,
+        "seed": state.seed,
+        "width": state.width,
+        "height": state.height,
+    }
 
 
 class GridUniverseEnv(gym.Env[ObsType, np.integer]):
@@ -78,48 +147,114 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         render_texture_map: TextureMap = DEFAULT_TEXTURE_MAP,
         **kwargs: Any,
     ):
+        from gymnasium import spaces  # ensure gymnasium.spaces is available
+        import numpy as np
+
+        # Generator/config kwargs for level creation
         self._generator_kwargs = kwargs
+
+        # Runtime state
         self.state: Optional[State] = None
         self.agent_id: Optional[EntityID] = None
+
+        # Basic config
         self.width: int = int(kwargs.get("width", 9))
         self.height: int = int(kwargs.get("height", 9))
-        self._powerup_types: List[EffectType] = [
-            EffectType.IMMUNITY,
-            EffectType.PHASING,
-            EffectType.SPEED,
-        ]
         self._render_resolution = render_resolution
         self._render_texture_map = render_texture_map
+        self._render_mode = render_mode
+
+        # Rendering setup
         render_width: int = render_resolution
         render_height: int = int(self.height / self.width * render_width)
         self._texture_renderer: Optional[TextureRenderer] = None
-        # We'll initialize self._key_ids after first reset (when keys are known)
-        self._max_key_types = 8
 
-        # Compute agent vector length for observation space
-        agent_vec_len = 3 + self._max_key_types + len(self._powerup_types)
-        self.observation_space = gym.spaces.Dict(
+        # Observation space helpers (Gymnasium has no Integer/Optional)
+        text_space_short = spaces.Text(max_length=32)  # small enums like type/phase
+        text_space_medium = spaces.Text(max_length=128)  # function names, key ids
+
+        def int_box(low: int, high: int) -> spaces.Box:
+            return spaces.Box(
+                low=np.array(low, dtype=np.int64),
+                high=np.array(high, dtype=np.int64),
+                shape=(),
+                dtype=np.int64,
+            )
+
+        # Effect entry: use "" for absent strings, -1 for absent numbers
+        effect_space = spaces.Dict(
             {
-                "image": gym.spaces.Box(
+                "id": int_box(0, 1_000_000_000),
+                "type": text_space_short,  # "", "IMMUNITY", "PHASING", "SPEED"
+                "limit_type": text_space_short,  # "", "TIME", "USAGE"
+                "limit_amount": int_box(-1, 1_000_000_000),  # -1 if none
+                "multiplier": int_box(-1, 1_000_000),  # -1 if N/A (only SPEED)
+            }
+        )
+
+        # Inventory item: type in {"key","core","coin","item"}; empty strings for optional text
+        item_space = spaces.Dict(
+            {
+                "id": int_box(0, 1_000_000_000),
+                "type": text_space_short,
+                "key_id": text_space_medium,  # "" if not a key
+                "appearance_name": text_space_short,  # "" if unknown
+            }
+        )
+
+        # Health: -1 to indicate missing
+        health_space = spaces.Dict(
+            {
+                "health": int_box(-1, 1_000_000),
+                "max_health": int_box(-1, 1_000_000),
+            }
+        )
+
+        # Full observation space: image + structured info dict
+        self.observation_space = spaces.Dict(
+            {
+                "image": spaces.Box(
                     low=0,
                     high=255,
-                    shape=(
-                        render_height,
-                        render_width,
-                        4,
-                    ),
+                    shape=(render_height, render_width, 4),
                     dtype=np.uint8,
                 ),
-                "agent": gym.spaces.Box(
-                    low=-1e5, high=1e5, shape=(agent_vec_len,), dtype=np.float32
+                "info": spaces.Dict(
+                    {
+                        "agent": spaces.Dict(
+                            {
+                                "health": health_space,
+                                "effects": spaces.Sequence(effect_space),
+                                "inventory": spaces.Sequence(item_space),
+                            }
+                        ),
+                        "status": spaces.Dict(
+                            {
+                                "score": int_box(-1_000_000_000, 1_000_000_000),
+                                "phase": text_space_short,  # "win" / "lose" / "ongoing"
+                                "turn": int_box(0, 1_000_000_000),
+                            }
+                        ),
+                        "config": spaces.Dict(
+                            {
+                                "move_fn": text_space_medium,
+                                "objective_fn": text_space_medium,
+                                "seed": int_box(
+                                    -1_000_000_000, 1_000_000_000
+                                ),  # use -1 to represent None if needed
+                                "width": int_box(1, 10_000),
+                                "height": int_box(1, 10_000),
+                            }
+                        ),
+                    }
                 ),
             }
         )
-        self.action_space = gym.spaces.Discrete(7)
-        self._render_mode = render_mode
-        self._key_ids: List[
-            str
-        ] = []  # List of all key types in this level (populated in reset)
+
+        # Actions
+        self.action_space = spaces.Discrete(len(Action))
+
+        # Initialize first episode
         self.reset()
 
     def reset(
@@ -131,14 +266,6 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
             self._texture_renderer = TextureRenderer(
                 resolution=self._render_resolution, texture_map=self._render_texture_map
             )
-        # Find all key_id strings in this level, padded to self._max_key_types
-        key_ids_set = {key.key_id for key in self.state.key.values()}
-        self._key_ids = sorted(key_ids_set)
-        # Pad to max length
-        if len(self._key_ids) < self._max_key_types:
-            self._key_ids += [""] * (self._max_key_types - len(self._key_ids))
-        else:
-            self._key_ids = self._key_ids[: self._max_key_types]
         obs = self._get_obs()
         return obs, self._get_info()
 
@@ -149,7 +276,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
 
         if action >= len(Action):
             raise ValueError("Invalid action:", action)
-        step_action: Action = [a for a in Action][action]
+        step_action: Action = [a for a in Action][int(action)]
 
         prev_score = self.state.score
         self.state = step(self.state, step_action, agent_id=self.agent_id)
@@ -164,7 +291,9 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         render_mode = mode or self._render_mode
         assert self.state is not None
         if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(resolution=self._render_resolution)
+            self._texture_renderer = TextureRenderer(
+                resolution=self._render_resolution, texture_map=self._render_texture_map
+            )
         img = self._texture_renderer.render(self.state)
         if render_mode == "human":
             img.show()
@@ -174,25 +303,29 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         else:
             raise NotImplementedError(f"Render mode '{render_mode}' not supported.")
 
+    def state_info(self) -> Dict[str, Dict[str, Any]]:
+        assert self.state is not None and self.agent_id is not None
+        info_dict = {
+            "agent": agent_observation_dict(self.state, self.agent_id),
+            "status": env_status_observation_dict(self.state),
+            "config": env_config_observation_dict(self.state),
+        }
+        return info_dict
+
     def _get_obs(self) -> ObsType:
         assert self.state is not None and self.agent_id is not None
         if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(resolution=self._render_resolution)
+            self._texture_renderer = TextureRenderer(
+                resolution=self._render_resolution, texture_map=self._render_texture_map
+            )
         img = self._texture_renderer.render(self.state)
         img_np = np.array(img)
-        agent_vec = agent_feature_vector(
-            self.state, self.agent_id, self._powerup_types, self._key_ids
-        )
-        return {"image": img_np, "agent": agent_vec}
+
+        info_dict = self.state_info()
+        return {"image": img_np, "info": info_dict}
 
     def _get_info(self) -> Dict[str, object]:
-        assert self.state is not None
-        return {
-            "score": self.state.score,
-            "turn": self.state.turn,
-            "win": self.state.win,
-            "lose": self.state.lose,
-        }
+        return {}
 
     def close(self) -> None:
         pass

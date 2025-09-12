@@ -145,6 +145,8 @@ with tab_game:
         if img is not None:
             img_compressed = img.convert("P")  # Converts to 8-bit palette mode
             st.image(img_compressed, use_container_width=True)
+        if obs:
+            st.json(env.state_info(), expanded=1)
 
 with tab_state:
     if env.state:
