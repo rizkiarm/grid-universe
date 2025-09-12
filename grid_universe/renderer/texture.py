@@ -349,7 +349,9 @@ def render(
 
         asset_path = f"{asset_root}/{path}"
         if os.path.isdir(asset_path):
-            selected_asset_path = select_texture_from_directory(asset_path, state_rng.randint(0, 2**31))
+            selected_asset_path = select_texture_from_directory(
+                asset_path, state_rng.randint(0, 2**31)
+            )
             if selected_asset_path is None:
                 return None
             asset_path = selected_asset_path

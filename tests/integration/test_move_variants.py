@@ -233,12 +233,19 @@ def test_slippery_slide_lose_on_hazard() -> None:
 # --- WINDY UNIQUE TESTS ---
 
 
+class DummyRng:
+    def random(self) -> float:
+        return 0.1  # < 0.3, so wind triggers
+
+    def choice(self, *_) -> Tuple[int, int]:
+        return (1, 0)  # wind to the right
+
+
 def test_windy_random_move(monkeypatch) -> None:
     # Monkeypatch random to always trigger wind to the right
     import grid_universe.moves as moves_mod
 
-    monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
-    monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
+    monkeypatch.setattr(moves_mod.random, "Random", lambda *_args, **_kw: DummyRng())
     state, agent_id = make_agent_state(agent_pos=(1, 1), move_fn=windy_move_fn)
     state2 = step(
         state,
@@ -253,8 +260,7 @@ def test_windy_blocked_by_wall(monkeypatch) -> None:
     wall_id: EntityID = 2
     import grid_universe.moves as moves_mod
 
-    monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
-    monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
+    monkeypatch.setattr(moves_mod.random, "Random", lambda *_args, **_kw: DummyRng())
     extra = {"position": {wall_id: Position(2, 2)}, "blocking": {wall_id: Blocking()}}
     state, agent_id = make_agent_state(
         agent_pos=(1, 1), extra_components=extra, move_fn=windy_move_fn
@@ -272,8 +278,7 @@ def test_windy_win_on_exit(monkeypatch) -> None:
     exit_id: EntityID = 5
     import grid_universe.moves as moves_mod
 
-    monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
-    monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
+    monkeypatch.setattr(moves_mod.random, "Random", lambda *_args, **_kw: DummyRng())
     extra = {
         "position": {exit_id: Position(2, 2)},
         "exit": {exit_id: Exit()},
@@ -295,8 +300,7 @@ def test_windy_lose_on_hazard(monkeypatch) -> None:
     hazard_id: EntityID = 20
     import grid_universe.moves as moves_mod
 
-    monkeypatch.setattr(moves_mod.random, "random", lambda: 0.1)
-    monkeypatch.setattr(moves_mod.random, "choice", lambda choices: (1, 0))
+    monkeypatch.setattr(moves_mod.random, "Random", lambda *_args, **_kw: DummyRng())
     extra = {
         "health": {agent_id: Health(health=1, max_health=1)},
         "position": {hazard_id: Position(2, 2)},

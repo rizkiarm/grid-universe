@@ -213,14 +213,14 @@ def test_windy_move_fn(
 ) -> None:
     import grid_universe.moves as moves_mod
 
-    def fake_random() -> float:
-        return wind_first
+    class DummyRng:
+        def random(self) -> float:
+            return wind_first
 
-    def fake_choice(seq: List[Tuple[int, int]]) -> Tuple[int, int]:
-        return wind_dir
+        def choice(self, *_) -> Tuple[int, int]:
+            return wind_dir
 
-    monkeypatch.setattr(moves_mod.random, "random", fake_random)
-    monkeypatch.setattr(moves_mod.random, "choice", fake_choice)
+    monkeypatch.setattr(moves_mod.random, "Random", lambda *_args, **_kw: DummyRng())
     width: int = 5
     height: int = 5
     blocking_entities: Dict[EntityID, Blocking] = {}
