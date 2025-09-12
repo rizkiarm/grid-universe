@@ -84,22 +84,27 @@ def garbage_collect(
     return entity, replace(status, effect_ids=effect_ids)
 
 
-def status_system(state: State) -> State:
-    """
-    Updates all entity statuses in the ECS:
-      - Decrements all time-limited effects.
-      - Removes expired or invalid effect_ids from status and entity map.
-      - Returns the new game state.
-    """
+def status_tick_system(state: State) -> State:
+    state_status = state.status
+    state_time_limit = state.time_limit
+
+    for _, entity_status in state_status.items():
+        state_time_limit = tick_time_limit(state, entity_status, state_time_limit)
+
+    return replace(
+        state,
+        status=state_status,
+        time_limit=state_time_limit,
+    )
+
+
+def status_gc_system(state: State) -> State:
     state_status = state.status
     state_entity = state.entity
     state_time_limit = state.time_limit
     state_usage_limit = state.usage_limit
 
     for entity_id, entity_status in state_status.items():
-        # Tick time limits
-        state_time_limit = tick_time_limit(state, entity_status, state_time_limit)
-        # Cleanup expired/invalid effects
         state_entity, entity_status = garbage_collect(
             state, state_time_limit, state_usage_limit, state_entity, entity_status
         )
@@ -112,3 +117,9 @@ def status_system(state: State) -> State:
         time_limit=state_time_limit,
         usage_limit=state_usage_limit,
     )
+
+
+def status_system(state: State) -> State:
+    state = status_tick_system(state)
+    state = status_gc_system(state)
+    return state

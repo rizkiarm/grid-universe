@@ -316,11 +316,7 @@ def test_usage_limited_powerup_consumed_on_damage() -> None:
         damage=state.damage.set(damage_id, Damage(amount=5)),
     )
     state = step(state, Action.WAIT, agent_id=agent_id)
-    assert powerup_id in state.usage_limit
-    assert (
-        state.usage_limit[powerup_id].amount == 0 or powerup_id not in state.usage_limit
-    )
-    state = step(state, Action.WAIT, agent_id=agent_id)
+    assert powerup_id not in state.usage_limit
     assert not agent_has_effect(state, agent_id, powerup_id)
 
 

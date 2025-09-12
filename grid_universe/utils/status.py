@@ -48,18 +48,32 @@ def get_status_effect(
     time_limit: PMap[EntityID, TimeLimit],
     usage_limit: PMap[EntityID, UsageLimit],
 ) -> Optional[EntityID]:
-    relevant_effect_ids = [effect_id for effect_id in effect_ids if effect_id in effect]
-    if len(relevant_effect_ids) == 0:
+    # Effects that are present in the requested effect store
+    relevant = [eid for eid in effect_ids if eid in effect]
+    if not relevant:
         return None
-    for effect_id in relevant_effect_ids:
-        if (
-            effect_id not in usage_limit
-        ):  # prioritize either infinite or time-limited effect
-            return effect_id
-    for effect_id in relevant_effect_ids:
-        if effect_id in usage_limit or usage_limit[effect_id].amount > 0:
-            return effect_id
-    return None
+
+    # Filter out expired effects
+    valid: list[EntityID] = []
+    for eid in relevant:
+        # Expired by time
+        if eid in time_limit and time_limit[eid].amount <= 0:
+            continue
+        # Expired by usage
+        if eid in usage_limit and usage_limit[eid].amount <= 0:
+            continue
+        valid.append(eid)
+
+    if not valid:
+        return None
+
+    # Prefer effects without usage limits (infinite or time-limited)
+    for eid in valid:
+        if eid not in usage_limit:
+            return eid
+
+    # Otherwise, return any remaining usage-limited effect (all have amount > 0 by filter)
+    return valid[0]
 
 
 def use_status_effect(

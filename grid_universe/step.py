@@ -3,7 +3,7 @@ from typing import Optional
 from grid_universe.actions import Action, MOVE_ACTIONS
 from grid_universe.systems.damage import damage_system
 from grid_universe.systems.pathfinding import pathfinding_system
-from grid_universe.systems.status import status_system
+from grid_universe.systems.status import status_gc_system, status_tick_system
 from grid_universe.systems.trail import trail_system
 from grid_universe.types import MoveFn
 from grid_universe.state import State
@@ -39,7 +39,7 @@ def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> S
     state = position_system(state)  # before movements
     state = moving_system(state)
     state = pathfinding_system(state)
-    state = status_system(state)
+    state = status_tick_system(state)
     state = trail_system(state)  # after movements
 
     if action in MOVE_ACTIONS:
@@ -124,6 +124,7 @@ def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
 
 
 def _after_step(state: State, agent_id: EntityID) -> State:
+    state = status_gc_system(state)
     state = tile_cost_system(
         state, agent_id
     )  # doesn't penalize faster move (move with submoves)
