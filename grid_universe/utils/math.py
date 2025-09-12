@@ -11,7 +11,7 @@ def vector_dot_product(vec1: PVector[int], vec2: PVector[int]) -> int:
     return sum([vec1[i] * vec2[i] for i in range(len(vec1))])
 
 
-def vector_substract(vec1: PVector[int], vec2: PVector[int]) -> PVector[int]:
+def vector_subtract(vec1: PVector[int], vec2: PVector[int]) -> PVector[int]:
     if len(vec1) != len(vec2):
         raise ValueError("Vectors must be of the same length")
     return pvector([vec1[i] - vec2[i] for i in range(len(vec1))])

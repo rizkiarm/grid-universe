@@ -11,7 +11,7 @@ from grid_universe.utils.math import (
     argmax,
     position_to_vector,
     vector_dot_product,
-    vector_substract,
+    vector_subtract,
 )
 from grid_universe.utils.status import use_status_effect_if_present
 
@@ -93,7 +93,7 @@ def get_straight_line_next_position(
 ) -> Position:
     target_vec = position_to_vector(state.position[target_id])
     entity_vec = position_to_vector(state.position[entity_id])
-    dvec = vector_substract(target_vec, entity_vec)
+    dvec = vector_subtract(target_vec, entity_vec)
     actions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
     values = [vector_dot_product(pvector(action), dvec) for action in actions]
     best_action = actions[argmax(values)]
