@@ -28,5 +28,8 @@ def push_system(state: State, eid: EntityID, next_pos: Position) -> State:
     if is_blocked_at(state, push_to, check_collidable=True):
         return state  # Push not possible
 
-    new_position = state.position.set(pushable_id, push_to).set(eid, next_pos)
+    new_position = state.position.set(eid, next_pos)
+    for pushable_id in pushable_ids:
+        new_position = new_position.set(pushable_id, push_to)
+
     return replace(state, position=new_position)
