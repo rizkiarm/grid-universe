@@ -1,11 +1,14 @@
 from collections import defaultdict
+import colorsys
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Callable, Dict, Optional, Tuple, List
 from PIL import Image
 from pyrsistent import pmap
 from grid_universe.components.properties.appearance import Appearance, AppearanceName
 from grid_universe.state import State
 from grid_universe.types import EntityID
+from grid_universe.utils.color import recolor_image_keep_tone
 import os
 import random
 
@@ -21,6 +24,7 @@ ObjectAsset = Tuple[AppearanceName, Tuple[str, ...]]
 class ObjectRendering:
     appearance: Appearance
     properties: Tuple[str, ...]
+    group: Optional[str] = None
 
     def asset(self) -> ObjectAsset:
         return (self.appearance.name, self.properties)
@@ -30,7 +34,7 @@ ObjectName = str
 ObjectProperty = str
 ObjectPropertiesTextureMap = Dict[ObjectName, Dict[Tuple[ObjectProperty, ...], str]]
 
-TexLookupFn = Callable[[ObjectAsset, int], Image.Image]
+TexLookupFn = Callable[[ObjectRendering, int], Image.Image]
 TextureMap = Dict[ObjectAsset, str]
 
 
@@ -100,6 +104,73 @@ TEXTURE_MAP_REGISTRY: Dict[str, TextureMap] = {
 }
 
 
+# --- Grouping Rules ---
+
+GroupRule = Callable[[State, EntityID], Optional[str]]
+
+
+def key_door_group_rule(state: State, eid: EntityID) -> Optional[str]:
+    if eid in state.key:
+        return f"key:{state.key[eid].key_id}"
+    if eid in state.locked:
+        return f"key:{state.locked[eid].key_id}"
+    return None
+
+
+def portal_pair_group_rule(state: State, eid: EntityID) -> Optional[str]:
+    if eid not in state.portal:
+        return None
+    pair = state.portal[eid].pair_entity
+    a, b = (eid, pair) if eid <= pair else (pair, eid)
+    return f"portal:{a}-{b}"
+
+
+DEFAULT_GROUP_RULES: List[GroupRule] = [
+    key_door_group_rule,
+    portal_pair_group_rule,
+]
+
+
+def derive_groups(
+    state: State, rules: List[GroupRule] = DEFAULT_GROUP_RULES
+) -> Dict[EntityID, Optional[str]]:
+    out: Dict[EntityID, Optional[str]] = {}
+    for eid, _ in state.entity.items():
+        group: Optional[str] = None
+        for rule in rules:
+            group = rule(state, eid)
+            if group is not None:
+                break
+        out[eid] = group
+    return out
+
+
+@lru_cache(maxsize=2048)
+def group_to_color(group_id: str) -> Tuple[int, int, int]:
+    """
+    Deterministically map a group string to an RGB color.
+    """
+    rng = random.Random(group_id)
+    h = rng.random()
+    s = 0.6 + 0.3 * rng.random()
+    v = 0.7 + 0.25 * rng.random()
+    r, g, b = colorsys.hsv_to_rgb(h, s, v)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def apply_recolor_if_group(
+    tex: Optional[Image.Image],
+    group: Optional[str],
+) -> Optional[Image.Image]:
+    """
+    Recolor wrapper that sets hue to the group's color while preserving tone.
+    """
+    if tex is None or group is None:
+        return tex
+    color = group_to_color(group)
+    return recolor_image_keep_tone(tex, color)
+
+
 def load_texture(path: str, size: int) -> Optional[Image.Image]:
     try:
         return Image.open(path).convert("RGBA").resize((size, size))
@@ -107,7 +178,9 @@ def load_texture(path: str, size: int) -> Optional[Image.Image]:
         return None
 
 
-def get_object_renderings(state: State, eids: List[EntityID]) -> List[ObjectRendering]:
+def get_object_renderings(
+    state: State, eids: List[EntityID], groups: Dict[EntityID, Optional[str]]
+) -> List[ObjectRendering]:
     renderings: List[ObjectRendering] = []
     default_appearance: Appearance = Appearance(name=AppearanceName.NONE)
     for eid in eids:
@@ -123,6 +196,7 @@ def get_object_renderings(state: State, eids: List[EntityID]) -> List[ObjectRend
             ObjectRendering(
                 appearance=appearance,
                 properties=properties,
+                group=groups.get(eid),
             )
         )
     return renderings
@@ -214,7 +288,7 @@ def render(
     texture_map: Optional[TextureMap] = None,
     asset_root: str = DEFAULT_ASSET_ROOT,
     tex_lookup_fn: Optional[TexLookupFn] = None,
-    cache: Dict[Tuple[str, int], Optional[Image.Image]] = {},
+    cache: Dict[Tuple[str, int, Optional[str]], Optional[Image.Image]] = {},
 ) -> Image.Image:
     """
     Renders ECS state as a PIL Image, with prioritized center and up to 4 corners per tile.
@@ -234,8 +308,12 @@ def render(
         "RGBA", (width * cell_size, height * cell_size), (128, 128, 128, 255)
     )
 
-    def default_get_tex(object_asset: ObjectAsset, size: int) -> Optional[Image.Image]:
-        path = get_path(object_asset, texture_hmap)
+    groups = derive_groups(state)
+
+    def default_get_tex(
+        object_rendering: ObjectRendering, size: int
+    ) -> Optional[Image.Image]:
+        path = get_path(object_rendering.asset(), texture_hmap)
         if not path:
             return None
 
@@ -246,9 +324,11 @@ def render(
                 return None
             asset_path = selected_asset_path
 
-        key = (asset_path, size)
+        key = (asset_path, size, object_rendering.group)
         if key not in cache:
-            cache[key] = load_texture(asset_path, size)
+            texture = load_texture(asset_path, size)
+            texture = apply_recolor_if_group(texture, object_rendering.group)
+            cache[key] = texture
         return cache[key]
 
     tex_lookup = tex_lookup_fn or default_get_tex
@@ -260,7 +340,7 @@ def render(
     for (x, y), eids in grid_entities.items():
         x0, y0 = x * cell_size, y * cell_size
 
-        object_renderings = get_object_renderings(state, eids)
+        object_renderings = get_object_renderings(state, eids, groups)
 
         background = choose_background(object_renderings)
         main = choose_main(object_renderings)
@@ -274,14 +354,14 @@ def render(
         )
 
         for object_rendering in primary_renderings:
-            object_tex = tex_lookup(object_rendering.asset(), cell_size)
+            object_tex = tex_lookup(object_rendering, cell_size)
             if object_tex:
                 img.alpha_composite(object_tex, (x0, y0))
 
         for idx, corner_icon in enumerate(corner_icons[:4]):
             dx = x0 + (cell_size - subicon_size if idx % 2 == 1 else 0)
             dy = y0 + (cell_size - subicon_size if idx // 2 == 1 else 0)
-            tex = tex_lookup(corner_icon.asset(), subicon_size)
+            tex = tex_lookup(corner_icon, subicon_size)
             if tex:
                 img.alpha_composite(tex, (dx, dy))
 
