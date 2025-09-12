@@ -309,10 +309,12 @@ def render(
     texture_map: Optional[TextureMap] = None,
     asset_root: str = DEFAULT_ASSET_ROOT,
     tex_lookup_fn: Optional[TexLookupFn] = None,
-    cache: Dict[
-        Tuple[str, int, Optional[str], Optional[Tuple[int, int]], int],
-        Optional[Image.Image],
-    ] = {},
+    cache: Optional[
+        Dict[
+            Tuple[str, int, Optional[str], Optional[Tuple[int, int]], int],
+            Optional[Image.Image],
+        ]
+    ] = None,
 ) -> Image.Image:
     """
     Renders ECS state as a PIL Image, with prioritized center and up to 4 corners per tile.
@@ -322,6 +324,9 @@ def render(
 
     if texture_map is None:
         texture_map = DEFAULT_TEXTURE_MAP
+
+    if cache is None:
+        cache = {}
 
     texture_hmap: ObjectPropertiesTextureMap = defaultdict(dict)
     for (obj_name, obj_properties), value in texture_map.items():
@@ -363,10 +368,7 @@ def render(
             return None
 
         texture = apply_recolor_if_group(texture, object_rendering.group)
-        if (
-            object_rendering.move_dir is not None
-            and object_rendering.move_speed > 0
-        ):
+        if object_rendering.move_dir is not None and object_rendering.move_speed > 0:
             dx, dy = object_rendering.move_dir
             texture = draw_direction_triangles_on_image(
                 texture.copy(), size, dx, dy, object_rendering.move_speed
