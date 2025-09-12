@@ -8,7 +8,10 @@ from pyrsistent import pmap
 from grid_universe.components.properties.appearance import Appearance, AppearanceName
 from grid_universe.state import State
 from grid_universe.types import EntityID
-from grid_universe.utils.color import recolor_image_keep_tone
+from grid_universe.utils.image import (
+    draw_direction_triangles_on_image,
+    recolor_image_keep_tone,
+)
 import os
 import random
 
@@ -25,6 +28,8 @@ class ObjectRendering:
     appearance: Appearance
     properties: Tuple[str, ...]
     group: Optional[str] = None
+    move_dir: Optional[Tuple[int, int]] = None
+    move_speed: int = 0
 
     def asset(self) -> ObjectAsset:
         return (self.appearance.name, self.properties)
@@ -50,9 +55,12 @@ KENNEY_TEXTURE_MAP: TextureMap = {
     (AppearanceName.COIN, tuple([])): "kenney/items/coinGold.png",
     (AppearanceName.CORE, tuple(["required"])): "kenney/items/gold_1.png",
     (AppearanceName.BOX, tuple([])): "kenney/tiles/boxCrate.png",
-    (AppearanceName.BOX, tuple(["moving"])): "kenney/tiles/boxCrate_double.png",
+    (AppearanceName.BOX, tuple(["pushable"])): "kenney/tiles/boxCrate_double.png",
     (AppearanceName.MONSTER, tuple([])): "kenney/enemies/slimeBlue.png",
-    (AppearanceName.MONSTER, tuple(["moving"])): "kenney/enemies/slimeBlue_move.png",
+    (
+        AppearanceName.MONSTER,
+        tuple(["pathfinding"]),
+    ): "kenney/enemies/slimeBlue_move.png",
     (AppearanceName.KEY, tuple([])): "kenney/items/keyRed.png",
     (AppearanceName.PORTAL, tuple([])): "kenney/items/star.png",
     (AppearanceName.DOOR, tuple(["locked"])): "kenney/tiles/lockRed.png",
@@ -79,9 +87,9 @@ FUTURAMA_TEXTURE_MAP: TextureMap = {
     (AppearanceName.COIN, tuple([])): "futurama/character03",
     (AppearanceName.CORE, tuple(["required"])): "futurama/character04",
     (AppearanceName.BOX, tuple([])): "futurama/character06",
-    (AppearanceName.BOX, tuple(["moving"])): "futurama/character07",
+    (AppearanceName.BOX, tuple(["pushable"])): "futurama/character07",
     (AppearanceName.MONSTER, tuple([])): "futurama/character08",
-    (AppearanceName.MONSTER, tuple(["moving"])): "futurama/character09",
+    (AppearanceName.MONSTER, tuple(["pathfinding"])): "futurama/character09",
     (AppearanceName.KEY, tuple([])): "futurama/character10",
     (AppearanceName.PORTAL, tuple([])): "futurama/character11",
     (AppearanceName.DOOR, tuple(["locked"])): "futurama/character12",
@@ -159,13 +167,13 @@ def group_to_color(group_id: str) -> Tuple[int, int, int]:
 
 
 def apply_recolor_if_group(
-    tex: Optional[Image.Image],
+    tex: Image.Image,
     group: Optional[str],
-) -> Optional[Image.Image]:
+) -> Image.Image:
     """
     Recolor wrapper that sets hue to the group's color while preserving tone.
     """
-    if tex is None or group is None:
+    if group is None:
         return tex
     color = group_to_color(group)
     return recolor_image_keep_tone(tex, color)
@@ -192,11 +200,24 @@ def get_object_renderings(
                 if isinstance(value, type(pmap())) and eid in value
             ]
         )
+
+        move_dir: Optional[Tuple[int, int]] = None
+        move_speed: int = 0
+        if eid in state.moving:
+            m = state.moving[eid]
+            if m.axis.name == "HORIZONTAL":
+                move_dir = (1 if m.direction > 0 else -1, 0)
+            else:
+                move_dir = (0, 1 if m.direction > 0 else -1)
+            move_speed = m.speed
+
         renderings.append(
             ObjectRendering(
                 appearance=appearance,
                 properties=properties,
                 group=groups.get(eid),
+                move_dir=move_dir,
+                move_speed=move_speed,
             )
         )
     return renderings
@@ -288,7 +309,10 @@ def render(
     texture_map: Optional[TextureMap] = None,
     asset_root: str = DEFAULT_ASSET_ROOT,
     tex_lookup_fn: Optional[TexLookupFn] = None,
-    cache: Dict[Tuple[str, int, Optional[str]], Optional[Image.Image]] = {},
+    cache: Dict[
+        Tuple[str, int, Optional[str], Optional[Tuple[int, int]], int],
+        Optional[Image.Image],
+    ] = {},
 ) -> Image.Image:
     """
     Renders ECS state as a PIL Image, with prioritized center and up to 4 corners per tile.
@@ -324,12 +348,32 @@ def render(
                 return None
             asset_path = selected_asset_path
 
-        key = (asset_path, size, object_rendering.group)
-        if key not in cache:
-            texture = load_texture(asset_path, size)
-            texture = apply_recolor_if_group(texture, object_rendering.group)
-            cache[key] = texture
-        return cache[key]
+        key = (
+            asset_path,
+            size,
+            object_rendering.group,
+            object_rendering.move_dir,
+            object_rendering.move_speed,
+        )
+        if key in cache:
+            return cache[key]
+
+        texture = load_texture(asset_path, size)
+        if texture is None:
+            return None
+
+        texture = apply_recolor_if_group(texture, object_rendering.group)
+        if (
+            object_rendering.move_dir is not None
+            and object_rendering.move_speed > 0
+        ):
+            dx, dy = object_rendering.move_dir
+            texture = draw_direction_triangles_on_image(
+                texture.copy(), size, dx, dy, object_rendering.move_speed
+            )
+
+        cache[key] = texture
+        return texture
 
     tex_lookup = tex_lookup_fn or default_get_tex
 

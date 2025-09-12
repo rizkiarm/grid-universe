@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.typing as npt
-from PIL import Image
+from PIL import Image, ImageDraw
 from typing import Tuple
 
 # Type aliases for clarity
@@ -141,3 +141,63 @@ def recolor_image_keep_tone(
     out[..., 2][visible] = out_b[visible]
     # alpha unchanged
     return Image.fromarray(out, mode="RGBA")
+
+
+def draw_direction_triangles_on_image(
+    image: Image.Image, size: int, dx: int, dy: int, count: int
+) -> Image.Image:
+    """
+    Draw 'count' filled triangles pointing (dx, dy) on the given RGBA image.
+    Triangles are centered: the centroid of each triangle is symmetrically arranged
+    around the image center. Spacing is between triangle centroids.
+    """
+    if count <= 0 or (dx, dy) == (0, 0):
+        return image
+
+    draw = ImageDraw.Draw(image)
+    cx, cy = size // 2, size // 2
+
+    # Triangle geometry (relative to size)
+    tri_height = max(4, int(size * 0.16))
+    tri_half_base = max(3, int(size * 0.10))
+    spacing = max(2, int(size * 0.12))  # distance between triangle centroids
+
+    # Axis-aligned direction and perpendicular
+    ux, uy = dx, dy  # points toward the triangle tip
+    px, py = -uy, ux  # perpendicular (for base width)
+
+    # Offsets for centroids: 1 -> [0], 2 -> [-0.5s, +0.5s], 3 -> [-s, 0, +s], ...
+    offsets = [(i - (count - 1) / 2.0) * spacing for i in range(count)]
+
+    # For an isosceles triangle, the centroid lies 1/3 of the height from the base toward the tip.
+    # If C is the centroid, then:
+    #   tip = C + (2/3)*tri_height * u
+    #   base_center = C - (1/3)*tri_height * u
+    tip_offset = (2.0 / 3.0) * tri_height
+    base_offset = (1.0 / 3.0) * tri_height
+
+    for off in offsets:
+        # Centroid position
+        Cx = cx + int(round(ux * off))
+        Cy = cy + int(round(uy * off))
+
+        # Tip and base-center positions
+        tip_x = int(round(Cx + ux * tip_offset))
+        tip_y = int(round(Cy + uy * tip_offset))
+        base_x = int(round(Cx - ux * base_offset))
+        base_y = int(round(Cy - uy * base_offset))
+
+        # Base vertices around base center along the perpendicular
+        p1 = (tip_x, tip_y)
+        p2 = (
+            int(round(base_x + px * tri_half_base)),
+            int(round(base_y + py * tri_half_base)),
+        )
+        p3 = (
+            int(round(base_x - px * tri_half_base)),
+            int(round(base_y - py * tri_half_base)),
+        )
+
+        draw.polygon([p1, p2, p3], fill=(255, 255, 255, 220), outline=(0, 0, 0, 220))
+
+    return image
