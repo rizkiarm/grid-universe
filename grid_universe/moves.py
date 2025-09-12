@@ -83,13 +83,18 @@ def windy_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Posit
     }[action]
     width, height = state.width, state.height
     path: list[Position] = []
+
+    # Deterministic RNG
+    base_seed = hash((state.seed if state.seed is not None else 0, state.turn))
+    rng = random.Random(base_seed)
+
     # First move
     nx1, ny1 = pos.x + dx, pos.y + dy
     if 0 <= nx1 < width and 0 <= ny1 < height:
         path.append(Position(nx1, ny1))
         # Wind effect
-        if random.random() < 0.3:
-            wind_dx, wind_dy = random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])
+        if rng.random() < 0.3:
+            wind_dx, wind_dy = rng.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])
             nx2, ny2 = nx1 + wind_dx, ny1 + wind_dy
             if 0 <= nx2 < width and 0 <= ny2 < height:
                 path.append(Position(nx2, ny2))
