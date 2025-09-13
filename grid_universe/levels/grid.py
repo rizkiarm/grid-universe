@@ -14,7 +14,7 @@ Position = Tuple[int, int]
 class Level:
     """
     Grid-centric, authoring-time level representation.
-    - grid[y][x] is a list of EntityObject instances at that cell.
+    - `grid[y][x]` is a list of `EntityObject` instances at that cell.
     - Level stores configuration like move_fn, objective_fn, seed, and simple meta (turn/score/etc.).
     - This module is State-agnostic. Use the converter (levels.convert.to_state / from_state)
       to bridge between Level and the immutable ECS State.

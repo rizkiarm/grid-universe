@@ -24,8 +24,7 @@ Requirements
 - OS packages: none special; Pillow will use system libraries available on your platform.
 
 Install (editable)
-
-```python
+```
 # from your repo root
 pip install -e .
 ```
@@ -167,7 +166,7 @@ Use seeds to make runs reproducible.
 
 - Level(seed=...): stored on State.seed; procedural generators and certain systems use it.
 
-- Some movement functions (e.g., windy_move_fn) and renderer’s directory-variant selection derive randomness from (state.seed, state.turn).
+- Some movement functions (e.g., `windy_move_fn`) and renderer’s directory-variant selection derive randomness from `(state.seed, state.turn)`.
 
 Example pattern for deterministic per-turn RNG:
 
@@ -185,7 +184,7 @@ def rng_for_turn(state: State) -> random.Random:
 
 Texture selection uses a mapping from appearances/properties to files under an asset root.
 
-- Default assets: assets/kenney/* and others (see renderer docs).
+- Default assets: assets/kenney/* and others (see rendering docs).
 
 - You can override the texture map or asset root.
 
@@ -208,28 +207,28 @@ renderer.render(state).save("custom_textures.png")
 
 - Summarize State:
 
-    ```python
-    desc = state.description
-    for k, v in desc.items():
-        print(k, type(v), len(v) if hasattr(v, "__len__") else "")
-    ```
+```python
+desc = state.description
+for k, v in desc.items():
+    print(k, type(v), len(v) if hasattr(v, "__len__") else "")
+```
 
 - Inspect entity positions and components:
 
-    ```python
-    from grid_universe.utils.ecs import entities_at, entities_with_components_at
+```python
+from grid_universe.utils.ecs import entities_at, entities_with_components_at
 
-    pos = state.position.get(agent_id)
-    print("Agent at:", (pos.x, pos.y))
-    print("Blocking here:", entities_with_components_at(state, pos, state.blocking))
-    ```
+pos = state.position.get(agent_id)
+print("Agent at:", (pos.x, pos.y))
+print("Blocking here:", entities_with_components_at(state, pos, state.blocking))
+```
 
 - Validate terminal state:
 
-    ```python
-    from grid_universe.utils.terminal import is_terminal_state
-    print("Terminal:", is_terminal_state(state, agent_id))
-    ```
+```python
+from grid_universe.utils.terminal import is_terminal_state
+print("Terminal:", is_terminal_state(state, agent_id))
+```
 
 - Render frequently while debugging placement or rendering rules.
 
@@ -246,15 +245,15 @@ renderer.render(state).save("custom_textures.png")
 
     - Check for Blocking at the target tile (unless Phasing effect is active).
 
-    - If using wrap_around_move_fn, ensure State.width/height are set (they are if you used Level → to_state).
+    - If using `wrap_around_move_fn`, ensure `State.width`/`State.height` are set (they are if you used Level → to_state).
 
 - Score doesn’t change after moving:
 
-    - Confirm you have Rewardable or Cost tiles/items that apply. Rewards for Collectible items are granted on pickup; per-tile Rewardable apply via tile_reward_system.
+    - Confirm you have Rewardable or Cost tiles/items that apply. Rewards for Collectible items are granted on pickup; per-tile Rewardable apply via `tile_reward_system`.
 
 - Gym render returns None:
 
-    - Only render_mode="texture" returns a PIL.Image. render_mode="human" calls img.show() and returns None.
+    - Only `render_mode="texture"` returns a PIL.Image. `render_mode="human"` calls `img.show()` and returns None.
 
 - Reproducibility issues:
 

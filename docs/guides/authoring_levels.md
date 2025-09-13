@@ -19,17 +19,17 @@ Contents
 
 ## Concepts and workflow
 
-- EntitySpec: A mutable bag of components representing a “thing” you place on the grid. It has no Position or ID.
+- `EntitySpec`: A mutable bag of components representing a “thing” you place on the grid. It has no `Position` or ID.
 
-- Level: A mutable grid (width x height) of lists of EntitySpec. You place specs with Level.add((x, y), spec).
+- `Level`: A mutable grid (width × height) of lists of `EntitySpec`. You place specs with `Level.add((x, y), spec)`.
 
-- State: An immutable runtime snapshot of entities with unique integer IDs and component maps. Systems operate on State.
+- `State`: An immutable runtime snapshot of entities with unique integer IDs and component maps. Systems operate on `State`.
 
 - Conversion:
 
-    - levels.convert.to_state(level): materializes EntitySpec into runtime entities (with Position), resolves authoring refs, and creates nested effect/item entities.
+    - `levels.convert.to_state(level)`: materializes `EntitySpec` into runtime entities (with `Position`), resolves authoring refs, and creates nested effect/item entities.
 
-    - levels.convert.from_state(state): reconstructs a Level with placed EntitySpec and restores authoring references for positioned entities.
+    - `levels.convert.from_state(state)`: reconstructs a `Level` with placed `EntitySpec` and restores authoring references for positioned entities.
 
 Typical flow:
 ```python
@@ -47,27 +47,27 @@ state = to_state(level)  # immutable State, ready for systems
 
 ## Level structure and coordinates
 
-- Level.grid is a 2D array accessed as grid[y][x], each cell is a list of EntitySpec.
+- `Level.grid` is a 2D array accessed as `grid[y][x]`, each cell is a list of `EntitySpec`.
 
-- Coordinates: (x, y) with 0 ≤ x < width and 0 ≤ y < height.
+- Coordinates: `(x, y)` with `0 ≤ x < width` and `0 ≤ y < height`.
 
 - A single cell may contain multiple objects (e.g., background + item + hazard).
 
 Useful methods:
 
-- add((x, y), spec): place a single entity.
+- `add((x, y), spec)`: place a single entity.
 
-- add_many([((x1, y1), spec1), ...]): place multiple entities.
+- `add_many([((x1, y1), spec1), ...])`: place multiple entities.
 
-- remove((x, y), spec): remove by object identity (returns bool).
+- `remove((x, y), spec)`: remove by object identity (returns bool).
 
-- remove_if((x, y), predicate): remove all matching objects (returns count).
+- `remove_if((x, y), predicate)`: remove all matching objects (returns count).
 
-- move_obj(from_pos, spec, to_pos): move a specific object between cells.
+- `move_obj(from_pos, spec, to_pos)`: move a specific object between cells.
 
-- clear_cell((x, y)): remove all objects in a cell.
+- `clear_cell((x, y))`: remove all objects in a cell.
 
-- objects_at((x, y)): get a shallow copy of the cell’s objects.
+- `objects_at((x, y))`: get a shallow copy of the cell’s objects.
 
 Example:
 ```python
@@ -96,43 +96,43 @@ for y in range(h):
 
 ## Placing entities with factories
 
-Factories create EntitySpec with sensible defaults. Common ones:
+Factories create `EntitySpec` with sensible defaults. Common ones:
 
 Tiles:
 
-- create_floor(cost_amount=1): background tile with Cost applied post-step.
+- `create_floor(cost_amount=1)`: background tile with `Cost` applied post-step.
 
-- create_wall(): background tile with Blocking.
+- `create_wall()`: background tile with `Blocking`.
 
 Player and items:
 
-- create_agent(health=5): agent with Inventory and Status.
+- `create_agent(health=5)`: agent with `Inventory` and `Status`.
 
-- create_coin(reward: Optional[int]): collectible; Rewardable if reward provided.
+- `create_coin(reward: Optional[int])`: `Collectible`; `Rewardable` if reward provided.
 
-- create_core(reward: Optional[int], required=True): collectible; often Required.
+- `create_core(reward: Optional[int], required=True)`: collectible; often `Required`.
 
 Doors and portals:
 
-- create_key(key_id): collectible item with Key(key_id).
+- `create_key(key_id)`: collectible item with `Key(key_id)`.
 
-- create_door(key_id): Blocking + Locked(key_id).
+- `create_door(key_id)`: `Blocking` + `Locked(key_id)`.
 
-- create_portal(pair=None): portal; pair both ends using authoring refs (see “Wiring”).
+- `create_portal(pair=None)`: portal; pair both ends using authoring refs (see “Wiring”).
 
 Objects and hazards:
 
-- create_box(pushable=True): Blocking + Collidable; optionally Pushable.
+- `create_box(pushable=True)`: `Blocking` + `Collidable`; optionally `Pushable`.
 
-- create_hazard(appearance, damage, lethal=False, priority=7): e.g., SPIKE or LAVA tile.
+- `create_hazard(appearance, damage, lethal=False, priority=7)`: e.g., `SPIKE` or `LAVA` tile.
 
 Effects (powerups):
 
-- create_speed_effect(multiplier, time=None, usage=None)
+- `create_speed_effect(multiplier, time=None, usage=None)`
 
-- create_immunity_effect(time=None, usage=None)
+- `create_immunity_effect(time=None, usage=None)`
 
-- create_phasing_effect(time=None, usage=None)
+- `create_phasing_effect(time=None, usage=None)`
 
 Minimal placement:
 ```python
@@ -146,21 +146,21 @@ level.add((5, 3), create_exit())
 
 ## Appearance, priority, and layering
 
-Rendering uses the Appearance component to decide what to draw and how to layer:
+Rendering uses the `Appearance` component to decide what to draw and how to layer:
 
-- background=True: background tiles; exactly one background is chosen per cell for rendering.
+- `background=True`: background tiles; exactly one background is chosen per cell for rendering.
 
-- icon=True: corner overlays; up to four icons are drawn with subicon scaling.
+- `icon=True`: corner overlays; up to four icons are drawn with subicon scaling.
 
-- priority: resolves ordering; lower numeric priority is considered “more foreground” for main object, while backgrounds use highest numeric priority among backgrounds.
+- `priority`: resolves ordering; lower numeric priority is considered “more foreground” for main object, while backgrounds use highest numeric priority among backgrounds.
 
 Rules used by the texture renderer:
 
-- Background: chooses the item with background=True and the lowest priority after sorting descending (i.e., visually behind).
+- Background: chooses the item with `background=True` and the lowest priority after sorting descending (i.e., visually behind).
 
 - Main: among non-backgrounds, chooses the highest priority (lowest number).
 
-- Corner icons: up to four icon=True objects (by top priority).
+- Corner icons: up to four `icon=True` objects (by top priority).
 
 - Others: remaining non-background, non-icon items are drawn behind the main but above background.
 
@@ -214,16 +214,16 @@ Notes:
 
 - Wiring is resolved only if both referenced objects are actually placed on the grid at conversion time.
 
-- from_state restores authoring refs for positioned entities where possible.
+- `from_state` restores authoring refs for positioned entities where possible.
 
 
 ## Inventory and Status (nested entities)
 
-You can pre-load items and effects onto a holder (e.g., the agent) via authoring-only lists on EntitySpec:
+You can pre-load items and effects onto a holder (e.g., the agent) via authoring-only lists on `EntitySpec`:
 
-- inventory_list: list of EntitySpec that become separate item entities in the holder’s Inventory.item_ids. These nested entities are created with no Position.
+- `inventory_list`: list of `EntitySpec` that become separate item entities in the holder’s `Inventory.item_ids`. These nested entities are created with no `Position`.
 
-- status_list: list of EntitySpec that become separate effect entities in the holder’s Status.effect_ids. Also created with no Position.
+- `status_list`: list of `EntitySpec` that become separate effect entities in the holder’s `Status.effect_ids`. Also created with no `Position`.
 
 Example: Start with a key and a time-limited speed effect
 ```python
@@ -237,38 +237,47 @@ level.add((1, 1), agent)
 
 Merging behavior:
 
-- If the holder already has an Inventory/Status component, the lists are merged into it.
+- If the holder already has an `Inventory`/`Status` component, the lists are merged into it.
 
-- If missing, an empty Inventory/Status is created and then populated.
+- If missing, an empty `Inventory`/`Status` is created and then populated.
 
 
 ## Conversion Level → State → Level (round-trip)
 
-To State (to_state)
+To State (`to_state`)
 
-- Each placed EntitySpec becomes a runtime entity with:
-  - A unique integer EntityID
-  - A Position component equal to the grid cell
-  - All authored components copied to the appropriate State stores
+- Each placed `EntitySpec` becomes a runtime entity with:
+
+  - A unique integer `EntityID`
+
+  - A `Position` component equal to the grid cell
+
+  - All authored components copied to the appropriate `State` stores
 
 - Authoring refs are resolved:
-  - Pathfinding target references → Pathfinding.target entity ID
-  - Portal pair references → mutual Portal(pair_entity=<eid>)
+
+  - Pathfinding target references → `Pathfinding.target` entity ID
+
+  - Portal pair references → mutual `Portal(pair_entity=<eid>)`
 
 - Nested lists are materialized:
-  - inventory_list/status_list become separate entities, referenced from Inventory/Status on the holder.
 
-From State (from_state)
+  - `inventory_list`/`status_list` become separate entities, referenced from `Inventory`/`Status` on the holder.
 
-- Rebuilds a Level with placed EntitySpec for entities that have Position.
+From State (`from_state`)
 
-- Restores inventory_list/status_list from Inventory.item_ids / Status.effect_ids.
+- Rebuilds a `Level` with placed `EntitySpec` for entities that have `Position`.
 
-- Restores authoring refs for Pathfinding targets and portal pairs when both ends are positioned.
+- Restores `inventory_list`/`status_list` from `Inventory.item_ids` / `Status.effect_ids`.
+
+- Restores authoring refs for `Pathfinding` targets and portal pairs when both ends are positioned.
 
 - Useful for:
+
   - Inspecting/editing a runtime State
+
   - Saving/loading editor views
+
   - Debugging placements
 
 Example round-trip:
@@ -352,17 +361,17 @@ level.add((1, 1), agent)
 
 ## Determinism and reproducibility
 
-- Level(seed=...): store a seed for procedural generation or deterministic behavior.
+- `Level(seed=...)`: store a seed for procedural generation or deterministic behavior.
 
-- Systems may derive randomness from (state.seed, state.turn), e.g., windy_move_fn.
+- Systems may derive randomness from `(state.seed, state.turn)`, e.g., `windy_move_fn`.
 
-- The texture renderer uses State.seed to choose a file variation from a directory (if a texture map entry points to a folder).
+- The texture renderer uses `State.seed` to choose a file variation from a directory (if a texture map entry points to a folder).
 
 Best practices:
 
 - Always pass a seed for repeatable layouts and runs.
 
-- Keep deterministic ordering when placing from lists (shuffle with a local rng seeded by Level.seed when you want variety that is still repeatable).
+- Keep deterministic ordering when placing from lists (shuffle with a local RNG seeded by `Level.seed` when you want variety that is still repeatable).
 
 
 ## Debugging and validation
@@ -393,9 +402,9 @@ for k, v in desc.items():
 
 Validate a minimal playable state:
 
-- Ensure at least one Agent with a Position exists.
+- Ensure at least one `Agent` with a `Position` exists.
 
-- Ensure the objective is attainable (e.g., required cores exist and an Exit is reachable).
+- Ensure the objective is attainable (e.g., required cores exist and an `Exit` is reachable).
 
 - Use the renderer for a quick visual sanity check.
 
@@ -404,45 +413,45 @@ Validate a minimal playable state:
 
 Q: My portal pair didn’t wire up.
 
-- Ensure both ends are placed in the Level prior to to_state.
+- Ensure both ends are placed in the `Level` prior to `to_state`.
 
-- Use create_portal(pair=other) or set portal_pair_ref on both ends.
+- Use `create_portal(pair=other)` or set `portal_pair_ref` on both ends.
 
-- from_state only restores refs if both ends have Position.
+- `from_state` only restores refs if both ends have `Position`.
 
 Q: Items/effects disappear after pickup.
 
-- Collectibles are removed from world (position/collectible maps) when collected, and referenced from Inventory/Status on the collector.
+- `Collectible`s are removed from world (`position`/`collectible` maps) when collected, and referenced from `Inventory`/`Status` on the collector.
 
-- This is expected; use State.inventory or State.status to find collected items/effects.
+- This is expected; use `State.inventory` or `State.status` to find collected items/effects.
 
 Q: The main object in a cell isn’t the one I expected.
 
-- Check Appearance.priority and flags. Background tiles should have higher numeric priority (e.g., 10), foreground actors lower (e.g., 1–4). Only one background is drawn; main object is the non-background with highest priority (lowest number).
+- Check `Appearance.priority` and flags. Background tiles should have higher numeric priority (e.g., 10), foreground actors lower (e.g., 1–4). Only one background is drawn; main object is the non-background with highest priority (lowest number).
 
 Q: A push fails even though the next cell is free.
 
-- push_system computes destination from current_pos → next_pos. If the destination is out of bounds or blocked (Blocking/Pushable/Collidable unless phasing applies), the push won’t occur.
+- `push_system` computes destination from `current_pos → next_pos`. If the destination is out of bounds or blocked (`Blocking`/`Pushable`/`Collidable` unless phasing applies), the push won’t occur.
 
 Q: Pathfinding enemies don’t move.
 
-- Ensure the enemy has Pathfinding with a valid target (wired via authoring ref or directly in components).
+- Ensure the enemy has `Pathfinding` with a valid target (wired via authoring ref or directly in components).
 
 - Moving/pathfinding occurs each step before the agent moves.
 
-- They obey bounds and Blocking (collidable is ignored for pathfinding movement checks).
+- They obey bounds and `Blocking` (collidable is ignored for pathfinding movement checks).
 
 Q: My effect never triggers or expires.
 
-- For time-limited effects: TimeLimit ticks each turn (status_tick_system).
+- For time-limited effects: `TimeLimit` ticks each turn (`status_tick_system`).
 
-- For usage-limited effects: usage decrements only when the effect is actually used (e.g., Speed multiplies movement; Phasing to ignore Blocking; Immunity negates a damage instance).
+- For usage-limited effects: usage decrements only when the effect is actually used (e.g., `Speed` multiplies movement; `Phasing` to ignore `Blocking`; `Immunity` negates a damage instance).
 
 
 ## Next steps
 
-- See “Movement and Objectives” for configuring MoveFn/ObjectiveFn and speed/phasing/immunity behaviors.
+- See “Movement and Objectives” for configuring `MoveFn`/`ObjectiveFn` and speed/phasing/immunity behaviors.
 
-- See “Rendering” for texture maps, recoloring groups (keys/doors by key_id, portal pairs), and moving overlays.
+- See “Rendering” for texture maps, recoloring groups (keys/doors by `key_id`, portal pairs), and moving overlays.
 
 - Explore “Examples: Procedural maze” for a complete generator that populates a diverse level with controlled randomness.

@@ -19,13 +19,13 @@ Contents
 
 ## Overview and capabilities
 
-- Class: grid_universe.gym_env.GridUniverseEnv
+- Class: `grid_universe.gym_env.GridUniverseEnv`
 
 - Compatible with Gymnasium (supports reset, step, render, action/observation spaces).
 
 - Observation includes:
   
-    - An RGBA image (texture-rendered snapshot of State).
+    - An RGBA image (texture-rendered snapshot of `State`).
   
     - A structured info dict (agent health/effects/inventory, score/phase/turn, config metadata).
 
@@ -35,15 +35,15 @@ Contents
 
 - Termination and truncation:
   
-    - terminated is True if the environment reaches a “win” condition.
+    - `terminated` is True if the environment reaches a “win” condition.
   
-    - truncated is True if the agent reaches a “lose” condition (e.g., dead). Use this as a failure terminal for RL.
+    - `truncated` is True if the agent reaches a “lose” condition (e.g., dead). Use this as a failure terminal for RL.
 
 - Rendering:
   
-    - Texture mode returns a PIL.Image (RGBA).
+    - Texture mode returns a `PIL.Image` (RGBA).
   
-    - Human mode shows a window via PIL.Image.show() (blocking view on some platforms).
+    - Human mode shows a window via `PIL.Image.show()` (blocking view on some platforms).
 
 
 ## Initialization and configuration
@@ -72,112 +72,112 @@ obs, info = env.reset()
 
 ## Observation and action spaces
 
-- Spaces are defined in __init__. The observation is a dict with:
+- Spaces are defined in `__init__`. The observation is a dict with:
   
-    - image: Box(low=0, high=255, shape=(H, W, 4), dtype=uint8)
+    - `image`: `Box(low=0, high=255, shape=(H, W, 4), dtype=uint8)`
   
-    - info: Dict with nested Dicts for agent, status, config (see below)
+    - `info`: `Dict` with nested dicts for `agent`, `status`, `config` (see below)
 
-- agent sub-dict:
+- `agent` sub-dict:
 
-    - health: { health: int | -1, max_health: int | -1 }
+    - `health`: `{ health: int | -1, max_health: int | -1 }`
   
-    - effects: sequence of effect entries:
+    - `effects`: sequence of effect entries:
       
-        - id: int
+        - `id`: int
         
-        - type: "", "IMMUNITY", "PHASING", "SPEED"
+        - `type`: "", "IMMUNITY", "PHASING", "SPEED"
         
-        - limit_type: "", "TIME", "USAGE"
+        - `limit_type`: "", "TIME", "USAGE"
         
-        - limit_amount: int (or -1)
+        - `limit_amount`: int (or -1)
         
-        - multiplier: int (SPEED only; -1 otherwise)
+        - `multiplier`: int (SPEED only; -1 otherwise)
   
-    - inventory: sequence of item entries:
+    - `inventory`: sequence of item entries:
       
-        - id: int
+        - `id`: int
         
-        - type: "item" | "key" | "core" | "coin"
+        - `type`: "item" | "key" | "core" | "coin"
         
-        - key_id: str ("" if N/A)
+        - `key_id`: str ("" if N/A)
         
-        - appearance_name: str ("" if unknown)
+        - `appearance_name`: str ("" if unknown)
 
-- status sub-dict:
+- `status` sub-dict:
 
-    - score: int
+    - `score`: int
     
-    - phase: "ongoing" | "win" | "lose"
+    - `phase`: "ongoing" | "win" | "lose"
     
-    - turn: int
+    - `turn`: int
 
-- config sub-dict:
+- `config` sub-dict:
 
-    - move_fn: str (function name)
+    - `move_fn`: str (function name)
     
-    - objective_fn: str (function name)
+    - `objective_fn`: str (function name)
     
-    - seed: int (or -1)
+    - `seed`: int (or -1)
     
-    - width: int
+    - `width`: int
     
-    - height: int
+    - `height`: int
 
 - Action space:
 
-    - Discrete(len(Action)) with Action enum order (UP, DOWN, LEFT, RIGHT, USE_KEY, PICK_UP, WAIT)
+    - `Discrete(len(Action))` with Action enum order (UP, DOWN, LEFT, RIGHT, USE_KEY, PICK_UP, WAIT)
     
     - Index mapping:
       
-        - 0 → UP
+        - `0 → UP`
         
-        - 1 → DOWN
+        - `1 → DOWN`
         
-        - 2 → LEFT
+        - `2 → LEFT`
         
-        - 3 → RIGHT
+        - `3 → RIGHT`
         
-        - 4 → USE_KEY
+        - `4 → USE_KEY`
         
-        - 5 → PICK_UP
+        - `5 → PICK_UP`
         
-        - 6 → WAIT
+        - `6 → WAIT`
 
 
 ## Reset/step/render lifecycle
 
-- reset(seed=None, options=None):
+- `reset(seed=None, options=None)`:
 
-    - Generates a new State using initial_state_fn(**kwargs) from constructor.
+    - Generates a new `State` using `initial_state_fn(**kwargs)` from constructor.
   
-    - Selects the first agent_id by default.
+    - Selects the first `agent_id` by default.
   
-    - Builds or reuses TextureRenderer for rendering.
+    - Builds or reuses `TextureRenderer` for rendering.
   
     - Returns observation dict and info dict (currently empty).
 
-- step(action: np.integer):
+- `step(action: np.integer)`:
 
-    - Converts integer action to Action enum via ordering.
+    - Converts integer action to `Action` enum via ordering.
   
-    - Applies grid_universe.step.step to advance the State.
+    - Applies `grid_universe.step.step` to advance the `State`.
   
-    - Computes reward = new_score − old_score.
+    - Computes `reward = new_score − old_score`.
   
-    - terminated = state.win; truncated = state.lose.
+    - `terminated = state.win`; `truncated = state.lose`.
   
-    - Returns (obs, reward, terminated, truncated, info).
+    - Returns `(obs, reward, terminated, truncated, info)`.
 
-- render(mode=None):
+- `render(mode=None)`:
 
-    - Returns a PIL.Image if mode (or render_mode) is "texture".
+    - Returns a `PIL.Image` if mode (or `render_mode`) is `"texture"`.
   
-    - Calls img.show() and returns None if "human".
+    - Calls `img.show()` and returns `None` if `"human"`.
   
-    - Raises NotImplementedError for unknown mode.
+    - Raises `NotImplementedError` for unknown mode.
 
-- close():
+- `close()`:
 
     - No-op (reserved for compatibility).
 
@@ -203,9 +203,9 @@ img.save("episode_last_frame.png")
 
 ## Seeding and determinism
 
-- Pass seed to GridUniverseEnv to forward to the generator (examples.maze.generate), which sets State.seed.
+- Pass `seed` to `GridUniverseEnv` to forward to the generator (`examples.maze.generate`), which sets `State.seed`.
 
-- Some movement functions (e.g., windy_move_fn) and the renderer’s directory-based texture choice use (state.seed, state.turn) for deterministic randomness.
+- Some movement functions (e.g., `windy_move_fn`) and the renderer’s directory-based texture choice use `(state.seed, state.turn)` for deterministic randomness.
 
 - For strict reproducibility:
   
@@ -213,14 +213,14 @@ img.save("episode_last_frame.png")
   
     - Avoid non-deterministic policies during tests, or seed the policy RNG.
 
-- Gymnasium’s reset(seed=...) param: The current env ignores the reset call’s seed and uses the constructor’s seed forwarded to the generator. If you need per-episode seeding, set it on construction time or implement a custom initial_state_fn that reads a seed passed via options and propagate it in reset.
+- Gymnasium’s `reset(seed=...)` param: The current env ignores the reset call’s seed and uses the constructor’s seed forwarded to the generator. If you need per-episode seeding, set it on construction time or implement a custom `initial_state_fn` that reads a seed passed via `options` and propagate it in `reset`.
 
 
 ## Using custom generators and renderers
 
-- Custom initial_state_fn:
+- Custom `initial_state_fn`:
 
-    - Provide a function that returns a grid_universe.state.State, and pass it as initial_state_fn.
+    - Provide a function that returns a `grid_universe.state.State`, and pass it as `initial_state_fn`.
   
     - All extra kwargs are forwarded to that function.
 
@@ -251,7 +251,7 @@ obs, info = env.reset()
 
 - Custom texture map or resolution:
 
-    - The env stores a TextureRenderer internally. To customize rendering globally, supply render_resolution and render_texture_map in constructor.
+    - The env stores a `TextureRenderer` internally. To customize rendering globally, supply `render_resolution` and `render_texture_map` in constructor.
 
 ```python
 from grid_universe.renderer.texture import DEFAULT_TEXTURE_MAP
@@ -269,11 +269,11 @@ env = GridUniverseEnv(
 
 - Gym wrappers:
 
-    - You can wrap GridUniverseEnv with standard Gymnasium wrappers (FrameStack, GrayScaleObservation, ResizeObservation, etc.). Many wrappers expect numeric arrays from render; here image is provided via obs["image"], not returned by render() on step. Wrap the observation key you need.
+    - You can wrap `GridUniverseEnv` with standard Gymnasium wrappers (FrameStack, GrayScaleObservation, ResizeObservation, etc.). Many wrappers expect numeric arrays from render; here image is provided via `obs["image"]`, not returned by `render()` on step. Wrap the observation key you need.
 
 - Observation key selection:
 
-    - Use a custom wrapper to replace obs with obs["image"] or to add embeddings of info if your agent expects a simpler observation.
+    - Use a custom wrapper to replace `obs` with `obs["image"]` or to add embeddings of `info` if your agent expects a simpler observation.
 
 Example wrapper to expose only the image as observation:
 
@@ -296,18 +296,18 @@ class ImageOnlyWrapper(gym.ObservationWrapper):
 
 - Vectorized envs:
 
-    - Use Gymnasium’s SyncVectorEnv/AsyncVectorEnv to run multiple instances. Ensure each one has its own seed and independent initial_state_fn kwargs.
+    - Use Gymnasium’s `SyncVectorEnv`/`AsyncVectorEnv` to run multiple instances. Ensure each one has its own seed and independent `initial_state_fn` kwargs.
 
 - RL libraries:
 
-    - Stable-Baselines3: Works with Gymnasium compatibility wrappers. Ensure the observation is a Box; consider ImageOnlyWrapper above.
+    - Stable-Baselines3: Works with Gymnasium compatibility wrappers. Ensure the observation is a Box; consider `ImageOnlyWrapper` above.
 
     - CleanRL / RLlib: Similar considerations; ensure observation shape/dtype matches the algorithm’s expectations.
 
 
 ## Recording videos and logging
 
-- Because render(mode="texture") returns a PIL.Image, you can manually record frames and assemble a GIF or MP4.
+- Because `render(mode="texture")` returns a `PIL.Image`, you can manually record frames and assemble a GIF or MP4.
 
 Record frames:
 
@@ -357,13 +357,13 @@ with iio.get_writer("episode.mp4", fps=5) as w:
 
 - Termination:
 
-    - terminated (win) is True if objective function is satisfied.
+    - `terminated` (win) is True if objective function is satisfied.
 
-    - truncated (lose) is True if the agent dies or lose condition is set. Treat both as episode terminal in RL loops.
+    - `truncated` (lose) is True if the agent dies or lose condition is set. Treat both as episode terminal in RL loops.
 
 - Shaping strategies:
 
-    - Add dense signals (e.g., distance-to-goal) via a wrapper; do not modify State directly. Keep the environment source reward consistent and add shaped terms externally for clarity and reproducibility.
+    - Add dense signals (e.g., distance-to-goal) via a wrapper; do not modify `State` directly. Keep the environment source reward consistent and add shaped terms externally for clarity and reproducibility.
 
 
 ## Examples (end-to-end)
@@ -419,15 +419,15 @@ model.learn(total_timesteps=1000)
 
 - “Render returns None”:
 
-    - render_mode must be "texture" to return PIL.Image. In "human", it calls show() and returns None.
+    - `render_mode` must be `"texture"` to return `PIL.Image`. In `"human"`, it calls `show()` and returns `None`.
 
 - “Observations are not images”:
 
-    - The observation is a dict with "image" and "info". If your agent expects only an array, wrap to extract obs["image"].
+    - The observation is a dict with `"image"` and `"info"`. If your agent expects only an array, wrap to extract `obs["image"]`.
 
 - “Episodes never end”:
 
-    - Confirm your objective function can be satisfied (or lose condition can occur). Check obs["info"]["status"]["phase"] and "turn".
+    - Confirm your objective function can be satisfied (or lose condition can occur). Check `obs["info"]["status"]["phase"]` and `"turn"`.
 
 - “Multiple envs have identical layouts”:
 
@@ -437,14 +437,14 @@ model.learn(total_timesteps=1000)
 
     - Reuse env instances across episodes.
   
-    - Reduce render_resolution.
+    - Reduce `render_resolution`.
   
-    - Consider skipping render() during training and only render evaluation episodes.
+    - Consider skipping `render()` during training and only render evaluation episodes.
 
 - “Texture map not applied”:
 
-    - Ensure render_texture_map is passed at construction, and that asset paths resolve under asset_root.
+    - Ensure `render_texture_map` is passed at construction, and that asset paths resolve under `asset_root`.
 
 - “Gym wrapper errors about spaces”:
 
-    - The base observation is a Dict space; ensure your wrappers adapt it to the expected shape (e.g., ImageOnlyWrapper).
+    - The base observation is a `Dict` space; ensure your wrappers adapt it to the expected shape (e.g., `ImageOnlyWrapper`).

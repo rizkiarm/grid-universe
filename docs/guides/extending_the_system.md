@@ -1,6 +1,6 @@
 # Extending the System
 
-This guide explains how to add new components, systems, movement/objective functions, rendering rules, and authoring-time factories to Grid Universe. It walks through the required code changes, ordering in the step() lifecycle, testing strategies, and common pitfalls.
+This guide explains how to add new components, systems, movement/objective functions, rendering rules, and authoring-time factories to Grid Universe. It walks through the required code changes, ordering in the `step()` lifecycle, testing strategies, and common pitfalls.
 
 Contents
 
@@ -9,10 +9,10 @@ Contents
 - Mapping components for authoring and runtime
 - Creating factories (authoring-time helpers)
 - Implementing a new system
-- Wiring the system into the step() lifecycle
+- Wiring the system into the `step()` lifecycle
 - Rendering integration (textures, grouping, recolor)
-- Adding a new MoveFn
-- Adding a new ObjectiveFn
+- Adding a new `MoveFn`
+- Adding a new `ObjectiveFn`
 - Serialization and conversion considerations
 - Testing and determinism
 - Performance and maintenance tips
@@ -20,27 +20,27 @@ Contents
 
 ## Extension points overview
 
-Grid Universe is built on ECS (Entity-Component-System). You can extend it by:
+Grid Universe is built on ECS (Entity–Component–System). You can extend it by:
 
 - Components
 
-    - New “property” components (e.g., BouncePad, PoisonCloud).
+    - New “property” components (e.g., `BouncePad`, `PoisonCloud`).
 
-    - New “effect” components (e.g., Slow, DoubleScore).
+    - New “effect” components (e.g., `Slow`, `DoubleScore`).
 
 - Systems
 
-    - Pure functions State -> State that read/write relevant component maps.
+    - Pure functions `State -> State` that read/write relevant component maps.
 
 - Movement and objectives
 
-    - MoveFn: different movement semantics.
+    - `MoveFn`: different movement semantics.
 
-    - ObjectiveFn: new win conditions.
+    - `ObjectiveFn`: new win conditions.
 
 - Authoring-time tooling
 
-    - EntitySpec fields and Level factories for convenient content creation.
+    - `EntitySpec` fields and `Level` factories for convenient content creation.
 
 - Rendering
 
@@ -48,7 +48,7 @@ Grid Universe is built on ECS (Entity-Component-System). You can extend it by:
 
 - Gym environment integration
 
-    - Use a custom initial_state_fn for your levels; no changes to env class needed.
+    - Use a custom `initial_state_fn` for your levels; no changes to env class needed.
 
 
 ## Adding a new component
@@ -57,7 +57,7 @@ Suppose we want a “BouncePad” tile that pushes the agent forward an extra st
 
 1) Create the component dataclass
 
-- Place it under grid_universe/components/properties if it is a property, or grid_universe/components/effects if it is an effect.
+- Place it under `grid_universe/components/properties` if it is a property, or `grid_universe/components/effects` if it is an effect.
 
 ```python
 # grid_universe/components/properties/bounce_pad.py
@@ -70,11 +70,11 @@ class BouncePad:
 
 2) Export it
 
-- Export from grid_universe/components/properties/__init__.py and grid_universe/components/__init__.py.
+- Export from `grid_universe/components/properties/__init__.py` and `grid_universe/components/__init__.py`.
 
 3) Add it to State
 
-- Add a PMap field keyed by EntityID in grid_universe/state.py.
+- Add a `PMap` field keyed by `EntityID` in `grid_universe/state.py`.
 
 ```python
 # grid_universe/state.py (extract)
@@ -91,7 +91,7 @@ class State:
 
 4) Map it for authoring
 
-- Add an entry to COMPONENT_TO_FIELD in grid_universe/levels/entity_spec.py.
+- Add an entry to `COMPONENT_TO_FIELD` in `grid_universe/levels/entity_spec.py`.
 
 ```python
 # grid_universe/levels/entity_spec.py (extract)
@@ -112,24 +112,24 @@ COMPONENT_TO_FIELD = {
 
 ## Mapping components for authoring and runtime
 
-- Authoring-time EntitySpec is a bag of optional component fields (None means absent).
+- Authoring-time `EntitySpec` is a bag of optional component fields (`None` means absent).
 
-- Conversion to State (levels.convert.to_state):
+- Conversion to State (`levels.convert.to_state`):
 
-    - Entities placed on the Level grid become runtime entities with Position.
+    - Entities placed on the Level grid become runtime entities with `Position`.
 
-    - Fields present on EntitySpec are copied into the corresponding State component stores.
+    - Fields present on `EntitySpec` are copied into the corresponding State component stores.
 
-- Conversion from State (levels.convert.from_state):
+- Conversion from State (`levels.convert.from_state`):
 
-    - Positioned entities are reconstructed into EntitySpec with components set from State fields.
+    - Positioned entities are reconstructed into `EntitySpec` with components set from State fields.
 
     - Inventory/status lists are reconstructed as authoring-only nested lists.
 
 
 ## Creating factories (authoring-time helpers)
 
-Add a helper in levels/factories.py to quickly create your object with sensible defaults.
+Add a helper in `levels/factories.py` to quickly create your object with sensible defaults.
 
 ```python
 # grid_universe/levels/factories.py (extract)
@@ -146,22 +146,22 @@ def create_bounce_pad(strength: int = 1, priority: int = 6) -> EntitySpec:
 
 Notes:
 
-- For new tiles with blocking behavior, include Blocking.
+- For new tiles with blocking behavior, include `Blocking`.
 
-- For damage-like hazards, add Damage and optionally LethalDamage.
+- For damage-like hazards, add `Damage` and optionally `LethalDamage`.
 
-- For collectables, add Collectible and optionally Rewardable.
+- For collectables, add `Collectible` and optionally `Rewardable`.
 
 
 ## Implementing a new system
 
-Systems are small, pure functions that transform State. Let’s implement a bounce_pad_system that, after a successful agent move, pushes the agent forward by BouncePad.strength steps in the same direction of travel.
+Systems are small, pure functions that transform State. Let’s implement a `bounce_pad_system` that, after a successful agent move, pushes the agent forward by `BouncePad.strength` steps in the same direction of travel.
 
 Key decision: where to hook
 
-- Since this depends on the last move direction, we should run after movement_system within each submove (i.e., inside the per-substep suite) or derive direction from prev_position → position.
+- Since this depends on the last move direction, we should run after `movement_system` within each submove (i.e., inside the per-substep suite) or derive direction from `prev_position → position`.
 
-- A simple approach: compute direction from (prev_position[agent] -> position[agent]) for the current step.
+- A simple approach: compute direction from `(prev_position[agent] -> position[agent])` for the current step.
 
 ```python
 # grid_universe/systems/bounce_pad.py
@@ -209,24 +209,24 @@ def bounce_pad_system(state: State, agent_id: EntityID) -> State:
 
 Notes:
 
-- We used prev_position to derive direction. Ensure position_system ran earlier this step.
+- We used `prev_position` to derive direction. Ensure `position_system` ran earlier this step.
 
-- We used is_blocked_at with check_collidable=False to mirror movement_system’s blocking rule.
+- We used `is_blocked_at` with `check_collidable=False` to mirror `movement_system`’s blocking rule.
 
 - For multi-agent or NPC effects, loop over all relevant entities.
 
 
-## Wiring the system into the step() lifecycle
+## Wiring the system into the `step()` lifecycle
 
-The step() lifecycle (grid_universe/step.py) calls:
+The `step()` lifecycle (`grid_universe/step.py`) calls:
 
-- Pre: position_system → moving_system → pathfinding_system → status_tick_system → trail_system
+- Pre: `position_system → moving_system → pathfinding_system → status_tick_system → trail_system`
 
-- Per-submove (for MOVE actions): push_system → movement_system → portal_system → damage_system → tile_reward_system
+- Per-submove (for MOVE actions): `push_system → movement_system → portal_system → damage_system → tile_reward_system`
 
-- Post: status_gc_system → tile_cost_system → win_system → lose_system → turn++ → run_garbage_collector
+- Post: `status_gc_system → tile_cost_system → win_system → lose_system → turn++ → run_garbage_collector`
 
-To include bounce_pad_system after each submove, insert it into _after_substep:
+To include `bounce_pad_system` after each submove, insert it into `_after_substep`:
 
 ```python
 # grid_universe/step.py (extract)
@@ -247,16 +247,16 @@ Ordering rationale:
 
 Alternative hooks:
 
-- If your system must happen only once per action, add it to _after_step.
+- If your system must happen only once per action, add it to `_after_step`.
 
-- If it changes world tiles before movement, place it before moving_system (rare).
+- If it changes world tiles before movement, place it before `moving_system` (rare).
 
 
 ## Rendering integration (textures, grouping, recolor)
 
-- Add a texture entry for your new appearance or reuse existing ones in renderer.texture.DEFAULT_TEXTURE_MAP.
+- Add a texture entry for your new appearance or reuse existing ones in `renderer.texture.DEFAULT_TEXTURE_MAP`.
 
-- If you want group-based recoloring (like keys/doors, portals), add a GroupRule that assigns a group ID string to your entities and the renderer will recolor via apply_recolor_if_group.
+- If you want group-based recoloring (like keys/doors, portals), add a `GroupRule` that assigns a group ID string to your entities and the renderer will recolor via `apply_recolor_if_group`.
 
 Example: color all BouncePads by strength bucket
 
@@ -274,16 +274,16 @@ def bounce_pad_group_rule(state: State, eid: EntityID) -> Optional[str]:
     return None
 ```
 
-- To use this, pass a custom rules list to derive_groups in renderer.texture.render (copy and adapt the function if needed), appending your rule to DEFAULT_GROUP_RULES.
+- To use this, pass a custom rules list to `derive_groups` in `renderer.texture.render` (copy and adapt the function if needed), appending your rule to `DEFAULT_GROUP_RULES`.
 
-- For overlays: you can mimic draw_direction_triangles_on_image to add special glyphs on top of textures if the overlay depends on component state.
+- For overlays: you can mimic `draw_direction_triangles_on_image` to add special glyphs on top of textures if the overlay depends on component state.
 
 
-## Adding a new MoveFn
+## Adding a new `MoveFn`
 
-MoveFn signature: MoveFn(State, EntityID, Action) -> Sequence[Position]. The function proposes positions for a single high-level action.
+`MoveFn` signature: `MoveFn(State, EntityID, Action) -> Sequence[Position]`. The function proposes positions for a single high-level action.
 
-Example: “dash then drift” MoveFn
+Example: “dash then drift” `MoveFn`
 
 ```python
 from typing import Sequence
@@ -322,14 +322,14 @@ MOVE_FN_REGISTRY["dash_drift"] = dash_then_drift_move_fn
 
 Notes:
 
-- Do not enforce bounds/blocking inside the MoveFn; systems will handle that.
+- Do not enforce bounds/blocking inside the `MoveFn`; systems will handle that.
 
-- If you need randomness, derive it deterministically from (state.seed, state.turn).
+- If you need randomness, derive it deterministically from `(state.seed, state.turn)`.
 
 
-## Adding a new ObjectiveFn
+## Adding a new `ObjectiveFn`
 
-ObjectiveFn signature: ObjectiveFn(State, EntityID) -> bool. Return True to set win.
+`ObjectiveFn` signature: `ObjectiveFn(State, EntityID) -> bool`. Return `True` to set win.
 
 Example: “survive N turns and stand on exit”
 
@@ -371,18 +371,18 @@ Notes:
 
 ## Serialization and conversion considerations
 
-- to_state(level) copies present components; ensure your new component is included in COMPONENT_TO_FIELD and the State class.
+- `to_state(level)` copies present components; ensure your new component is included in `COMPONENT_TO_FIELD` and the `State` class.
 
-- from_state(state) reconstructs authoring-time EntitySpec for positioned entities; it will set your component field if present.
+- `from_state(state)` reconstructs authoring-time `EntitySpec` for positioned entities; it will set your component field if present.
 
-- Nested entities (inventory/effects) are handled via inventory_list/status_list. If your new effect is collectible, ensure collectible_system logic recognizes it via has_effect(state, eid).
+- Nested entities (inventory/effects) are handled via `inventory_list`/`status_list`. If your new effect is collectible, ensure `collectible_system` logic recognizes it via `has_effect(state, eid)`.
 
 
 ## Testing and determinism
 
 Unit tests
 
-- Components: verify round-trip Level -> State -> Level preserves your component fields.
+- Components: verify round-trip `Level -> State -> Level` preserves your component fields.
 
 - Systems: small, controlled State to test system behavior, including edge cases (OOB, blocked, zero strength).
 
@@ -390,7 +390,7 @@ Unit tests
 
 Determinism
 
-- Any randomness within new systems or MoveFns should be seeded by (state.seed, state.turn), e.g.:
+- Any randomness within new systems or `MoveFn`s should be seeded by `(state.seed, state.turn)`, e.g.:
 
 ```python
 import random
@@ -411,9 +411,9 @@ Coverage
 
 - Keep systems focused and cheap: read only required maps, write only what you change.
 
-- Reuse helper utilities (is_in_bounds, is_blocked_at, entities_with_components_at).
+- Reuse helper utilities (`is_in_bounds`, `is_blocked_at`, `entities_with_components_at`).
 
-- Respect existing blocking rules (movement ignores Collidable; Blocking blocks).
+- Respect existing blocking rules (movement ignores `Collidable`; `Blocking` blocks).
 
 - Think about where your system sits in the lifecycle for best UX and correctness.
 
@@ -431,10 +431,10 @@ Coverage
 
 - Versioning:
 
-    - If you change step() ordering or semantics, note it in the Changelog and bump a minor/major version as appropriate.
+    - If you change `step()` ordering or semantics, note it in the Changelog and bump a minor/major version as appropriate.
 
 
-## Additional example: PoisonCloud (damage over time)
+## Additional example: `PoisonCloud` (damage over time)
 
 Define the component:
 
@@ -447,7 +447,7 @@ class PoisonCloud:
     amount: int = 1  # damage per substep
 ```
 
-Add to State, map in EntitySpec, export in __init__. Then implement a system:
+Add to State, map in `EntitySpec`, export in `__init__`. Then implement a system:
 
 ```python
 # grid_universe/systems/poison.py
@@ -473,12 +473,12 @@ def poison_system(state: State, agent_id: EntityID) -> State:
     return state
 ```
 
-Hook into _after_substep so the damage applies right after movement/portal. Adjust order with damage_system if you want stacking or precedence.
+Hook into `_after_substep` so the damage applies right after movement/portal. Adjust order with `damage_system` if you want stacking or precedence.
 
 
 ## Additional example: Renderer grouping for your component
 
-If PoisonCloud instances should be tinted by intensity:
+If `PoisonCloud` instances should be tinted by intensity:
 
 ```python
 def poison_group_rule(state: State, eid: EntityID):
@@ -488,4 +488,4 @@ def poison_group_rule(state: State, eid: EntityID):
     return None
 ```
 
-Append to DEFAULT_GROUP_RULES (in your local render wrapper) so clouds of different strength get distinct hues while preserving texture tone.
+Append to `DEFAULT_GROUP_RULES` (in your local render wrapper) so clouds of different strength get distinct hues while preserving texture tone.

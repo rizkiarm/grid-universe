@@ -24,27 +24,27 @@ Contents
 
 - Code examples for common tasks live in the Functional API and Guides pages; this reference focuses on signatures and behavior.
 
-- Tip: If module headings are too large in the Table of Contents, set heading_level: 3 in mkdocs.yml under mkdocstrings options so modules render as H3 under these H2 sections.
+- Tip: If module headings are too large in the Table of Contents, set `heading_level: 3` in `mkdocs.yml` under mkdocstrings options so modules render as H3 under these H2 sections.
 
 
 ## Core
 
 ### State and stepping
 
-- grid_universe.state: Immutable State dataclass holding component stores, meta, and RNG seed.
+- `grid_universe.state`: Immutable State dataclass holding component stores, meta, and RNG seed.
 
-- grid_universe.step: The main reducer that applies one action and orchestrates all systems in the correct order.
+- `grid_universe.step`: The main reducer that applies one action and orchestrates all systems in the correct order.
 
 ::: grid_universe.state
 ::: grid_universe.step
 
 ### Actions and types
 
-- grid_universe.actions: Agent actions, including movement and non-movement (use key, pick up, wait); includes GymAction index mapping.
+- `grid_universe.actions`: Agent actions, including movement and non-movement (use key, pick up, wait); includes GymAction index mapping.
 
-- grid_universe.types: Core type aliases and enums used across the codebase (EntityID, MoveFn, ObjectiveFn, EffectType, EffectLimit).
+- `grid_universe.types`: Core type aliases and enums used across the codebase (`EntityID`, `MoveFn`, `ObjectiveFn`, `EffectType`, `EffectLimit`).
 
-- grid_universe.objectives: Built-in objective functions (default, collect, exit, unlock, push), plus a registry for selection by name.
+- `grid_universe.objectives`: Built-in objective functions (default, collect, exit, unlock, push), plus a registry for selection by name.
 
 ::: grid_universe.actions
 ::: grid_universe.types
@@ -82,7 +82,7 @@ Contents
 
 ### Effects and limits
 
-- Effect entities are referenced from Status.effect_ids and may include limits.
+- Effect entities are referenced from `Status.effect_ids` and may include limits.
 
 ::: grid_universe.components.effects.immunity
 ::: grid_universe.components.effects.phasing
@@ -96,13 +96,13 @@ Contents
 
 ### Movement, pathfinding, position
 
-- movement_system: Agent’s single-step application obeying Blocking unless Phasing is active.
+- `movement_system`: Agent’s single-step application obeying Blocking unless Phasing is active.
 
-- moving_system: Autonomous movers with axis/direction/speed/bounce.
+- `moving_system`: Autonomous movers with axis/direction/speed/bounce.
 
-- pathfinding_system: Greedy or A* pursuit.
+- `pathfinding_system`: Greedy or A* pursuit.
 
-- position_system: Snapshots positions into prev_position at turn start.
+- `position_system`: Snapshots positions into `prev_position` at turn start.
 
 ::: grid_universe.systems.movement
 ::: grid_universe.systems.moving
@@ -111,13 +111,13 @@ Contents
 
 ### Interactions (portal, damage, push, tile)
 
-- portal_system: Teleports collidable entrants to the paired portal.
+- `portal_system`: Teleports collidable entrants to the paired portal.
 
-- damage_system: Applies Damage/LethalDamage on co-location and cross paths; respects Immunity/Phasing.
+- `damage_system`: Applies Damage/LethalDamage on co-location and cross paths; respects Immunity/Phasing.
 
-- push_system: Pushes Pushable objects if destination is free; moves agent and pushable.
+- `push_system`: Pushes Pushable objects if destination is free; moves agent and pushable.
 
-- tile systems: Reward and Cost handling.
+- Tile systems: Reward and Cost handling.
 
 ::: grid_universe.systems.portal
 ::: grid_universe.systems.damage
@@ -126,9 +126,9 @@ Contents
 
 ### Status and terminal
 
-- status tick/gc: Decrement time limits and garbage-collect expired/orphaned effects.
+- Status tick/GC: Decrement time limits and garbage-collect expired/orphaned effects.
 
-- terminal: Win/lose conditions.
+- Terminal: Win/lose conditions.
 
 ::: grid_universe.systems.status
 ::: grid_universe.systems.terminal
@@ -185,9 +185,9 @@ Contents
 
 ### Authoring model and factories
 
-- Level: mutable grid of EntitySpec for authoring.
+- Level: mutable grid of `EntitySpec` for authoring.
 
-- EntitySpec: bag of components with authoring-only lists and wiring refs.
+- `EntitySpec`: bag of components with authoring-only lists and wiring refs.
 
 - Factories: ready-made objects (agent, floor, wall, key/door, portal, box, hazards, enemies, powerups).
 
@@ -197,9 +197,9 @@ Contents
 
 ### Conversion between Level and State
 
-- to_state: instantiate entities with Position; wire references; materialize nested lists.
+- `to_state`: instantiate entities with `Position`; wire references; materialize nested lists.
 
-- from_state: reconstruct authoring specs from positioned entities; restore lists and refs.
+- `from_state`: reconstruct authoring specs from positioned entities; restore lists and refs.
 
 ::: grid_universe.levels.convert
 
@@ -208,7 +208,7 @@ Contents
 
 ### Texture renderer
 
-- TextureRenderer: Compose background, main, corner icons; pick textures by (AppearanceName, properties); recolor groups; draw moving overlays.
+- `TextureRenderer`: Compose background, main, corner icons; pick textures by `(AppearanceName, properties)`; recolor groups; draw moving overlays.
 
 ::: grid_universe.renderer.texture
 
@@ -224,20 +224,20 @@ Contents
 
 ## Gym Environment
 
-- GridUniverseEnv: Gymnasium-compatible Env returning image observations and structured info; reward is delta score.
+- `GridUniverseEnv`: Gymnasium-compatible Env returning image observations and structured info; reward is delta score.
 
 ::: grid_universe.gym_env
 
 
 ## Registries and enums
 
-- Movement registry: Name → MoveFn.
+- Movement registry: Name → `MoveFn`.
 
-- Objective registry: Name → ObjectiveFn.
+- Objective registry: Name → `ObjectiveFn`.
 
-- Actions: string enum for core actions; GymAction int enum for compatibility.
+- Actions: string enum for core actions; `GymAction` int enum for compatibility.
 
-- EffectType and EffectLimit enums.
+- `EffectType` and `EffectLimit` enums.
 
 Reference snippets:
 
@@ -251,6 +251,8 @@ print(OBJECTIVE_FN_REGISTRY.keys())
 print(list(Action))
 print(list(GymAction))
 ```
+
+
 # Schemas and Data Shapes
 
 This page captures common data structures you may want to reference without digging into code: observation dicts from the Gym env, texture map keys/values, and group recoloring rules.
@@ -264,83 +266,83 @@ Contents
 
 ## Gym observation schema
 
-Observation (obs: Dict[str, Any]) returned by GridUniverseEnv:
+Observation (`obs: Dict[str, Any]`) returned by `GridUniverseEnv`:
 
-- image
+- `image`
 
-    - Type: numpy.ndarray
+    - Type: `numpy.ndarray`
 
-    - Shape: (H, W, 4), dtype=uint8 (RGBA)
+    - Shape: `(H, W, 4)`, `dtype=uint8` (RGBA)
 
-- info
+- `info`
 
-    - agent
+    - `agent`
 
-        - health
+        - `health`
 
-            - health: int or -1
+            - `health`: int or `-1`
 
-            - max_health: int or -1
+            - `max_health`: int or `-1`
 
-        - effects: list of effect entries
+        - `effects`: list of effect entries
 
-            - id: int
+            - `id`: int
 
-            - type: "", "IMMUNITY", "PHASING", "SPEED"
+            - `type`: "", "IMMUNITY", "PHASING", "SPEED"
 
-            - limit_type: "", "TIME", "USAGE"
+            - `limit_type`: "", "TIME", "USAGE"
 
-            - limit_amount: int or -1
+            - `limit_amount`: int or `-1`
 
-            - multiplier: int (SPEED only; -1 otherwise)
+            - `multiplier`: int (SPEED only; `-1` otherwise)
 
-        - inventory: list of item entries
+        - `inventory`: list of item entries
 
-            - id: int
+            - `id`: int
 
-            - type: "item" | "key" | "core" | "coin"
+            - `type`: "item" | "key" | "core" | "coin"
 
-            - key_id: str ("" if not a key)
+            - `key_id`: str ("" if not a key)
 
-            - appearance_name: str ("" if unknown)
+            - `appearance_name`: str ("" if unknown)
 
-    - status
+    - `status`
 
-        - score: int
+        - `score`: int
 
-        - phase: "ongoing" | "win" | "lose"
+        - `phase`: "ongoing" | "win" | "lose"
 
-        - turn: int
+        - `turn`: int
 
-    - config
+    - `config`
 
-        - move_fn: str (function name)
+        - `move_fn`: str (function name)
 
-        - objective_fn: str (function name)
+        - `objective_fn`: str (function name)
 
-        - seed: int (or -1)
+        - `seed`: int (or `-1`)
 
-        - width: int
+        - `width`: int
 
-        - height: int
+        - `height`: int
 
 Action space:
 
-- Discrete(7), mapping to Action enum indices:
+- `Discrete(7)`, mapping to `Action` enum indices:
 
-    - 0: UP
+    - `0`: UP
 
-    - 1: DOWN
+    - `1`: DOWN
 
-    - 2: LEFT
+    - `2`: LEFT
 
-    - 3: RIGHT
+    - `3`: RIGHT
 
-    - 4: USE_KEY
+    - `4`: USE_KEY
 
-    - 5: PICK_UP
+    - `5`: PICK_UP
 
-    - 6: WAIT
+    - `6`: WAIT
 
 Reward:
 
@@ -353,54 +355,54 @@ TextureMap entry key/value:
 
 - Key
 
-    - Tuple[AppearanceName, Tuple[str, ...]]
+    - `Tuple[AppearanceName, Tuple[str, ...]]`
 
-    - Example: (AppearanceName.BOX, ()), (AppearanceName.BOX, ("pushable",))
+    - Example: `(AppearanceName.BOX, ())`, `(AppearanceName.BOX, ("pushable",))`
 
 - Value
 
-    - str: path under asset_root to a file or directory
+    - `str`: path under `asset_root` to a file or directory
 
-    - If directory: renderer picks a deterministic file per state.seed
+    - If directory: renderer picks a deterministic file per `state.seed`
 
 Resolution:
 
-- Asset path = f"{asset_root}/{value}"
+- Asset path = `f"{asset_root}/{value}"`
 
-- File types: .png, .jpg, .jpeg, .gif
+- File types: `.png`, `.jpg`, `.jpeg`, `.gif`
 
 Property matching:
 
-- When rendering an entity, the renderer constructs the set of string “properties” for that entity based on which component maps contain its EID (e.g., "pushable", "pathfinding", "dead", "locked", "required").
+- When rendering an entity, the renderer constructs the set of string “properties” for that entity based on which component maps contain its EID (e.g., `"pushable"`, `"pathfinding"`, `"dead"`, `"locked"`, `"required"`).
 
-- The best-matching texture is chosen by maximizing overlap and minimizing unmatched properties among the available keys for that AppearanceName.
+- The best-matching texture is chosen by maximizing overlap and minimizing unmatched properties among the available keys for that `AppearanceName`.
 
 
 ## Grouping rules and color mapping
 
-Grouping rules (derive_groups) assign entities into color groups, e.g.:
+Grouping rules (`derive_groups`) assign entities into color groups, e.g.:
 
 - Keys/doors by key id:
 
-    - key_door_group_rule → "key:<key_id>"
+    - `key_door_group_rule → "key:<key_id>"`
 
 - Paired portals:
 
-    - portal_pair_group_rule → "portal:<min_eid>-<max_eid>"
+    - `portal_pair_group_rule → "portal:<min_eid>-<max_eid>"`
 
 Color mapping:
 
-- group_to_color(group_id) → (r, g, b)
+- `group_to_color(group_id) → (r, g, b)`
 
-    - Deterministic mapping using random.Random(group_id) to sample HSV; converted to RGB.
+    - Deterministic mapping using `random.Random(group_id)` to sample HSV; converted to RGB.
 
 Recolor:
 
-- apply_recolor_if_group(image, group) replaces hue while preserving per-pixel tone (value) and, by default, saturation.
+- `apply_recolor_if_group(image, group)` replaces hue while preserving per-pixel tone (value) and, by default, saturation.
 
 Extensibility:
 
-- Add new GroupRule functions to DEFAULT_GROUP_RULES (locally in your render wrapper) to recolor custom categories consistently.
+- Add new `GroupRule` functions to `DEFAULT_GROUP_RULES` (locally in your render wrapper) to recolor custom categories consistently.
 
 ```python
 from typing import Optional

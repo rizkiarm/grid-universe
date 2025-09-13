@@ -35,9 +35,9 @@ Contents
 
 - Authoring-time Level API (mutable) and bidirectional conversion (to/from State).
 
-- Movement options: default, wrap, mirror, slippery, windy, gravity; extend via custom MoveFn.
+- Movement options: default, wrap, mirror, slippery, windy, gravity; extend via custom `MoveFn`.
 
-- Objective options: default, exit, collect-required, unlock-all, push-all-to-exit; extend via custom ObjectiveFn.
+- Objective options: default, exit, collect-required, unlock-all, push-all-to-exit; extend via custom `ObjectiveFn`.
 
 - Texture rendering with priority/layering, corner icons, grouping/recoloring, and animation overlays for movers.
 
@@ -50,19 +50,19 @@ Contents
 
 - Authoring time
 
-    - Level: grid[y][x] of EntitySpec (no positions/IDs). Place with Level.add((x, y), spec).
+    - Level: `grid[y][x]` of `EntitySpec` (no positions/IDs). Place with `Level.add((x, y), spec)`.
 
-    - EntitySpec: bag of component dataclasses plus authoring-only lists (inventory_list/status_list) and wiring refs (pathfind_target_ref, portal_pair_ref).
+    - `EntitySpec`: bag of component dataclasses plus authoring-only lists (`inventory_list`/`status_list`) and wiring refs (`pathfind_target_ref`, `portal_pair_ref`).
 
 - Runtime
 
-    - State: immutable snapshot with EntityIDs, Position components, and per-type stores (Agent, Blocking, Portal, Health, etc.).
+    - `State`: immutable snapshot with `EntityID`s, `Position` components, and per-type stores (Agent, Blocking, Portal, Health, etc.).
 
-    - Systems: pure functions State -> State applied in a fixed order in step().
+    - Systems: pure functions `State -> State` applied in a fixed order in `step()`.
 
 - Determinism
 
-    - Many stochastic behaviors derive randomness from (state.seed, state.turn). Set seeds for reproducible runs.
+    - Many stochastic behaviors derive randomness from `(state.seed, state.turn)`. Set seeds for reproducible runs.
 
 
 ## Architecture (high level)
@@ -71,7 +71,7 @@ Contents
 
     - Entities: opaque integer IDs.
 
-    - Components: small dataclasses, stored in PMaps keyed by EntityID.
+    - Components: small dataclasses, stored in PMaps keyed by `EntityID`.
 
     - Systems: pure transforms; each system handles one concern.
 
@@ -85,7 +85,7 @@ Contents
 
 - Conversion:
 
-    - Level ↔ State via levels.convert (copies components, resolves wiring, materializes nested lists into Inventory/Status sets).
+    - Level ↔ State via `levels.convert` (copies components, resolves wiring, materializes nested lists into `Inventory`/`Status` sets).
 
 
 ## What’s in the box
@@ -98,7 +98,7 @@ Contents
 
 - Systems
 
-    - movement/push/moving/pathfinding/portal/damage/tile rewards & costs/status GC/terminal position & trail bookkeeping
+    - movement/push/moving/pathfinding/portal/damage/tile rewards & costs/status GC/terminal, plus position & trail bookkeeping
 
 - Utilities
 
@@ -106,11 +106,11 @@ Contents
 
 - Rendering
 
-    - TextureRenderer with default texture maps, recoloring groups for keys/doors and portal pairs, direction overlays for movers
+    - `TextureRenderer` with default texture maps, recoloring groups for keys/doors and portal pairs, direction overlays for movers
 
 - Gym
 
-    - GridUniverseEnv with image observations, action mapping, reward=delta score, and rendering modes
+    - `GridUniverseEnv` with image observations, action mapping, reward = delta score, and rendering modes
 
 - Examples
 
@@ -120,8 +120,7 @@ Contents
 ## Quick start (2 minutes)
 
 Install and run a minimal level.
-
-```python
+```
 # Install (editable)
 pip install -e .
 
@@ -153,12 +152,12 @@ agent_id = next(iter(state.agent.keys()))
 
 for a in [Action.RIGHT, Action.PICK_UP, Action.DOWN, Action.DOWN]:
     state = step(state, a, agent_id)
-    if state.win or state.lose: break
+    if state.win or state.lose:
+        break
 
 TextureRenderer(resolution=480).render(state).save("quickstart.png")
 print("Saved quickstart.png")
 ```
-
 
 ## Live rendering snapshot
 
@@ -168,7 +167,7 @@ print("Saved quickstart.png")
 
 - Group recoloring:
 
-    - Keys/doors sharing key_id, and paired portals, are recolored with a shared hue while preserving texture tone.
+    - Keys/doors sharing `key_id`, and paired portals, are recolored with a shared hue while preserving texture tone.
 
 - Movers:
 
@@ -192,17 +191,17 @@ print("Saved quickstart.png")
 
 - Development
 
-    - Install dev extras: pip install -e ".[dev]"
+    - Install dev extras: `pip install -e ".[dev]"`
 
-    - Run tests: pytest
+    - Run tests: `pytest`
 
-    - Lint/format: ruff, mypy
+    - Lint/format/type-check: `ruff`, `mypy`
 
 - Docs
 
-    - Serve: mkdocs serve
+    - Serve: `mkdocs serve`
 
-    - Build: mkdocs build
+    - Build: `mkdocs build`
 
 - Pull requests
 
@@ -225,12 +224,12 @@ print("Saved quickstart.png")
 
 - How do I make runs reproducible?
 
-    - Set a seed on your Level or generator; stochastic systems derive randomness from (state.seed, state.turn).
+    - Set a seed on your Level or generator; stochastic systems derive randomness from `(state.seed, state.turn)`.
 
 - Can I add custom textures?
 
-    - Yes. Provide a custom texture map and assets under your asset_root; map (AppearanceName, properties) → file or directory.
+    - Yes. Provide a custom texture map and assets under your `asset_root`; map `(AppearanceName, properties)` → file or directory.
 
 - Can I add a new system (e.g., conveyor belts)?
 
-    - Yes. Implement a pure function State -> State and hook it into step() at the appropriate point (per-substep or post-step) to respect ordering.
+    - Yes. Implement a pure function `State -> State` and hook it into `step()` at the appropriate point (per-substep or post-step) to respect ordering.

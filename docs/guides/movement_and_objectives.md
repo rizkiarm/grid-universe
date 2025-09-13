@@ -1,6 +1,6 @@
 # Movement and Objectives
 
-This guide dives deeper into movement functions (MoveFn) and objective functions (ObjectiveFn): how they work, how to select and combine them, and how to write your own. It also covers speed effects, determinism, and common pitfalls.
+This guide dives deeper into movement functions (`MoveFn`) and objective functions (`ObjectiveFn`): how they work, how to select and combine them, and how to write your own. It also covers speed effects, determinism, and common pitfalls.
 
 Contents
 
@@ -18,79 +18,83 @@ Contents
 
 ## MoveFn basics
 
-- A MoveFn is any callable with signature MoveFn(State, EntityID, Action) -> Sequence[Position].
+- A `MoveFn` is any callable with signature `MoveFn(State, EntityID, Action) -> Sequence[Position]`.
 
-- The function computes a list of target positions the agent will attempt to traverse in this action. The step() loop will:
-  - Iterate over the sequence returned by the MoveFn.
-  - For each proposed Position, try push_system first, then movement_system.
-  - After each attempt, run per-substep systems (portal, damage, tile_reward).
-  - Stop early if blocked or terminal.
+- The function computes a list of target positions the agent will attempt to traverse in this action. The `step()` loop will:
+
+    - Iterate over the sequence returned by the `MoveFn`.
+
+    - For each proposed `Position`, try `push_system` first, then `movement_system`.
+
+    - After each attempt, run per-substep systems (portal, damage, `tile_reward_system`).
+
+    - Stop early if blocked or terminal.
 
 - Important: Returning multiple positions implements “multi-tile motion” within one action (e.g., slippery slide). It does not guarantee reaching the last position—blocking or collisions can stop it early.
 
 
 ## Built-in movement functions
 
-All functions interpret Action.UP/DOWN/LEFT/RIGHT as single-tile deltas. They differ in how many positions they propose and how they handle grid edges.
+All functions interpret `Action.UP/DOWN/LEFT/RIGHT` as single-tile deltas. They differ in how many positions they propose and how they handle grid edges.
 
-- default_move_fn
+- `default_move_fn`
 
     - Behavior: One step in the action direction.
 
-    - Returns: [next_pos].
+    - Returns: `[next_pos]`.
 
     - Use when: You want classic grid movement.
 
-- wrap_around_move_fn
+- `wrap_around_move_fn`
 
     - Behavior: One step in the action direction, wrapping on edges.
 
-    - Returns: [wrapped_pos] where x and y are modulo width/height.
+    - Returns: `[wrapped_pos]` where x and y are modulo width/height.
 
-    - Requirements: State must have width and height; else raises ValueError.
+    - Requirements: `State` must have width and height; else raises `ValueError`.
 
     - Use when: Toroidal grids (Pac-Man-like wrap).
 
-- mirror_move_fn
+- `mirror_move_fn`
 
     - Behavior: Mirrors horizontal directions. LEFT behaves as RIGHT and vice versa. UP and DOWN unchanged.
 
-    - Returns: [mirrored_step_pos].
+    - Returns: `[mirrored_step_pos]`.
 
     - Use when: Puzzle variations or tricky controls.
 
-- slippery_move_fn
+- `slippery_move_fn`
 
     - Behavior: Slides in the action direction until blocked or out-of-bounds.
 
-    - Returns: A sequence of all intermediate positions up to (but not including) the blocking/out-of-bounds tile; if the first step is blocked, returns [current_pos] so the step results in no movement.
+    - Returns: A sequence of all intermediate positions up to (but not including) the blocking/out-of-bounds tile; if the first step is blocked, returns `[current_pos]` so the step results in no movement.
 
-    - Blocking rule: Checks the world for any Blocking entities at each candidate tile; stops before collision.
+    - Blocking rule: Checks the world for any `Blocking` entities at each candidate tile; stops before collision.
 
-    - Use when: Ice/sliding puzzles. The step() loop will attempt each returned position in order; it may still stop earlier if another system intervenes.
+    - Use when: Ice/sliding puzzles. The `step()` loop will attempt each returned position in order; it may still stop earlier if another system intervenes.
 
-- windy_move_fn
+- `windy_move_fn`
 
     - Behavior: Takes one step as usual. With 30% chance (deterministic per turn via seed/turn), adds a second “wind” step in a random cardinal direction if in-bounds.
 
-    - Returns: [primary_step] or [primary_step, wind_step].
+    - Returns: `[primary_step]` or `[primary_step, wind_step]`.
 
-    - Determinism: Uses a Random seeded by hash((state.seed or 0, state.turn)).
+    - Determinism: Uses a `Random` seeded by `hash((state.seed or 0, state.turn))`.
 
     - Use when: Stochastic perturbations with reproducibility.
 
-- gravity_move_fn
+- `gravity_move_fn`
 
-    - Behavior: Attempts the initial step; if valid, repeatedly “falls” down (dy=+1) until blocked or out-of-bounds.
+    - Behavior: Attempts the initial step; if valid, repeatedly “falls” down (`dy=+1`) until blocked or out-of-bounds.
 
-    - Returns: [initial_step, fall1, fall2, ...]; if the initial step is blocked, returns [current_pos].
+    - Returns: `[initial_step, fall1, fall2, ...]`; if the initial step is blocked, returns `[current_pos]`.
 
     - Use when: Platformer-like gravity after moving laterally or up.
 
 
 ## Selecting and configuring movement
 
-You select a movement function at authoring time when you construct the Level.
+You select a movement function at authoring time when you construct the `Level`.
 
 ```python
 from grid_universe.levels.grid import Level
@@ -118,20 +122,20 @@ level = Level(9, 9, move_fn=move_fn, objective_fn=..., seed=123)
 
 ## Speed effects and submoves
 
-- Speed(multiplier) is an effect entity that can be added to the agent’s Status (e.g., by picking up a speed powerup).
+- `Speed(multiplier)` is an effect entity that can be added to the agent’s `Status` (e.g., by picking up a speed powerup).
 
-- When present and valid (not expired by time or usage), step() multiplies the number of submoves (micro-steps) for this action by the multiplier.
+- When present and valid (not expired by time or usage), `step()` multiplies the number of submoves (micro-steps) for this action by the multiplier.
 
-- After each submove attempt, per-substep systems run (portal/damage/tile_reward), which can end the action early.
+- After each submove attempt, per-substep systems run (portal/damage/`tile_reward_system`), which can end the action early.
 
-- tile_cost_system runs once per action (post-step), so fast movement does not pay multiple costs.
+- `tile_cost_system` runs once per action (post-step), so fast movement does not pay multiple costs.
 
-- If the Speed effect also has UsageLimit, it is consumed when actually used to multiply movement; TimeLimit is decremented by status_tick_system each turn regardless of use.
+- If the `Speed` effect also has `UsageLimit`, it is consumed when actually used to multiply movement; `TimeLimit` is decremented by `status_tick_system` each turn regardless of use.
 
 
 ## Writing a custom MoveFn
 
-You can define your own movement logic. The contract is simple: return a sequence of Positions you want the agent to attempt.
+You can define your own movement logic. The contract is simple: return a sequence of `Position`s you want the agent to attempt.
 
 Example: “two-step dash” with obstacle check between steps.
 
@@ -154,54 +158,54 @@ def dash_two_steps(state: State, eid: EntityID, action: Action) -> Sequence[Posi
     return [Position(pos.x + dx, pos.y + dy), Position(pos.x + 2*dx, pos.y + 2*dy)]
 ```
 
-Considerations for custom MoveFns:
+Considerations for custom `MoveFn`s:
 
-- Bounds and blocking are enforced later by systems; the MoveFn just proposes targets.
+- Bounds and blocking are enforced later by systems; the `MoveFn` just proposes targets.
 
-- If you want “no movement” on failure, you can return [current_pos] to make the intent explicit (as slippery and gravity do in a blocked-first-step case).
+- If you want “no movement” on failure, you can return `[current_pos]` to make the intent explicit (as slippery and gravity do in a blocked-first-step case).
 
-- If you need determinism across runs, derive any randomness from (state.seed, state.turn) similar to windy_move_fn.
+- If you need determinism across runs, derive any randomness from `(state.seed, state.turn)` similar to `windy_move_fn`.
 
 - Interactions (push/portal/damage) are applied by systems after each proposed position—so it’s safe to return multiple steps and let systems stop early if needed.
 
 
 ## ObjectiveFn basics
 
-- An ObjectiveFn is any callable with signature ObjectiveFn(State, EntityID) -> bool.
+- An `ObjectiveFn` is any callable with signature `ObjectiveFn(State, EntityID) -> bool`.
 
-- win_system calls state.objective_fn(state, agent_id) after each step; if it returns True, state.win becomes True.
+- `win_system` calls `state.objective_fn(state, agent_id)` after each step; if it returns `True`, `state.win` becomes `True`.
 
 - Objectives usually inspect the agent’s position, inventory/status, or global conditions (e.g., all doors unlocked).
 
 
 ## Built-in objective functions
 
-- default_objective_fn
+- `default_objective_fn`
 
-    - Composite: collect_required_objective_fn AND exit_objective_fn.
+    - Composite: `collect_required_objective_fn` AND `exit_objective_fn`.
 
-    - Win when: All Required collectibles are obtained and the agent stands on an Exit.
+    - Win when: All `Required` collectibles are obtained and the agent stands on an `Exit`.
 
-- exit_objective_fn
+- `exit_objective_fn`
 
-    - Win when: Agent is on a cell containing an Exit entity.
+    - Win when: Agent is on a cell containing an `Exit` entity.
 
-- collect_required_objective_fn
+- `collect_required_objective_fn`
 
-    - Win when: No entity in state.required remains collectible (i.e., they’ve been picked up/removed from the world).
+    - Win when: No entity in `state.required` remains collectible (i.e., they’ve been picked up/removed from the world).
 
-- all_unlocked_objective_fn
+- `all_unlocked_objective_fn`
 
-    - Win when: There are no Locked entities left in state.locked.
+    - Win when: There are no `Locked` entities left in `state.locked`.
 
-- all_pushable_at_exit_objective_fn
+- `all_pushable_at_exit_objective_fn`
 
-    - Win when: Every Pushable entity’s position overlaps a cell that also contains an Exit.
+    - Win when: Every `Pushable` entity’s position overlaps a cell that also contains an `Exit`.
 
 
 ## Selecting and configuring objectives
 
-Pick an objective when you construct the Level. You can also select by name from the registry.
+Pick an objective when you construct the `Level`. You can also select by name from the registry.
 
 ```python
 from grid_universe.levels.grid import Level
@@ -218,7 +222,7 @@ level = Level(9, 9, move_fn=..., objective_fn=objective_fn, seed=42)
 
 ## Writing a custom ObjectiveFn
 
-Design your own win condition by examining the State. Keep it fast and pure (no side effects).
+Design your own win condition by examining the `State`. Keep it fast and pure (no side effects).
 
 Example: “Reach score ≥ target AND stand on an exit.”
 
@@ -265,7 +269,7 @@ def collect_n_coins_objective_fn_factory(n: int) -> ObjectiveFn:
 
 Determinism
 
-- If your MoveFn or ObjectiveFn uses randomness, derive it from (state.seed, state.turn) to keep runs reproducible.
+- If your `MoveFn` or `ObjectiveFn` uses randomness, derive it from `(state.seed, state.turn)` to keep runs reproducible.
 
 - Example pattern:
 
@@ -276,23 +280,23 @@ Determinism
         return random.Random(base_seed)
     ```
 
-Testing MoveFns
+Testing `MoveFn`s
 
-- Unit test MoveFns by constructing a small State with known positions and checking the returned sequence of Positions (do not execute systems there).
+- Unit test `MoveFn`s by constructing a small `State` with known positions and checking the returned sequence of `Position`s (do not execute systems there).
 
-- For integrated tests, call step() with a fixed seed and verify positions/score/flags after actions.
+- For integrated tests, call `step()` with a fixed seed and verify positions/score/flags after actions.
 
 Common pitfalls
 
-- Returning an empty list from a MoveFn: step() won’t attempt any movement; if you intend “no movement,” prefer returning [current_pos] to make it explicit.
+- Returning an empty list from a `MoveFn`: `step()` won’t attempt any movement; if you intend “no movement,” prefer returning `[current_pos]` to make it explicit.
 
 - Multi-step proposals and blocking: Systems stop the agent early if blocked, so proposing aggressive paths is fine—but be aware that damage, portals, or pushes will interleave.
 
-- ObjectiveFn performance: Called after every step; make sure it traverses only the necessary parts of State. Precompute sets when possible (e.g., using sets of IDs in maps).
+- `ObjectiveFn` performance: Called after every step; make sure it traverses only the necessary parts of `State`. Precompute sets when possible (e.g., using sets of IDs in maps).
 
-- Counting coins vs cores: In this project, Required items (cores) are a separate component; coins are typically Collectible without Required. Differentiate based on presence/absence of Required.
+- Counting coins vs cores: In this project, `Required` items (cores) are a separate component; coins are typically `Collectible` without `Required`. Differentiate based on presence/absence of `Required`.
 
-- Exit detection: Use entities_with_components_at(state, pos, state.exit) rather than scanning the whole grid.
+- Exit detection: Use `entities_with_components_at(state, pos, state.exit)` rather than scanning the whole grid.
 
 
 ## End-to-end examples

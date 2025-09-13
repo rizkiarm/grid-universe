@@ -277,7 +277,7 @@ def from_state(state: State) -> Level:
     Convert an immutable State back into a mutable Level (grid of EntityObject).
 
     Behavior:
-    - Positioned entities are placed into Level.grid[y][x] in ascending eid order (deterministic).
+    - Positioned entities are placed into `Level.grid[y][x]` in ascending eid order (deterministic).
     - EntityObject components (including Inventory/Status) are reconstructed for positioned entities.
     - Holder inventory_list/status_list are rebuilt from Inventory.item_ids / Status.effect_ids
       by reconstructing item/effect EntityObjects (not placed on the grid).
