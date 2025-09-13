@@ -1,5 +1,5 @@
 from dataclasses import replace
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union, cast
 
 from pyrsistent.typing import PMap, PSet
 from grid_universe.components import Status
@@ -12,6 +12,22 @@ from grid_universe.components.effects import (
     UsageLimit,
     TimeLimit,
 )
+
+
+EffectMap = Union[
+    PMap[EntityID, Immunity],
+    PMap[EntityID, Phasing],
+    PMap[EntityID, Speed],
+]
+
+
+def _normalize_effects(
+    effects: Union[EffectMap, Sequence[EffectMap]],
+) -> List[EffectMap]:
+    if isinstance(effects, (list, tuple)):
+        return list(cast(Sequence[EffectMap], effects))
+    else:
+        return [cast(EffectMap, effects)]
 
 
 def has_effect(state: State, effect_id: EntityID) -> bool:
@@ -42,14 +58,26 @@ def remove_status(status: Status, effect_id: EntityID) -> Status:
 
 def get_status_effect(
     effect_ids: PSet[EntityID],
-    effect: Union[
-        PMap[EntityID, Immunity], PMap[EntityID, Phasing], PMap[EntityID, Speed]
-    ],
+    effects: Union[EffectMap, Sequence[EffectMap]],
     time_limit: PMap[EntityID, TimeLimit],
     usage_limit: PMap[EntityID, UsageLimit],
 ) -> Optional[EntityID]:
-    # Effects that are present in the requested effect store
-    relevant = [eid for eid in effect_ids if eid in effect]
+    """
+    Choose one active effect entity ID from effect_ids that matches any of the provided effect maps.
+
+    - effects can be a single effect map (e.g., state.phasing) or a sequence of maps
+      (e.g., [state.phasing, state.immunity, state.speed]).
+    - Filters out expired effects (time_limit <= 0 or usage_limit <= 0).
+    - Preference:
+        1) Effects without a usage limit (infinite or time-limited only)
+        2) Otherwise, any remaining valid effect (deterministically pick the lowest EID)
+    """
+    effect_maps: List[EffectMap] = _normalize_effects(effects)
+
+    # Effects present in any of the requested effect stores
+    relevant = [
+        eid for eid in effect_ids if any(eid in eff_map for eff_map in effect_maps)
+    ]
     if not relevant:
         return None
 
@@ -67,12 +95,15 @@ def get_status_effect(
     if not valid:
         return None
 
+    # Deterministic order
+    valid.sort()
+
     # Prefer effects without usage limits (infinite or time-limited)
     for eid in valid:
         if eid not in usage_limit:
             return eid
 
-    # Otherwise, return any remaining usage-limited effect (all have amount > 0 by filter)
+    # Otherwise, return the first remaining usage-limited effect
     return valid[0]
 
 
@@ -90,13 +121,12 @@ def use_status_effect(
 
 def use_status_effect_if_present(
     effect_ids: PSet[EntityID],
-    effect: Union[
-        PMap[EntityID, Immunity], PMap[EntityID, Phasing], PMap[EntityID, Speed]
-    ],
+    effects: Union[EffectMap, Sequence[EffectMap]],
     time_limit: PMap[EntityID, TimeLimit],
     usage_limit: PMap[EntityID, UsageLimit],
 ) -> Tuple[PMap[EntityID, UsageLimit], Optional[EntityID]]:
-    effect_id = get_status_effect(effect_ids, effect, time_limit, usage_limit)
+    effect_maps: List[EffectMap] = _normalize_effects(effects)
+    effect_id = get_status_effect(effect_ids, effect_maps, time_limit, usage_limit)
     if effect_id is not None:
         usage_limit = use_status_effect(effect_id, usage_limit)
     return usage_limit, effect_id

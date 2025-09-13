@@ -1,6 +1,14 @@
+from pyrsistent import PMap
 import streamlit as st
 import numpy as np
 from typing import Dict, List, Optional, Tuple
+from grid_universe.components.effects import (
+    Immunity,
+    Phasing,
+    Speed,
+    TimeLimit,
+    UsageLimit,
+)
 from keyup import keyup
 from grid_universe.actions import GymAction
 from grid_universe.components import AppearanceName, Status, Inventory
@@ -24,11 +32,16 @@ POWERUP_ICONS: Dict[AppearanceName, str] = {
 
 def get_effect_types(state: State, effect_id: EntityID) -> List[EffectType]:
     effect_types: List[EffectType] = []
-    for effect_type, effect_ids in [
+    effect_type_ids: List[
+        Tuple[EffectType, PMap[EntityID, Immunity]]
+        | tuple[EffectType, PMap[EntityID, Phasing]]
+        | tuple[EffectType, PMap[EntityID, Speed]]
+    ] = [
         (EffectType.IMMUNITY, state.immunity),
         (EffectType.PHASING, state.phasing),
         (EffectType.SPEED, state.speed),
-    ]:
+    ]
+    for effect_type, effect_ids in effect_type_ids:
         if effect_id in effect_ids:
             effect_types.append(effect_type)
     return effect_types
@@ -38,10 +51,14 @@ def get_effect_limits(
     state: State, effect_id: EntityID
 ) -> List[Tuple[EffectLimit, EffectLimitAmount]]:
     effect_limits: List[Tuple[EffectLimit, EffectLimitAmount]] = []
-    for limit_type, limit_map in [
+    limit_type_ids: List[
+        Tuple[EffectLimit, PMap[EntityID, TimeLimit]]
+        | tuple[EffectLimit, PMap[EntityID, UsageLimit]]
+    ] = [
         (EffectLimit.TIME, state.time_limit),
         (EffectLimit.USAGE, state.usage_limit),
-    ]:
+    ]
+    for limit_type, limit_map in limit_type_ids:
         if effect_id in limit_map:
             effect_limits.append((limit_type, limit_map[effect_id].amount))
     return effect_limits

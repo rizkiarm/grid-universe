@@ -25,7 +25,7 @@ def get_cross_damager_ids(
     curr_entity_pos: Position,
 ) -> Set[EntityID]:
     """Find entities at the previous position that moved into the current entity's position."""
-    cross_damager_ids = set()
+    cross_damager_ids: Set[EntityID] = set()
     for eid in entities_with_components_at(
         state, prev_entity_pos, state.damage
     ) + entities_with_components_at(state, prev_entity_pos, state.lethal_damage):
@@ -64,7 +64,7 @@ def apply_damage(
         if entity_id in state.status:
             usage_limit, effect_id = use_status_effect_if_present(
                 state.status[entity_id].effect_ids,
-                state.immunity,
+                [state.immunity, state.phasing],
                 state.time_limit,
                 usage_limit,
             )

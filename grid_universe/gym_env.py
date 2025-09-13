@@ -1,13 +1,13 @@
 # ----- grid_universe/gym_env.py -----
 import gymnasium as gym
 import numpy as np
-from typing import Optional, Dict, Tuple, Any, List
+from typing import Callable, Optional, Dict, Tuple, Any, List
 
 from PIL.Image import Image as PILImage
 
 from grid_universe.state import State
 from grid_universe.actions import Action
-from grid_universe.levels.maze import generate
+from grid_universe.examples.maze import generate
 from grid_universe.renderer.texture import (
     DEFAULT_RESOLUTION,
     DEFAULT_TEXTURE_MAP,
@@ -145,13 +145,15 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         render_mode: str = "texture",
         render_resolution: int = DEFAULT_RESOLUTION,
         render_texture_map: TextureMap = DEFAULT_TEXTURE_MAP,
+        initial_state_fn: Callable[..., State] = generate,
         **kwargs: Any,
     ):
         from gymnasium import spaces  # ensure gymnasium.spaces is available
         import numpy as np
 
         # Generator/config kwargs for level creation
-        self._generator_kwargs = kwargs
+        self._initial_state_fn = initial_state_fn
+        self._initial_state_kwargs = kwargs
 
         # Runtime state
         self.state: Optional[State] = None
@@ -260,7 +262,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, object]] = None
     ) -> Tuple[ObsType, Dict[str, object]]:
-        self.state = generate(**self._generator_kwargs)
+        self.state = self._initial_state_fn(**self._initial_state_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
         if self._texture_renderer is None:
             self._texture_renderer = TextureRenderer(
