@@ -1,3 +1,17 @@
+"""Player (agent) movement system.
+
+Attempts to move the controlled agent to ``next_pos`` applying effect logic:
+
+1. If the agent has an active Phasing effect (consuming a usage/time limit) it
+    ignores blocking components entirely.
+2. Otherwise the move is allowed only if destination is in-bounds and not
+    blocked by Blocking/Pushable/Collidable entities (push handling occurs in a
+    separate system before this is called).
+
+Returns the original ``State`` if movement is not possible; otherwise a new
+``State`` with updated position (and possibly decremented usage limits).
+"""
+
 from dataclasses import replace
 
 from pyrsistent.typing import PMap
@@ -9,6 +23,16 @@ from grid_universe.utils.status import use_status_effect_if_present
 
 
 def movement_system(state: State, entity_id: EntityID, next_pos: Position) -> State:
+    """Move agent one tile if allowed.
+
+    Arguments:
+        state: Current state.
+        entity_id: Agent entity id (ignored if not an agent).
+        next_pos: Desired destination ``Position``.
+
+    Returns:
+        State: Same state if blocked / invalid or updated with new position.
+    """
     if entity_id not in state.agent:
         return state
 

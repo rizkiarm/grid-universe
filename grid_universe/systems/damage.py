@@ -1,3 +1,11 @@
+"""Damage / lethal damage resolution system.
+
+Resolves co-location and *crossing* path damage after movement sub‑steps.
+Supports immunity / phasing effects which are consumed (usage/time) upon
+preventing damage. Lethal damage flags immediate death regardless of remaining
+health. Multiple damagers at a tile apply cumulatively (order not relevant).
+"""
+
 from dataclasses import replace
 from typing import Set, Tuple
 from pyrsistent import PMap, pset
@@ -14,6 +22,7 @@ from grid_universe.utils.trail import get_augmented_trail
 def get_damager_ids(
     state: State, augmented_trail: PMap[Position, PSet[EntityID]], position: Position
 ) -> Set[EntityID]:
+    """Return damaging entity ids occupying ``position`` this tick."""
     damagers = set(state.damage) | set(state.lethal_damage)
     return set(augmented_trail.get(position, pset())) & damagers
 
@@ -24,7 +33,7 @@ def get_cross_damager_ids(
     prev_entity_pos: Position,
     curr_entity_pos: Position,
 ) -> Set[EntityID]:
-    """Find entities at the previous position that moved into the current entity's position."""
+    """Damagers that swapped positions (crossed paths) with the entity."""
     cross_damager_ids: Set[EntityID] = set()
     for eid in entities_with_components_at(
         state, prev_entity_pos, state.damage
@@ -42,6 +51,7 @@ def apply_damage(
     dead: PMap[EntityID, Dead],
     usage_limit: PMap[EntityID, UsageLimit],
 ) -> Tuple[PMap[EntityID, Health], PMap[EntityID, Dead], PMap[EntityID, UsageLimit]]:
+    """Apply damage to a single entity if exposed to damagers this tick."""
     initial = health, dead, usage_limit
 
     entity_pos = state.position.get(entity_id)
@@ -87,6 +97,7 @@ def apply_damage(
 
 
 def damage_system(state: State) -> State:
+    """Iterate all health-bearing entities and apply damage results."""
     health: PMap[EntityID, Health] = state.health
     dead: PMap[EntityID, Dead] = state.dead
     usage_limit: PMap[EntityID, UsageLimit] = state.usage_limit

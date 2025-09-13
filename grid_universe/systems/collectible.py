@@ -1,3 +1,20 @@
+"""Collectible system.
+
+Resolves item/effect pickups and reward scoring when an entity occupies the
+same tile as collectible entities. The system supports three pickup flows:
+
+1. Effect pickup (power-up): adds an effect entity's ID to the entity's
+    :class:`Status` if the effect is valid and not expired.
+2. Inventory pickup: inserts keys, coins, cores, etc. into the entity's
+    :class:`Inventory` (non-effect collectibles).
+3. Reward scoring: applies immediate score changes for entities bearing a
+    :class:`Rewardable` component (whether or not they are effect/inventory
+    pickups) and removes them.
+
+Collected entities are removed from ``position`` and ``collectible`` maps.
+The system is idempotent for a given state+entity pairing.
+"""
+
 from dataclasses import replace
 from typing import Optional, Set
 from grid_universe.components import Status
@@ -10,6 +27,19 @@ from grid_universe.utils.status import add_status, has_effect, valid_effect
 
 
 def collectible_system(state: State, entity_id: EntityID) -> State:
+    """Process collectible pickups for a single entity.
+
+    Arguments:
+        state:
+            Current immutable state.
+        entity_id:
+            Entity performing collection (typically an agent).
+
+    Returns:
+        State
+            Updated state with inventory/status/score changes applied and collected
+            entities removed.
+    """
     entity_pos = state.position.get(entity_id)
     if entity_pos is None:
         return state

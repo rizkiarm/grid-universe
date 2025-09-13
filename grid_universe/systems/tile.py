@@ -1,3 +1,10 @@
+"""Tile interaction systems.
+
+Applies passive score modifications for standing on tiles that carry
+``Rewardable`` (positive) or ``Cost`` (negative) components which are not
+collected through the collectible system (i.e. non-pickup surfaces).
+"""
+
 from dataclasses import replace
 from typing import Set, Union
 
@@ -14,6 +21,7 @@ def get_noncollectible_entities(
     pos: Position,
     component_map: Union[PMap[EntityID, Rewardable], PMap[EntityID, Cost]],
 ) -> Set[EntityID]:
+    """Return entity IDs at ``pos`` with a component but not collectible."""
     at_pos = entities_at(state, pos)
     ids = set(component_map.keys())
     collectible_ids = set(state.collectible.keys())
@@ -21,6 +29,7 @@ def get_noncollectible_entities(
 
 
 def tile_reward_system(state: State, eid: EntityID) -> State:
+    """Increase score for rewardable non-collectible entities at agent tile."""
     pos = state.position.get(eid)
     if not is_valid_state(state, eid) or is_terminal_state(state, eid) or pos is None:
         return state
@@ -34,6 +43,7 @@ def tile_reward_system(state: State, eid: EntityID) -> State:
 
 
 def tile_cost_system(state: State, eid: EntityID) -> State:
+    """Decrease score for cost-bearing non-collectible entities at agent tile."""
     pos = state.position.get(eid)
     if not is_valid_state(state, eid) or is_terminal_state(state, eid) or pos is None:
         return state

@@ -1,3 +1,24 @@
+"""State reducer and step orchestration.
+
+This module wires together all systems in the correct order to implement a
+single *turn* transition given an ``Action``. The exported :func:`step` is the
+only public mutation entry point for gameplay progression and is intentionally
+pure: it returns a *new* :class:`grid_universe.state.State`.
+
+Ordering rationale (high level):
+
+1. ``position_system`` snapshots previous positions (enables trail / cross checks).
+2. Autonomous movers & pathfinding update entities (``moving_system`` / ``pathfinding_system``).
+3. ``status_tick_system`` decrements effect limits before applying player action.
+4. ``trail_system`` records traversed tiles from autonomous movement.
+5. Player action sub‑steps (movement may produce multiple sub‑moves via speed effects).
+6. After each sub‑move we run interaction systems (portal, damage, rewards) to
+    allow chained behaviors (e.g. portal then damage at destination).
+7. After the *entire* action we apply GC, tile costs, terminal checks, and bump turn.
+
+All helper ``_step_*`` functions are internal and assume validation of inputs.
+"""
+
 from dataclasses import replace
 from typing import Optional
 from grid_universe.actions import Action, MOVE_ACTIONS
@@ -23,9 +44,25 @@ from grid_universe.utils.terminal import is_terminal_state, is_valid_state
 
 
 def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> State:
-    """
-    Main ECS reducer: applies one action, all relevant systems, and returns new state.
-    Exits early if state is terminal.
+    """Advance the simulation by one logical action.
+
+    Resolves autonomous movement, applies the player's chosen ``Action`` (which
+    may translate to multiple movement sub‑steps for speed effects), runs
+    interaction / status systems, and returns a new ``State``.
+
+    Arguments:
+        state: Previous immutable world state.
+        action: Player action enum value to apply.
+        agent_id: Optional explicit agent entity id. If ``None`` the first
+            entity in ``state.agent`` is used. Raises if no agent exists.
+
+    Returns:
+        State: The next state snapshot after applying the action. If the input
+        state is already terminal (win/lose) or invalid the same state object
+        may be returned unchanged.
+
+    Raises:
+        ValueError: If there is no agent or the action is not recognized.
     """
     if agent_id is None and (agent_id := next(iter(state.agent.keys()), None)) is None:
         raise ValueError("State contains no agent")
@@ -60,6 +97,27 @@ def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> S
 
 
 def _step_move(state: State, action: Action, agent_id: EntityID) -> State:
+    """Handle movement actions including speed effect chaining.
+
+    The movement logic supports *sub‑moves*: if the agent has a SPEED effect
+    active its multiplier increases the number of candidate move sequences.
+    After each sub‑move we run post‑substep systems (portal, damage, reward).
+
+    Blocking / pushing:
+        * Attempt push first (``push_system``). If successful we adopt that state.
+        * Otherwise try raw movement (``movement_system``). If unchanged the path
+          is blocked and we stop processing further sub‑moves.
+
+    Early exit if win/lose/agent death or movement blocked mid chain.
+
+    Arguments:
+        state: Current state prior to executing the movement action.
+        action: One of the directional ``Action`` enum members.
+        agent_id: Controlled agent entity id.
+
+    Returns:
+        State: Updated state after applying movement (and possible sub‑moves).
+    """
     move_fn: MoveFn = state.move_fn
     current_pos = state.position.get(agent_id)
     if not current_pos:
@@ -103,20 +161,40 @@ def _step_move(state: State, action: Action, agent_id: EntityID) -> State:
 
 
 def _step_usekey(state: State, action: Action, agent_id: EntityID) -> State:
+    """Apply the use‑key action.
+
+    Delegates to :func:`grid_universe.systems.locked.unlock_system` which will
+    unlock any overlapping locked entities if the agent carries a required key.
+    """
     state = unlock_system(state, agent_id)
     return state
 
 
 def _step_pickup(state: State, action: Action, agent_id: EntityID) -> State:
+    """Apply the pick‑up action.
+
+    Invokes :func:`grid_universe.systems.collectible.collectible_system` to
+    transfer any collectible entities at the agent's position into their
+    inventory, updating score and required objectives as needed.
+    """
     state = collectible_system(state, agent_id)
     return state
 
 
 def _step_wait(state: State, action: Action, agent_id: EntityID) -> State:
+    """No‑op action placeholder (useful for timing or effect ticking).
+
+    Effects still tick earlier in the reducer; this simply consumes a turn.
+    """
     return state
 
 
 def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
+    """Run interaction systems after each movement *sub‑step*.
+
+    Applies teleportation, collision / damage resolution and immediate tile
+    reward scoring before potentially performing further sub‑moves.
+    """
     state = portal_system(state)
     state = damage_system(state)
     state = tile_reward_system(state, agent_id)
@@ -124,6 +202,13 @@ def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
 
 
 def _after_step(state: State, agent_id: EntityID) -> State:
+    """Finalize a full action step.
+
+    Performs status effect garbage collection, applies tile costs once per
+    logical action (avoiding double penalization for sub‑moves), evaluates win
+    / lose conditions, increments the turn counter and prunes unreachable
+    entities.
+    """
     state = status_gc_system(state)
     state = tile_cost_system(
         state, agent_id

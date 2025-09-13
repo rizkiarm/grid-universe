@@ -1,3 +1,11 @@
+"""Portal teleportation system.
+
+Moves entering collidable entities from a portal to its paired portal's
+position. An entity is considered *entering* if its previous position differs
+from the current one and it is present in the augmented trail for the portal's
+tile this step.
+"""
+
 from dataclasses import replace
 from pyrsistent import pset
 from pyrsistent.typing import PMap, PSet
@@ -10,6 +18,7 @@ from grid_universe.utils.trail import get_augmented_trail
 def portal_system_entity(
     state: State, augmented_trail: PMap[Position, PSet[EntityID]], portal_id: EntityID
 ) -> State:
+    """Teleport entities entering the specified portal to its pair."""
     portal = state.portal.get(portal_id)
     portal_position = state.position.get(portal_id)
     if portal_position is None or portal is None:
@@ -28,13 +37,14 @@ def portal_system_entity(
         if state.prev_position.get(eid) != state.position.get(eid)
     }
 
-    state_position = state.position.update(
-        {eid: pair_position for eid in entering_entity_ids}
-    )
+    state_position = state.position
+    for eid in entering_entity_ids:
+        state_position = state_position.set(eid, pair_position)
     return replace(state, position=state_position)
 
 
 def portal_system(state: State) -> State:
+    """Apply portal teleportation for all portals in the state."""
     augmented_trail: PMap[Position, PSet[EntityID]] = get_augmented_trail(
         state, pset(state.collidable)
     )

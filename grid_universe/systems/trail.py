@@ -1,3 +1,10 @@
+"""Trail history system.
+
+Builds/updates a mapping from traversed positions to the set of entities that
+passed through during the latest movement step. Used by portal and potential
+future systems (e.g., footprints, lingering effects, collision trails).
+"""
+
 from dataclasses import replace
 from typing import Generator
 
@@ -7,9 +14,11 @@ from grid_universe.state import State
 
 
 def between(pos1: Position, pos2: Position) -> Generator[Position, None, None]:
-    """
-    Yields Manhattan path positions between pos1 and pos2 (exclusive),
-    moving along x first, then y.
+    """Yield intermediate Manhattan grid points from ``pos1`` to ``pos2``.
+
+    Traverses along the x-axis first, then along the y-axis, excluding the
+    starting coordinate and including the final y-adjustment intermediate
+    cells (exclusive of ``pos2`` itself during x traversal).
     """
     x, y = pos1.x, pos1.y
     step_x = (pos2.x > x) - (pos2.x < x)
@@ -25,6 +34,7 @@ def between(pos1: Position, pos2: Position) -> Generator[Position, None, None]:
 
 
 def trail_system(state: State) -> State:
+    """Accumulate traversed positions into the state's trail map."""
     state_trail = state.trail
     for entity_id, curr_pos in state.position.items():
         prev_pos = state.prev_position.get(entity_id)

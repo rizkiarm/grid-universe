@@ -1,3 +1,11 @@
+"""Push interaction system.
+
+Enables entities (typically agents) to push adjacent entities marked with the
+``Pushable`` component into the next cell along the interaction vector,
+provided the destination cell is free of blocking/collidable constraints.
+Supports multi-entity stacks at the source tile by moving all pushables.
+"""
+
 from dataclasses import replace
 from grid_universe.state import State
 from grid_universe.components import Position
@@ -7,9 +15,20 @@ from grid_universe.utils.grid import is_blocked_at, compute_destination
 
 
 def push_system(state: State, eid: EntityID, next_pos: Position) -> State:
-    """
-    Handles an entity trying to push a pushable object located at next_pos (adjacent cell).
-    Computes push direction vector automatically.
+    """Attempt to push any pushable entities at ``next_pos``.
+
+    Arguments:
+        state:
+            Current immutable state.
+        eid:
+            Entity initiating the push (must have a position).
+        next_pos:
+            Adjacent position the entity is trying to move into.
+
+    Returns:
+        State
+            Updated state with moved positions if push succeeds; original state
+            otherwise.
     """
     current_pos = state.position.get(eid)
     if current_pos is None:

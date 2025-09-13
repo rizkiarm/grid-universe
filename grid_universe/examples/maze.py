@@ -1,3 +1,43 @@
+"""Procedural maze level generator example.
+
+This module demonstrates authoring a parameterized maze-based level using the
+``Level`` authoring API and factory helpers, then converting to an immutable
+``State`` suitable for simulation or Gym-style environments.
+
+Design Goals
+------------
+* Showcase composition of factories (agent, walls, doors, portals, hazards,
+  power-ups, enemies) with authoring-time references (e.g., portal pairing,
+  enemy pathfinding target reference to the agent) that are resolved during
+  ``to_state`` conversion.
+* Provide tunable difficulty levers: wall density, counts of required
+  objectives, rewards, hazards, enemies, doors, portals and power-ups.
+* Illustrate how movement styles (static, directional patrol, straight-line
+  pathfinding, full pathfinding) can be expressed via component choices.
+
+Usage Example
+-------------
+    from grid_universe.examples import maze
+    state = maze.generate(width=20, height=20, seed=123)
+
+    # Render / step the state using the engine's systems or gym wrapper.
+
+Key Concepts Illustrated
+------------------------
+Required Items:
+    Use cores flagged as ``required=True`` which the default objective logic
+    expects to be collected before reaching the exit.
+Power-Ups:
+    Effects created with optional time or usage limits (speed, immunity,
+    phasing) acting as pickups.
+Enemies:
+    Configurable movement style and lethality; pathfinding enemies reference
+    the agent to resolve target entity IDs later.
+Essential Path:
+    Minimal union of shortest paths that touch required items and exit. Other
+    entities (hazards, enemies, boxes) prefer non-essential cells.
+"""
+
 from __future__ import annotations
 
 from enum import StrEnum, auto
@@ -100,12 +140,29 @@ DEFAULT_BOXES: List[BoxSpec] = [
 
 
 def _random_axis_and_dir(rng: random.Random) -> Tuple[MovingAxis, int]:
+    """Choose a random movement axis and direction.
+
+    Parameters
+    ----------
+    rng:
+        Random source.
+
+    Returns
+    -------
+    (MovingAxis, int)
+        Selected axis and signed direction (+1 or -1).
+    """
     axis: MovingAxis = rng.choice([MovingAxis.HORIZONTAL, MovingAxis.VERTICAL])
     direction: int = rng.choice([-1, 1])
     return axis, direction
 
 
 def _pop_or_fallback(positions: List[Position], fallback: Position) -> Position:
+    """Pop a position if available else return a fallback.
+
+    Useful when the parameterization may request more placements than there
+    are open tiles.
+    """
     return positions.pop() if positions else fallback
 
 
@@ -134,13 +191,56 @@ def generate(
     objective_fn: ObjectiveFn = default_objective_fn,
     seed: Optional[int] = None,
 ) -> State:
-    """
-    Maze level generator using the grid-centric Level API + factories, then converts to State.
+    """Generate a randomized maze game state.
 
-    Explicit wiring supported at authoring time:
-    - Monsters may specify pathfinding target by referencing the agent EntityObject.
-    - Portals may be paired by referencing each other (create_portal(pair=other)).
-      These references are resolved to proper EIDs in to_state().
+    This function orchestrates maze carving, tile classification, entity
+    placement and authoring-time reference wiring before producing the
+    immutable simulation ``State``.
+
+    Parameters:
+        width:
+            Width of the maze grid.
+        height:
+            Height of the maze grid.
+        num_required_items:
+            Number of required cores that must be collected before exit.
+        num_rewardable_items:
+            Number of optional reward coins.
+        num_portals:
+            Pairs of portals to place (each pair consumes two open cells).
+        num_doors:
+            Number of door/key pairs; each door is locked by its matching key.
+        health:
+            Initial agent health points.
+        movement_cost:
+            Per-tile movement cost encoded in floor components.
+        required_item_reward:
+            Reward granted for collecting each required item.
+        rewardable_item_reward:
+            Reward granted for each optional reward item (coin).
+        boxes:
+            List of tuples defining (pushable?, speed) for box entities; speed > 0
+            creates moving boxes with random axis/direction.
+        powerups:
+            Sequence of effect specifications (type, limit type, limit amount,
+            extra kwargs) converted into pickup entities.
+        hazards:
+            Hazard specifications (appearance, damage, lethal flag).
+        enemies:
+            Enemy specs (damage, lethal, movement type, speed).
+        wall_percentage:
+            Fraction of original maze walls to retain (0.0 => open field, 1.0 =>
+            unmodified perfect maze).
+        move_fn:
+            Functions injected into the authored level to control movement.
+        objective_fn:
+            Functions injected into the authored level to control win condition logic.
+        seed:
+            Optional RNG seed for deterministic generation.
+
+    Returns:
+        State
+            Fully wired immutable state ready for simulation.
     """
     rng = random.Random(seed)
 

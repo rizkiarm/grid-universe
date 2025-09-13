@@ -1,3 +1,17 @@
+"""Status effect lifecycle system.
+
+Coordinates ticking and garbage collection of effect entities referenced by a
+``Status`` component. Supports two limiter decorators:
+
+* ``TimeLimit``: decremented each step.
+* ``UsageLimit``: decremented by specific systems upon use (outside this file).
+
+The system performs two phases:
+1. Tick: Decrement all time limits for active effects.
+2. GC: Remove orphaned or expired effect IDs, pruning both the owning entity's
+    status set and the global entity map.
+"""
+
 from dataclasses import replace
 from typing import Tuple
 from pyrsistent.typing import PMap, PSet
@@ -12,9 +26,7 @@ def tick_time_limit(
     status: Status,
     time_limit: PMap[EntityID, TimeLimit],
 ) -> PMap[EntityID, TimeLimit]:
-    """
-    Decrement the time limit for all effects in `status` that have a time limit.
-    """
+    """Decrement per-effect time limits present in ``status``."""
     for effect_id in status.effect_ids:
         if effect_id in time_limit:
             time_limit = time_limit.set(
@@ -28,9 +40,7 @@ def cleanup_effect(
     effect_ids: PSet[EntityID],
     entity: PMap[EntityID, Entity],
 ) -> Tuple[PSet[EntityID], PMap[EntityID, Entity]]:
-    """
-    Remove the given effect_id from the effect_ids set and entity map.
-    """
+    """Remove ``effect_id`` from status and entity map if present."""
     effect_ids = effect_ids.remove(effect_id)
     if effect_id in entity:
         entity = entity.remove(effect_id)
@@ -42,9 +52,7 @@ def is_effect_expired(
     time_limit: PMap[EntityID, TimeLimit],
     usage_limit: PMap[EntityID, UsageLimit],
 ) -> bool:
-    """
-    Returns True if the effect has a time or usage limit that is zero or below.
-    """
+    """Return True if effect's time or usage limit has reached zero."""
     if effect_id in time_limit and time_limit[effect_id].amount <= 0:
         return True
     if effect_id in usage_limit and usage_limit[effect_id].amount <= 0:
@@ -59,13 +67,7 @@ def garbage_collect(
     entity: PMap[EntityID, Entity],
     status: Status,
 ) -> Tuple[PMap[EntityID, Entity], Status]:
-    """
-    Removes from Status (and the entity map) any effect_ids that:
-      - no longer exist as a component (orphaned effect - component deleted)
-      - are expired (time/usage limit <= 0)
-    Returns updated (entity, status).
-    Now DRY: leverages EffectType for all effect component checks.
-    """
+    """Remove orphaned or expired effects from status and entity maps."""
     effect_ids: PSet[EntityID] = status.effect_ids
 
     # Remove invalid effect_ids by checking all effect component maps using EffectType
@@ -85,6 +87,7 @@ def garbage_collect(
 
 
 def status_tick_system(state: State) -> State:
+    """Phase 1: decrement all active time limits."""
     state_status = state.status
     state_time_limit = state.time_limit
 
@@ -99,6 +102,7 @@ def status_tick_system(state: State) -> State:
 
 
 def status_gc_system(state: State) -> State:
+    """Phase 2: prune orphaned / expired effects from statuses and entities."""
     state_status = state.status
     state_entity = state.entity
     state_time_limit = state.time_limit
@@ -120,6 +124,7 @@ def status_gc_system(state: State) -> State:
 
 
 def status_system(state: State) -> State:
+    """Run tick + GC phases for all statuses (public entry point)."""
     state = status_tick_system(state)
     state = status_gc_system(state)
     return state

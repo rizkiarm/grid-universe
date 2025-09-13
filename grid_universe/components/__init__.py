@@ -1,3 +1,24 @@
+"""grid_universe.components
+=================================
+
+Aggregate import surface for all ECS component dataclasses used by the engine.
+
+This package separates immutable, purely data-focused *properties* (state that
+describes an entity such as position, health, blocking, inventory, etc.) from
+runtime *effects* (temporary modifiers like immunity, phasing, speed changes or
+constraints such as usage and time limits).
+
+The symbols re-exported here are intentionally curated so downstream code can
+conveniently import components from a single place, e.g.::
+
+    from grid_universe.components import Position, Health, Damage
+
+All component classes are simple ``@dataclass`` value objects; they carry no
+behavior beyond their fields and are manipulated by systems during the step
+pipeline. See the ``systems`` package documentation for transformation logic.
+
+"""
+
 # Effects
 from .effects import Effect
 from .effects import Immunity

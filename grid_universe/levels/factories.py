@@ -1,4 +1,10 @@
-# grid_universe/levels/factories.py
+"""Convenience factory functions for authoring ``EntitySpec`` objects.
+
+Each helper returns a preconfigured :class:`EntitySpec` with a common pattern
+(agent, floor, wall, coin, key, door, portal, hazards, effects, etc.). These
+are mutable authoring-time blueprints converted into immutable ECS entities by
+``levels.convert.to_state``.
+"""
 
 from __future__ import annotations
 
@@ -38,6 +44,7 @@ from .entity_spec import EntitySpec
 
 
 def create_agent(health: int = 5) -> EntitySpec:
+    """Player-controlled agent with health + inventory + empty status."""
     return EntitySpec(
         agent=Agent(),
         appearance=Appearance(name=AppearanceName.HUMAN, priority=0),
@@ -49,6 +56,7 @@ def create_agent(health: int = 5) -> EntitySpec:
 
 
 def create_floor(cost_amount: int = 1) -> EntitySpec:
+    """Background floor tile with movement cost."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.FLOOR, background=True, priority=10),
         cost=Cost(amount=cost_amount),
@@ -56,6 +64,7 @@ def create_floor(cost_amount: int = 1) -> EntitySpec:
 
 
 def create_wall() -> EntitySpec:
+    """Blocking wall tile."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.WALL, background=True, priority=9),
         blocking=Blocking(),
@@ -63,6 +72,7 @@ def create_wall() -> EntitySpec:
 
 
 def create_exit() -> EntitySpec:
+    """Exit tile used in objectives."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.EXIT, priority=9),
         exit=Exit(),
@@ -70,6 +80,7 @@ def create_exit() -> EntitySpec:
 
 
 def create_coin(reward: Optional[int] = None) -> EntitySpec:
+    """Collectible coin awarding optional score when picked up."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.COIN, icon=True, priority=4),
         collectible=Collectible(),
@@ -78,6 +89,7 @@ def create_coin(reward: Optional[int] = None) -> EntitySpec:
 
 
 def create_core(reward: Optional[int] = None, required: bool = True) -> EntitySpec:
+    """Key objective collectible ("core") optionally giving reward."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.CORE, icon=True, priority=4),
         collectible=Collectible(),
@@ -87,6 +99,7 @@ def create_core(reward: Optional[int] = None, required: bool = True) -> EntitySp
 
 
 def create_key(key_id: str) -> EntitySpec:
+    """Key item unlocking doors with matching ``key_id``."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.KEY, icon=True, priority=4),
         collectible=Collectible(),
@@ -95,6 +108,7 @@ def create_key(key_id: str) -> EntitySpec:
 
 
 def create_door(key_id: str) -> EntitySpec:
+    """Locked door requiring a key with the same id."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.DOOR, priority=6),
         blocking=Blocking(),
@@ -103,8 +117,10 @@ def create_door(key_id: str) -> EntitySpec:
 
 
 def create_portal(*, pair: Optional[EntitySpec] = None) -> EntitySpec:
-    """
-    If 'pair' is provided, this will set reciprocal authoring refs so both ends are paired on conversion.
+    """Portal endpoint (optionally auto-paired during authoring).
+
+    If ``pair`` is provided we set reciprocal refs so conversion wires the
+    pair entities with each other's id.
     """
     obj = EntitySpec(
         appearance=Appearance(name=AppearanceName.PORTAL, priority=7),
@@ -118,6 +134,7 @@ def create_portal(*, pair: Optional[EntitySpec] = None) -> EntitySpec:
 
 
 def create_box(pushable: bool = True) -> EntitySpec:
+    """Pushable / blocking box (optionally not pushable)."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.BOX, priority=2),
         blocking=Blocking(),
@@ -133,6 +150,7 @@ def create_monster(
     pathfind_target: Optional[EntitySpec] = None,
     path_type: PathfindingType = PathfindingType.PATH,
 ) -> EntitySpec:
+    """Basic enemy with damage and optional lethal + pathfinding target."""
     obj = EntitySpec(
         appearance=Appearance(name=AppearanceName.MONSTER, priority=1),
         collidable=Collidable(),
@@ -151,6 +169,7 @@ def create_hazard(
     lethal: bool = False,
     priority: int = 7,
 ) -> EntitySpec:
+    """Static damaging (optionally lethal) tile-like hazard."""
     return EntitySpec(
         appearance=Appearance(name=appearance, priority=priority),
         collidable=Collidable(),
@@ -164,6 +183,7 @@ def create_speed_effect(
     time: Optional[int] = None,
     usage: Optional[int] = None,
 ) -> EntitySpec:
+    """Collectible speed effect (optional time / usage limits)."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.BOOTS, icon=True, priority=4),
         collectible=Collectible(),
@@ -177,6 +197,7 @@ def create_immunity_effect(
     time: Optional[int] = None,
     usage: Optional[int] = None,
 ) -> EntitySpec:
+    """Collectible immunity effect (optional limits)."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.SHIELD, icon=True, priority=4),
         collectible=Collectible(),
@@ -190,6 +211,7 @@ def create_phasing_effect(
     time: Optional[int] = None,
     usage: Optional[int] = None,
 ) -> EntitySpec:
+    """Collectible phasing effect (optional limits)."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.GHOST, icon=True, priority=4),
         collectible=Collectible(),

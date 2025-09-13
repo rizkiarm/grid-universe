@@ -1,3 +1,38 @@
+"""Texture-based renderer utilities.
+
+Transforms a ``State`` into a composited RGBA image using per-entity
+``Appearance`` metadata, property-derived texture variants, optional group
+recoloring and motion glyph overlays.
+
+Rendering Model
+---------------
+1. Entities occupying the same cell are grouped into categories:
+     * Background(s): ``appearance.background=True`` (e.g., floor, wall)
+     * Main: highest-priority non-background entity
+     * Corner Icons: up to four icon entities (``appearance.icon=True``) placed
+         in tile corners (NW, NE, SW, SE)
+     * Others: additional layered entities (drawn between background and main)
+2. A texture path is chosen via an object + property signature lookup. If the
+     path refers to a directory, a deterministic random selection occurs.
+3. Group-based recoloring (e.g., matching keys and locks, portal pairs) applies
+     a hue shift while preserving shading (value channel) and saturation rules.
+4. Optional movement direction triangles are overlaid for moving entities.
+
+Customization Hooks
+-------------------
+* Provide a custom ``texture_map`` for alternative asset packs.
+* Replace or extend ``DEFAULT_GROUP_RULES`` to recolor other sets of entities.
+* Supply ``tex_lookup_fn`` to implement caching, animation frames, or atlas
+    packing.
+
+Performance Notes
+-----------------
+* A lightweight cache key (path, size, group, movement vector, speed) helps
+    reuse generated PIL images across frames.
+* ``lru_cache`` on ``group_to_color`` ensures stable, deterministic colors
+    without recomputing HSV conversions.
+"""
+
 from collections import defaultdict
 import colorsys
 from dataclasses import dataclass
@@ -25,6 +60,23 @@ ObjectAsset = Tuple[AppearanceName, Tuple[str, ...]]
 
 @dataclass(frozen=True)
 class ObjectRendering:
+    """Lightweight container capturing render-relevant entity facets.
+
+    Arguments:
+        appearance:
+            The entity's :class:`Appearance` component (or a default anonymous one).
+        properties:
+            Tuple of property component collection names in which the entity is
+            present (e.g. ``('blocking', 'locked')``) used to select texture
+            variants.
+        group:
+            Optional deterministic recolor group identifier.
+        move_dir:
+            Optional (dx, dy) direction for movement glyph overlay.
+        move_speed:
+            Movement speed used as the number of direction triangles to draw.
+    """
+
     appearance: Appearance
     properties: Tuple[str, ...]
     group: Optional[str] = None
@@ -142,6 +194,22 @@ DEFAULT_GROUP_RULES: List[GroupRule] = [
 def derive_groups(
     state: State, rules: List[GroupRule] = DEFAULT_GROUP_RULES
 ) -> Dict[EntityID, Optional[str]]:
+    """Apply grouping rules to each entity.
+
+    Later rendering stages may use groups to recolor related entities with a
+    shared hue (e.g., all portals in a pair share the same color while still
+    using the original texture shading).
+
+    Arguments:
+        state:
+            Immutable simulation state.
+        rules:
+            Ordered list of functions; first non-None group returned is used.
+
+    Returns:
+        dict[EntityID, Optional[str]]
+            Mapping of entity id to chosen group id (or ``None`` if ungrouped).
+    """
     out: Dict[EntityID, Optional[str]] = {}
     for eid, _ in state.entity.items():
         group: Optional[str] = None
@@ -155,8 +223,10 @@ def derive_groups(
 
 @lru_cache(maxsize=2048)
 def group_to_color(group_id: str) -> Tuple[int, int, int]:
-    """
-    Deterministically map a group string to an RGB color.
+    """Deterministically map a group string to an RGB color.
+
+    Uses the group id as a seed to generate stable but visually distinct HSV
+    values, then converts them to RGB.
     """
     rng = random.Random(group_id)
     h = rng.random()
@@ -170,8 +240,10 @@ def apply_recolor_if_group(
     tex: Image.Image,
     group: Optional[str],
 ) -> Image.Image:
-    """
-    Recolor wrapper that sets hue to the group's color while preserving tone.
+    """Recolor wrapper that sets hue to the group's color while preserving tone.
+
+    Delegates to :func:`recolor_image_keep_tone`; if no group is provided the
+    texture is returned unchanged.
     """
     if group is None:
         return tex
@@ -180,6 +252,7 @@ def apply_recolor_if_group(
 
 
 def load_texture(path: str, size: int) -> Optional[Image.Image]:
+    """Load and resize a texture, returning None if inaccessible or invalid."""
     try:
         return Image.open(path).convert("RGBA").resize((size, size))
     except Exception:
@@ -189,6 +262,12 @@ def load_texture(path: str, size: int) -> Optional[Image.Image]:
 def get_object_renderings(
     state: State, eids: List[EntityID], groups: Dict[EntityID, Optional[str]]
 ) -> List[ObjectRendering]:
+    """Build rendering descriptors for entity IDs in a single cell.
+
+    Inspects component PMaps on the ``State`` to infer property labels,
+    movement direction and speed, then packages them in ``ObjectRendering``
+    objects for subsequent texture lookup and layering decisions.
+    """
     renderings: List[ObjectRendering] = []
     default_appearance: Appearance = Appearance(name=AppearanceName.NONE)
     for eid in eids:
@@ -224,6 +303,13 @@ def get_object_renderings(
 
 
 def choose_background(object_renderings: List[ObjectRendering]) -> ObjectRendering:
+    """Select the highest-priority background object.
+
+    Raises
+    ------
+    ValueError
+        If no candidate background exists in the cell.
+    """
     items = [
         object_rendering
         for object_rendering in object_renderings
@@ -237,6 +323,10 @@ def choose_background(object_renderings: List[ObjectRendering]) -> ObjectRenderi
 
 
 def choose_main(object_renderings: List[ObjectRendering]) -> Optional[ObjectRendering]:
+    """Select main (foreground) object: lowest appearance priority value.
+
+    Returns ``None`` if no non-background objects exist.
+    """
     items = [
         object_rendering
         for object_rendering in object_renderings
@@ -252,6 +342,7 @@ def choose_main(object_renderings: List[ObjectRendering]) -> Optional[ObjectRend
 def choose_corner_icons(
     object_renderings: List[ObjectRendering], main: Optional[ObjectRendering]
 ) -> List[ObjectRendering]:
+    """Return up to four icon objects (excluding main) sorted by priority."""
     items = set(
         [
             object_rendering
@@ -267,6 +358,12 @@ def choose_corner_icons(
 def get_path(
     object_asset: ObjectAsset, texture_hmap: ObjectPropertiesTextureMap
 ) -> str:
+    """Resolve a texture path for an object asset signature.
+
+    Attempts to find the nearest matching property tuple (maximizing shared
+    properties, minimizing unmatched) to allow textures that only specify a
+    subset of possible property labels.
+    """
     object_name, object_properties = object_asset
     if object_name not in texture_hmap:
         raise ValueError(f"Object rendering {object_asset} is not found in texture map")
@@ -283,6 +380,7 @@ def select_texture_from_directory(
     dir: str,
     seed: Optional[int],
 ) -> Optional[str]:
+    """Choose a deterministic random texture file from a directory."""
     if not os.path.isdir(dir):
         return None
 
@@ -316,8 +414,29 @@ def render(
         ]
     ] = None,
 ) -> Image.Image:
-    """
-    Renders ECS state as a PIL Image, with prioritized center and up to 4 corners per tile.
+    """Render a ``State`` into a PIL Image.
+
+    Arguments:
+        state:
+            Immutable game state to visualize.
+        resolution:
+            Output image width in pixels (height derived from aspect ratio).
+        subicon_percent:
+            Relative size of corner icons compared to a cell's size.
+        texture_map:
+            Mapping from (appearance name, property tuple) to asset path. Falls
+            back to ``DEFAULT_TEXTURE_MAP``.
+        asset_root:
+            Root directory containing the asset hierarchy (e.g. "assets").
+        tex_lookup_fn:
+            Optional override for texture loading, recoloring & overlay logic;
+            receives an ``ObjectRendering`` and target size.
+        cache:
+            Mutable memoization dict keyed by (path, size, group, move_dir, speed).
+
+    Returns:
+        PIL.Image.Image
+            Composited RGBA image of the entire grid.
     """
     cell_size: int = resolution // state.width
     subicon_size: int = int(cell_size * subicon_percent)
@@ -439,6 +558,7 @@ class TextureRenderer:
         self.tex_lookup_fn = tex_lookup_fn
 
     def render(self, state: State) -> Image.Image:
+        """Render convenience wrapper using stored configuration."""
         return render(
             state,
             resolution=self.resolution,

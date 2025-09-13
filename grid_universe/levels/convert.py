@@ -1,3 +1,15 @@
+"""Conversion utilities between authoring ``Level`` and runtime ``State``.
+
+Two primary operations:
+
+* ``to_state``: Materialize immutable ECS world from a grid of ``EntitySpec``.
+* ``from_state``: Reconstruct a mutable authoring representation from a live state.
+
+Handles wiring of portals, pathfinding targets, inventory & status effect
+embedding (nested lists -> separate entities), and assigns deterministic
+EntityIDs.
+"""
+
 from __future__ import annotations
 
 from dataclasses import replace

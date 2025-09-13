@@ -1,3 +1,10 @@
+"""Autonomous linear movement system.
+
+Updates entities with a ``Moving`` component by translating them along their
+configured axis and direction up to ``speed`` tiles per step, bouncing (i.e.
+reversing direction) if configured and blocked/out-of-bounds.
+"""
+
 from dataclasses import replace
 from typing import Tuple
 from pyrsistent.typing import PMap
@@ -15,6 +22,10 @@ def move(
     state_moving: PMap[EntityID, Moving],
     state_position: PMap[EntityID, Position],
 ) -> Tuple[PMap[EntityID, Moving], PMap[EntityID, Position], bool]:
+    """Attempt a single-tile move for a moving entity.
+
+    Returns updated moving/position maps and whether movement was blocked.
+    """
     moving = state_moving[entity_id]
     blocked = not is_in_bounds(state, next_pos) or is_blocked_at(
         state, next_pos, check_collidable=entity_id in state.blocking
@@ -36,6 +47,7 @@ def move(
 
 
 def moving_system(state: State) -> State:
+    """Advance all moving entities for the current step."""
     state_position = state.position
     state_moving = state.moving
 

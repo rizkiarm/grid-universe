@@ -1,3 +1,10 @@
+"""Authoring grid representation (pre-immutable State).
+
+Provides a simple editing API (add/remove/move) for building up a level prior
+to conversion. Use ``levels.factories`` helpers to create ``EntitySpec``
+objects conveniently.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

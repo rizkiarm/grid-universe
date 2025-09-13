@@ -1,3 +1,23 @@
+"""Built-in movement generator functions.
+
+Each *move function* maps (state, entity id, action) -> sequence of
+``Position`` objects representing the path the entity will attempt for a single
+directional action. Systems consume these candidate positions in order,
+stopping early if blocked. This indirection allows custom movement behaviors
+to be plugged per level (e.g. wrapping, sliding, wind drift).
+
+Contract (``MoveFn``):
+
+* Must return at least one ``Position`` (often just the immediate neighbor).
+* Should not mutate ``State``.
+* May return multiple positions to simulate chained micro‑steps (sliding,
+  gravity fall, wind, etc.).
+
+Performance: The functions here use straightforward iteration over the
+``state.position`` map for collision checks; this is acceptable for small
+grids. For very large maps a spatial index could be introduced.
+"""
+
 import random
 from typing import Sequence, Dict
 from grid_universe.components import Position
@@ -7,6 +27,11 @@ from grid_universe.types import EntityID, MoveFn
 
 
 def default_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
+    """Single-tile cardinal step.
+
+    Returns the adjacent tile in the direction of ``action`` without bounds
+    wrapping. Caller handles blocking and validity.
+    """
     pos = state.position[eid]
     dx, dy = {
         Action.UP: (0, -1),
@@ -20,6 +45,11 @@ def default_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Pos
 def wrap_around_move_fn(
     state: State, eid: EntityID, action: Action
 ) -> Sequence[Position]:
+    """Cardinal step with toroidal wrapping.
+
+    Requires ``state.width`` & ``state.height``. Moving off an edge re-enters
+    on the opposite side.
+    """
     pos = state.position[eid]
     dx, dy = {
         Action.UP: (0, -1),
@@ -37,6 +67,7 @@ def wrap_around_move_fn(
 
 
 def mirror_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
+    """Horizontally mirrored movement (LEFT<->RIGHT)."""
     mirror_map: Dict[Action, Action] = {
         Action.LEFT: Action.RIGHT,
         Action.RIGHT: Action.LEFT,
@@ -48,6 +79,11 @@ def mirror_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Posi
 
 
 def slippery_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
+    """Slide in direction until blocked or edge.
+
+    Returns the whole path of intermediate positions; if the first tile is
+    blocked returns the current position (no movement).
+    """
     pos = state.position[eid]
     dx, dy = {
         Action.UP: (0, -1),
@@ -74,6 +110,11 @@ def slippery_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Po
 
 
 def windy_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
+    """Primary cardinal step plus optional wind drift.
+
+    With 30%% probability (per deterministic RNG seeded by ``state.seed`` and
+    turn) a perpendicular single-tile drift is appended.
+    """
     pos = state.position[eid]
     dx, dy = {
         Action.UP: (0, -1),
@@ -103,6 +144,12 @@ def windy_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Posit
 
 
 def gravity_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
+    """Cardinal step then fall straight downward until blocked.
+
+    If the initial adjacent tile is blocked or out-of-bounds, no movement is
+    produced. Otherwise the path includes the first step plus each subsequent
+    unobstructed downward tile.
+    """
     pos = state.position[eid]
     dx, dy = {
         Action.UP: (0, -1),
@@ -144,3 +191,8 @@ MOVE_FN_REGISTRY: Dict[str, MoveFn] = {
     "windy": windy_move_fn,
     "gravity": gravity_move_fn,
 }
+"""Registry of built-in movement function names to callables.
+
+Users may supply a custom function directly in a ``State`` or extend this
+registry before level generation.
+"""

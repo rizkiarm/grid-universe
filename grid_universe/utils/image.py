@@ -1,3 +1,30 @@
+"""Image utilities.
+
+Vectorized helpers for lightweight image post-processing used by the renderer.
+
+The primary goal is fast, deterministic recoloring of small RGBA sprite
+textures (e.g. 16x16 or 32x32) without introducing heavyweight dependencies
+or per-pixel Python loops. Operations are implemented with NumPy and operate
+on float32 buffers to balance precision and performance.
+
+Key Functions
+-------------
+recolor_image_keep_tone:
+    Re-hues an image to a target color while preserving original per-pixel
+    luminance (value channel) and optionally original saturation. This enables
+    palette swapping / team coloring while retaining shading.
+
+draw_direction_triangles_on_image:
+    Overlays directional arrow/triangle glyphs onto a texture to visualize
+    movement intent or facing direction, used for debugging pathfinding or
+    animating multi-step movements.
+
+Implementation Notes
+--------------------
+The HSV <-> RGB conversions are fully vectorized and attempt to minimize
+branching; alpha is preserved exactly unless explicitly recolored.
+"""
+
 import numpy as np
 import numpy.typing as npt
 from PIL import Image, ImageDraw

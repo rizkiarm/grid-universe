@@ -1,3 +1,17 @@
+"""Property component aggregates.
+
+This module re-exports *property* components: stable attributes that define an
+entity's inherent or persistent qualities (e.g. :class:`Position`,
+:class:`Health`, :class:`Blocking`, :class:`Inventory`). Systems read these
+dataclasses to determine movement, collisions, rendering, damage application
+and objective evaluation.
+
+All properties are immutable dataclasses; creating a new instance (or removing
+one from an entity) is how state changes are expressed between steps. For
+temporary modifiers, see the sibling :mod:`grid_universe.components.effects`
+package.
+"""
+
 from .agent import Agent
 from .appearance import Appearance, AppearanceName
 from .blocking import Blocking

@@ -1,3 +1,10 @@
+"""Authoring-time mutable entity specification.
+
+``EntitySpec`` instances gather optional component instances plus authoring
+metadata (inventory/status lists and wiring references). They are converted to
+immutable ECS entities by :mod:`levels.convert`.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

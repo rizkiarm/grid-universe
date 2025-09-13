@@ -1,4 +1,26 @@
-# ----- grid_universe/gym_env.py -----
+"""Gymnasium environment wrapper for Grid Universe.
+
+Provides a structured observation that pairs a rendered RGBA image with rich
+info dictionaries (agent status / inventory / active effects, environment
+config). Reward is the delta of ``state.score`` per step. ``terminated`` is
+``True`` on win, ``truncated`` on lose (mirrors many Gym environments that
+differentiate *natural* vs *forced* episode ends).
+
+Observation schema (see docs for full details):
+
+``{"image": np.ndarray(H,W,4), "info": {"agent": {...}, "status": {...}, "config": {...}}}``
+
+Usage:
+
+``env = GridUniverseEnv(width=9, height=9, move_fn_name="default")``
+
+Customization hooks:
+    * ``initial_state_fn``: Provide a callable that returns a fully built ``State``.
+    * ``render_texture_map`` / resolution let you swap assets or resolution.
+
+The environment is purposely *not* vectorized; wrap externally if needed.
+"""
+
 import gymnasium as gym
 import numpy as np
 from typing import Callable, Optional, Dict, Tuple, Any, List
@@ -24,8 +46,15 @@ ObsType = Dict[str, Any]
 
 
 def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
-    """
-    Convert an effect entity into a serializable dict with type, limits, and any extras.
+    """Serialize an effect entity.
+
+    Arguments:
+        state: Current state snapshot.
+        effect_id: Entity id for the effect object.
+
+    Returns:
+        Dict[str, Any]: JSON‑friendly payload with id, type, limit meta and
+        speed multiplier if applicable.
     """
     effect_type: Optional[str] = None
     extra: Dict[str, Any] = {}
@@ -59,8 +88,9 @@ def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
 
 
 def _serialize_inventory_item(state: State, item_id: EntityID) -> Dict[str, Any]:
-    """
-    Convert an inventory entity into a serializable dict with type info and useful fields.
+    """Serialize an inventory item (key / collectible / generic).
+
+    Returns type categorization plus optional appearance hint.
     """
     item: Dict[str, Any] = {"id": int(item_id), "type": "item"}
     # Key?
@@ -83,6 +113,13 @@ def _serialize_inventory_item(state: State, item_id: EntityID) -> Dict[str, Any]
 
 
 def agent_observation_dict(state: State, agent_id: EntityID) -> Dict[str, Any]:
+    """Compose structured agent sub‑observation.
+
+    Includes health, list of active effect entries, and inventory items.
+    Missing health is represented by ``None`` values which are later converted
+    to sentinel numbers in the space definition (-1) when serialized to numpy
+    arrays (Gym leaves them as ints here).
+    """
     # Health
     hp = state.health.get(agent_id)
     health_dict: Dict[str, Any] = {
@@ -112,6 +149,7 @@ def agent_observation_dict(state: State, agent_id: EntityID) -> Dict[str, Any]:
 
 
 def env_status_observation_dict(state: State) -> Dict[str, Any]:
+    """Status portion of observation (score, phase, turn)."""
     # Derive phase for clarity
     phase = "ongoing"
     if state.win:
@@ -126,6 +164,7 @@ def env_status_observation_dict(state: State) -> Dict[str, Any]:
 
 
 def env_config_observation_dict(state: State) -> Dict[str, Any]:
+    """Config portion of observation (function names, seed, dimensions)."""
     move_fn_name = getattr(state.move_fn, "__name__", str(state.move_fn))
     objective_fn_name = getattr(state.objective_fn, "__name__", str(state.objective_fn))
     return {
@@ -138,6 +177,12 @@ def env_config_observation_dict(state: State) -> Dict[str, Any]:
 
 
 class GridUniverseEnv(gym.Env[ObsType, np.integer]):
+    """Gymnasium ``Env`` implementation for the Grid Universe.
+
+    Parameters mirror the procedural level generator plus rendering knobs. The
+    action space is ``Discrete(len(Action))``; see :mod:`grid_universe.actions`.
+    """
+
     metadata = {"render_modes": ["human", "texture"]}
 
     def __init__(
@@ -148,6 +193,15 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         initial_state_fn: Callable[..., State] = generate,
         **kwargs: Any,
     ):
+        """Create a new environment instance.
+
+        Arguments:
+            render_mode: "texture" to return PIL image frames, "human" to open window.
+            render_resolution: Width (pixels) of rendered image; height is scaled.
+            render_texture_map: Mapping of (AppearanceName, properties) to asset paths.
+            initial_state_fn: Callable returning an initial ``State`` (e.g. procedural generator).
+            **kwargs: Forwarded to ``initial_state_fn`` (e.g. size, densities, seed).
+        """
         from gymnasium import spaces  # ensure gymnasium.spaces is available
         import numpy as np
 
@@ -262,6 +316,15 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, object]] = None
     ) -> Tuple[ObsType, Dict[str, object]]:
+        """Start a new episode.
+
+        Arguments:
+            seed: Currently unused (procedural seed is passed via kwargs on construction).
+            options: Gymnasium options (unused).
+
+        Returns:
+            Observation dict and empty info dict per Gymnasium API.
+        """
         self.state = self._initial_state_fn(**self._initial_state_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
         if self._texture_renderer is None:
@@ -274,6 +337,14 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     def step(
         self, action: np.integer
     ) -> Tuple[ObsType, float, bool, bool, Dict[str, object]]:
+        """Apply one environment step.
+
+        Arguments:
+            action: Integer index into the ``Action`` enum.
+
+        Returns:
+            (observation, reward, terminated, truncated, info)
+        """
         assert self.state is not None and self.agent_id is not None
 
         if action >= len(Action):
@@ -290,6 +361,12 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         return obs, reward, terminated, truncated, info
 
     def render(self, mode: Optional[str] = None) -> Optional[PILImage]:  # type: ignore
+        """Render the current state.
+
+        Args:
+            mode: "human" to display, "texture" to return PIL image. Defaults to
+                instance's configured render mode.
+        """
         render_mode = mode or self._render_mode
         assert self.state is not None
         if self._texture_renderer is None:
@@ -306,6 +383,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
             raise NotImplementedError(f"Render mode '{render_mode}' not supported.")
 
     def state_info(self) -> Dict[str, Dict[str, Any]]:
+        """Return structured ``info`` sub-dict used in observations."""
         assert self.state is not None and self.agent_id is not None
         info_dict = {
             "agent": agent_observation_dict(self.state, self.agent_id),
@@ -315,6 +393,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         return info_dict
 
     def _get_obs(self) -> ObsType:
+        """Internal helper constructing the full observation."""
         assert self.state is not None and self.agent_id is not None
         if self._texture_renderer is None:
             self._texture_renderer = TextureRenderer(
@@ -327,7 +406,9 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         return {"image": img_np, "info": info_dict}
 
     def _get_info(self) -> Dict[str, object]:
+        """Return the step info (empty placeholder for compatibility)."""
         return {}
 
     def close(self) -> None:
+        """Release any renderer resources (no-op placeholder)."""
         pass

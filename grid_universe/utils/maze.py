@@ -1,3 +1,29 @@
+"""Maze generation and analysis helpers.
+
+Utility routines for producing and querying grid mazes used in sample levels
+or procedural content generation. The algorithms favor clarity and
+deterministic reproducibility via an injected ``random.Random`` instance.
+
+Functions
+---------
+generate_perfect_maze:
+    Depth-first backtracking perfect maze generator (no cycles, single path
+    between any two open cells) with optional edge opening to guarantee exit
+    accessibility on borders.
+
+bfs_path:
+    Breadth-first search shortest path (unweighted) between two open cells.
+
+all_required_path_positions:
+    Computes the union of waypoints' shortest paths ensuring all required
+    positions are visited in sequence.
+
+adjust_maze_wall_percentage:
+    Post-processes a perfect maze to tune overall wall density by randomly
+    opening a proportion of remaining walls, enabling difficulty scaling or
+    aesthetic variation.
+"""
+
 from typing import Dict, Tuple, List, Set
 import random
 from collections import deque

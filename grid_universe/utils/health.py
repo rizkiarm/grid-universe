@@ -1,3 +1,5 @@
+"""Health and damage helpers."""
+
 from typing import Tuple
 from pyrsistent import PMap
 
@@ -12,10 +14,7 @@ def apply_damage_and_check_death(
     damage: int,
     lethal: bool,
 ) -> Tuple[PMap[EntityID, Health], PMap[EntityID, Dead]]:
-    """
-    Applies damage to the entity. If health drops to 0 or lethal is True, marks as Dead.
-    Returns (updated_Health_pmap, updated_dead_pmap).
-    """
+    """Apply damage to entity and mark dead if lethal or HP reaches zero."""
     if eid in health_dict:
         hp = health_dict[eid]
         new_hp = max(0, hp.health - damage)

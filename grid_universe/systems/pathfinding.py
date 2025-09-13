@@ -1,3 +1,10 @@
+"""Pathfinding systems.
+
+Provides straight-line heuristic movement and A* shortest path selection for
+entities with the ``Pathfinding`` component. Supports effect-based blocking
+via usage-limited phasing/immunity status checks before movement.
+"""
+
 from dataclasses import replace
 from typing import Dict, List, Tuple
 
@@ -22,10 +29,10 @@ from itertools import count
 def get_astar_next_position(
     state: State, entity_id: EntityID, target_id: EntityID
 ) -> Position:
-    """
-    Returns the next position along the shortest A* path from entity_id to target_id.
-    If already at the goal or no path, returns current position.
-    Only considers blocking as obstacles (not collidable or pushable, consistent with movement_system).
+    """Compute next step toward target using A* (Manhattan metric).
+
+    Ignores collidable/pushable differences and treats only blocking tiles as
+    obstacles. Returns current position if already at goal or no path.
     """
     start = state.position[entity_id]
     goal = state.position[target_id]
@@ -76,7 +83,7 @@ def get_astar_next_position(
         return start  # No path found
 
     # Walk backwards to get the path
-    path = []
+    path: List[Position] = []
     current = goal
     while current != start:
         path.append(current)
@@ -91,6 +98,7 @@ def get_astar_next_position(
 def get_straight_line_next_position(
     state: State, entity_id: EntityID, target_id: EntityID
 ) -> Position:
+    """Choose axis-aligned step maximizing dot product toward target."""
     target_vec = position_to_vector(state.position[target_id])
     entity_vec = position_to_vector(state.position[entity_id])
     dvec = vector_subtract(target_vec, entity_vec)
@@ -106,6 +114,7 @@ def get_straight_line_next_position(
 def entity_pathfinding(
     state: State, usage_limit: PMap[EntityID, UsageLimit], entity_id: EntityID
 ) -> State:
+    """Apply pathfinding for a single entity (straight-line or A*)."""
     if entity_id not in state.position or entity_id not in state.pathfinding:
         return state
 
@@ -141,6 +150,7 @@ def entity_pathfinding(
 
 
 def pathfinding_system(state: State) -> State:
+    """Advance all pathfinding-enabled entities by one tile if possible."""
     usage_limit: PMap[EntityID, UsageLimit] = state.usage_limit
     for entity_id in state.pathfinding:
         state = entity_pathfinding(state, usage_limit, entity_id)

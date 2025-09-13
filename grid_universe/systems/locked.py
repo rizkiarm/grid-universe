@@ -1,3 +1,11 @@
+"""Locked / unlocking system.
+
+Handles adjacent-tile interaction between an entity's inventory and any
+neighboring locked objects. When the correct key is found, removes both the
+``Locked`` and optional ``Blocking`` components so passage is opened. Keys
+are single-use: they are removed from inventory (and key map) upon unlocking.
+"""
+
 from dataclasses import replace
 from grid_universe.components import Position
 from grid_universe.state import State
@@ -7,9 +15,10 @@ from grid_universe.utils.inventory import has_key_with_id, remove_item
 
 
 def unlock(state: State, entity_id: EntityID, next_pos: Position) -> State:
-    """
-    Handles unlocking logic for ALL locked entities at next_pos.
-    Removes the Locked component for each if the correct key is in inventory (single-use).
+    """Attempt to unlock all locked entities at ``next_pos``.
+
+    Consumes matching key(s) from the entity's inventory; multiple locks in
+    the same tile are processed sequentially.
     """
     locked_ids = entities_with_components_at(state, next_pos, state.locked)
     if not locked_ids:
@@ -52,6 +61,18 @@ def unlock(state: State, entity_id: EntityID, next_pos: Position) -> State:
 
 
 def unlock_system(state: State, entity_id: EntityID) -> State:
+    """Run unlocking attempts for four-neighborhood around entity.
+
+    Arguments:
+        state:
+            Current immutable state.
+        entity_id:
+            Entity whose inventory is used to unlock adjacent locks.
+
+    Returns:
+        State
+            Updated state
+    """
     pos = state.position.get(entity_id)
     if pos is not None:
         for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
