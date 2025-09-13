@@ -1,266 +1,439 @@
 # Grid Universe
 
-Grid Universe is a flexible gridworld environment built on a pure Entity-Component-System (ECS) architecture. It offers fully customizable movement and objective rules, along with advanced mechanics such as power-ups, keys and doors, moving objects, enemies, portals, and more. The platform is compatible with Gymnasium for reinforcement learning (RL) training, and includes a Streamlit web app featuring a comprehensive ECS state inspector.
+> A modular, deterministic, fully *immutable* ECS gridworld for research, teaching, prototyping RL ideas, and building puzzle / action mechanics fast.
 
-Designed from the ground up, Grid Universe serves as an ideal environment for research and teaching in reinforcement learning, puzzle games, and agent-based AI.
+Grid Universe combines a pure Entity–Component–System model (functional, ordered systems) with flexible authoring and rendering tools. It ships with procedural generators, a Gymnasium wrapper, a Streamlit inspector app, and extensible registries for movement and objectives.
 
-## Key Features
-
-- **Modern ECS Architecture:** Built with native Python dataclasses and immutable data structures via [`pyrsistent`](https://github.com/tobgu/pyrsistent) for robust, maintainable code.
-- **Composable Components:** Includes agents, pushable/moving objects, portals, keys/doors, power-up statuses, pathfinding, and more.
-- **Extensible Movement Rules:** Supports classic, wrap-around, slippery, windy, gravity-based, and other customizable movement mechanics.
-- **Flexible Objectives:** Multiple built-in and extendable objectives such as reaching exits, collecting items, pushing boxes, unlocking doors, and more.
-- **AI Capabilities:** Pathfinding using straight-line seeking or A* search; supports directional movement logic.
-- **Multi-Agent Ready:** Core ECS design supports multiple agents, with single-agent support in UI and RL wrappers by default.
-- **Powerful Level Generation:** Flexible, scriptable level generation (see `levels/maze.py`) and support for fully custom levels.
-- **Reinforcement Learning Integration:** Native Gymnasium environment (`gym_env.py`) for seamless RL experimentation.
-- **Interactive Streamlit App:** Highly customizable web app for environment exploration and visualization.
-- **Tile-Based Rendering:** Efficient visualizations using [`Pillow`](https://pillow.readthedocs.io/en/stable/) for rendering environments.
-- **Comprehensive Testing:** Ensured code reliability with strong test coverage using [`pytest`](https://docs.pytest.org/).
+Built for: rapid experimentation (movement/objective swaps), reproducible RL benchmarks, curriculum & teaching demos, and custom gameplay mechanics (portals, powerups, hazards, pushing, keys/doors, moving enemies, pathfinding chasers, etc.).
 
 ---
 
-## Table of Contents
+<p align="center">
+    <a href="https://rizkiarm.github.io/grid-universe/">Docs</a> •
+    <a href="https://grid-universe.streamlit.app/">App</a> •
+    <a href="LICENSE">MIT License</a>
+</p>
 
+<p align="center">
+    <em>Immutable ECS gridworld with procedural generation, deterministic replay, Gymnasium wrapper, and pluggable movement & objectives.</em>
+</p>
+
+<p align="center">
+    <!-- Badges (replace placeholders with real CI/coverage later) -->
+    <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-blue" />
+    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green" />
+    <img alt="Type Checked" src="https://img.shields.io/badge/types-mypy_strict-informational" />
+    <img alt="Lint: Ruff" src="https://img.shields.io/badge/lint-ruff-ff69b4" />
+    <img alt="Docs" src="https://img.shields.io/badge/docs-mkdocs%20material-374151" />
+</p>
+
+## Why Grid Universe?
+
+- **Immutable ECS core** – Each tick is a pure transformation (`State -> State`), simplifying debugging & reproducibility.
+- **Deterministic** – All randomness is derived from `(seed, turn)`; rollouts & renders are reproducible bit‑to‑bit across machines.
+- **Fast iteration** – Author a mutable `Level` → convert to immutable `State` → simulate; round‑trip for editors.
+- **Rich mechanics** – Portals, keys/doors, pushables, moving entities, hazards, pathfinding chasers, powerup effects (speed, immunity, phasing) with time/usage limits.
+- **RL ready** – Native Gymnasium environment: image + structured info; reward = delta score; discrete 7‑action space.
+- **Procedural generation** – Maze generator with density knobs for enemies, keys, portals, hazards, rewards.
+- **Extensible** – Register new movement & objective functions; add systems, components, texture mappings without invasive changes.
+- **Teaching & tooling** – Streamlit inspector exposes full ECS state live; ideal for lectures and debugging.
+
+---
+
+## Table of Contents (concise)
+
+- [Hello World](#hello-world)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [Core Concepts](#core-concepts)
-- [Testing](#testing)
+- [Seeding & Determinism](#seeding--determinism)
+- [ECS Tick Order](#ecs-tick-order)
+- [Features Matrix](#features-matrix)
+- [Movement & Objectives Reference](#movement--objectives-reference)
+- [Gym Environment](#gym-environment)
 - [Extending](#extending)
-- [Contributing](#contributing)
+- [Rendering & Assets](#rendering--assets)
+- [Project Structure](#project-structure)
+- [Development](#development)
 - [License](#license)
+
+---
+
+## Hello World
+
+Minimal procedural usage:
+
+```python
+from grid_universe.levels.maze import generate
+from grid_universe.actions import Action
+from grid_universe.step import step
+
+state = generate(width=6, height=6, seed=0)
+for a in [Action.RIGHT, Action.DOWN, Action.PICK_UP]:
+    state = step(state, a)
+print(state.score, state.turn, state.win, state.lose)
+```
+
+More examples below and full docs: https://rizkiarm.github.io/grid-universe/
 
 ---
 
 ## Installation
 
-**Requirements:**
+Requirements
+
 - Python 3.11+
-- [pyrsistent](https://github.com/tobgu/pyrsistent)
-- [Pillow](https://pillow.readthedocs.io/en/stable/)
-- [gymnasium](https://github.com/Farama-Foundation/Gymnasium)
-- [numpy](https://numpy.org)
 
-**Extra Dependencies:**
-- [Streamlit](https://streamlit.io)
+Base install (editable):
 
-Install dependencies:
-
-```
+```bash
 pip install -e .
 ```
 
-Install with extra dependencies:
+Optional extras (from `pyproject.toml`):
 
+```bash
+pip install -e ".[dev]"   # tests, lint, type checking
+pip install -e ".[app]"   # streamlit UI
+pip install -e ".[doc]"   # mkdocs site
 ```
-pip install -e .[app] # Streamlit App
-pip install -e .[dev] # Development
+
+Quick verification:
+
+```bash
+python -c "import grid_universe as _; print('OK')"
 ```
 
-### Devcontainer
+### Dev Container
 
-The project includes a `.devcontainer` directory supporting [Dev Containers](https://containers.dev).
-- `.devcontainer/devcontainer.json`: Specifies a ready-to-use Python environment, ports, and setup commands.
-- `.devcontainer/setup.sh`: Initializes a virtual environment, installs dependencies, and ensures a consistent shell environment.
+If using VS Code / Dev Containers: a pre-configured Python environment (see `.devcontainer/`).
 
 ---
 
 ## Quick Start
 
+### Procedural (one-liner)
+
+Generate a random maze state, take a step, and render:
+
+```python
+from grid_universe.levels.maze import generate
+from grid_universe.actions import Action
+from grid_universe.step import step
+from grid_universe.renderer.texture import TextureRenderer
+
+state = generate(width=7, height=7, seed=42)
+state = step(state, Action.UP)
+img = TextureRenderer().render(state)
+img.save("frame.png")
+```
+
+### Authoring a Level
+
+Build a 5×5 world manually using factories then convert to runtime `State`:
+
+```python
+from grid_universe.levels.grid import Level
+from grid_universe.levels.factories import create_floor, create_agent, create_coin, create_exit
+from grid_universe.levels.convert import to_state
+from grid_universe.actions import Action
+from grid_universe.step import step
+
+level = Level(width=5, height=5, seed=123)
+for y in range(level.height):
+    for x in range(level.width):
+        level.add((x, y), create_floor())
+level.add((1, 1), create_agent(health=5))
+level.add((2, 1), create_coin(reward=10))
+level.add((3, 3), create_exit())
+
+state = to_state(level)
+agent_id = next(iter(state.agent.keys()))
+
+for a in [Action.RIGHT, Action.PICK_UP, Action.DOWN, Action.DOWN]:
+    state = step(state, a, agent_id=agent_id)
+    if state.win or state.lose:
+        break
+```
+
+### Gymnasium Env
+
+```python
+from grid_universe.gym_env import GridUniverseEnv
+import numpy as np
+
+env = GridUniverseEnv(render_mode="texture", width=7, height=7, seed=7)
+obs, info = env.reset()
+done = False
+while not done:
+    action = env.action_space.sample().astype(np.int64)
+    obs, reward, terminated, truncated, info = env.step(action)
+    done = terminated or truncated
+img = env.render()
+if img: img.save("rollout_last.png")
+```
+
 ### Streamlit App
 
-The `app/main.py` file provides an interactive web interface for Grid Universe using [Streamlit](https://streamlit.io/).
+Interactive exploration + state inspector:
 
-**Features:**
-- **Game:** Play using keyboard or UI, see agent HP, inventory, powerup status, and receive live feedback.
-- **Config:** Customize level generation, maze size, objects, movement/objective rules, powerups, items, etc.
-- **State:** Inspect the full, real-time ECS state in JSON form (for debugging, RL, and teaching).
-
-To run the web app locally:
-```
+```bash
 streamlit run app/main.py
 ```
 
-Alternatively, you can access the hosted version at [grid-universe.streamlit.app](https://grid-universe.streamlit.app/)
+Hosted preview (if deployed): https://grid-universe.streamlit.app/
 
-### Functional API
+---
 
-Create a random env, interact, and render using the Functional API:
+---
 
-```
-from grid_universe.step import step
-from grid_universe.actions import Action
-from grid_universe.renderer.texture import render
-from grid_universe.levels.maze import generate
+## Seeding & Determinism
 
-# Create the initial state which defines the env
-state = generate(width=7, height=7)
+- Provide a seed to generators or `Level`; stored in `State.seed`.
+- All stochastic choices (e.g., windy gusts, texture variant selection) derive from hashing `(seed, turn)`.
+- Add custom deterministic randomness:
 
-# Take a step (move up)
-next_state = step(state, Action.UP)
-
-# Render to PIL Image
-image = render(next_state)
+```python
+import random
+def rng_for_turn(state):
+    return random.Random(hash((state.seed or 0, state.turn)))
 ```
 
-### Gymnasium API
+Determinism note: Actions + initial seed fully define subsequent States (pure functional pipeline).
 
-Gymnasium API is a thin wrapper of the functional API.
+---
 
-Create a random env, interact, and render using the Gymnasium API:
+## ECS Tick Order
 
+`step()` applies ordered pure systems:
+
+1. Snapshot previous positions (`position_system`)
+2. Autonomous movers (`moving_system`)
+3. Pathfinding chasers (`pathfinding_system`)
+4. Effect timers decrement (`status_tick_system`)
+5. Trails recorded (`trail_system`)
+6. Per sub-move (multi-speed): `push → movement → portal → damage → tile_reward`
+7. Post: `status_gc → tile_cost → win → lose → turn++ → gc`
+
+Batch map mutations inside a system before constructing the new `State` for performance.
+
+See deep dive: docs/design/ecs_architecture.md
+
+---
+
+## Features Matrix
+
+| Category | Built-in | Extensible | Notes |
+|----------|----------|-----------|-------|
+| Movement | default, wrap, slippery, windy, gravity (examples) | ✅ via registry | Multi-step speed effects supported |
+| Objectives | default, exit, collect, unlock, push | ✅ via registry | Register function name → objective fn |
+| Interactions | portals, keys/doors, pushables, reward/cost tiles, hazards, enemies | Add components + systems | Damage & portal order deterministic |
+| Effects | speed, immunity, phasing (time/usage limits) | Add effect + limit component | Tick + GC systems handle lifecycle |
+| Rendering | texture tiles + recolor groups | Override texture map & group rules | Deterministic variant selection |
+| Procedural Gen | Maze (walls, exits, items, powerups, enemies) | Write new generator returning `State` or `Level` | Use seed param for reproducibility |
+| RL API | Gymnasium wrapper (image+info) | Add wrappers | Reward = delta score |
+| Multi-Agent Core | Data model supports many agents | RL wrapper (single agent default) | Extend Gym env for multi-agent |
+
+---
+
+## Movement & Objectives Reference
+
+Built-in movement function names (see `moves.py`):
+
+`default`, `wrap_around_move_fn`, `slippery_move_fn`, `windy_move_fn` (and others as added).
+
+Built-in objective function names (see `objectives.py`):
+
+`default_objective_fn`, `exit_objective_fn`, `collect_objective_fn`, `unlock_objective_fn`, `push_objective_fn`.
+
+Registries:
+
+```python
+from grid_universe.moves import MOVE_FN_REGISTRY
+from grid_universe.objectives import OBJECTIVE_FN_REGISTRY
+print(MOVE_FN_REGISTRY.keys())
+print(OBJECTIVE_FN_REGISTRY.keys())
 ```
+
+---
+
+## Gym Environment
+
+Observation dict (summary):
+
+- `image`: `(H, W, 4)` RGBA uint8
+- `info.agent`: health/max, effects, inventory
+- `info.status`: score, phase (`ongoing|win|lose`), turn
+- `info.config`: move/objective names, seed, width, height
+
+Action space: `Discrete(7)` → `[UP, DOWN, LEFT, RIGHT, USE_KEY, PICK_UP, WAIT]`.
+
+Reward: `score(t) - score(t-1)`.
+
+Minimal random episode:
+
+```python
+import numpy as np
 from grid_universe.gym_env import GridUniverseEnv
-from grid_universe.actions import GymAction
 
-# Create the env
-env = GridUniverseEnv(render_mode="texture", width=7, height=7)
+env = GridUniverseEnv(width=8, height=8, seed=123, render_mode="texture")
 obs, info = env.reset()
-
-# Take a step (move up)
-_, reward, terminated, truncated, info = env.step(GymAction.UP)
-
-# Render with window
-env.render(mode="human")
-
-# Render to PIL Image
-img = env.render()
+done = False
+total = 0
+while not done:
+    action = env.action_space.sample().astype(np.int64)
+    obs, r, term, trunc, info = env.step(action)
+    total += r
+    done = term or trunc
+print("Episode reward:", total)
 ```
 
-The RL env returns a dict:
-
-- `obs["image"]`: RGBA numpy array (height × width × 4) of the current grid.
-- `obs["agent"]`: Feature vector (health, max_health, score, key counts, active powerups, etc.).
-
----
-
-## Project Structure
-```
-app/
-    main.py            # Streamlit App
-    ...
-grid_universe/
-    actions.py         # Action types (Move, PickUp, UseKey, etc.)
-    components/        # ECS component classes (Agent, Position, Wall, etc.)
-    entity.py          # EntityID generator
-    gym_env.py         # RL environment API (gymnasium)
-    levels/            # Level generators
-    moves.py           # Movement rules and variants
-    objectives.py      # Win conditions
-    renderer/          # Texture/tile rendering (Pillow)
-    state.py           # Immutable State dataclass (ECS world state)
-    step.py            # Main ECS step/reducer logic
-    systems/           # ECS systems: movement, enemy, portal, hazard, etc.
-    types.py           # Core tags, RenderType enums, typing
-    utils/             # Utility functions (inventory, powerups, etc.)
-tests/
-    ...                # pytest-based unit and integration tests
-assets/images/
-        ...            # image assets
-```
-### Entity-Component-System
-
-- **Entity**: An integer ID (see `entity.py`)
-- **Component**: Data-only classes (see `components/`)
-- **System**: Pure functions processing State (see `systems/`)
-
----
-
-## Core Concepts
-
-### Actions and Movement
-
-**Supported Actions:**
-Move (Up, Down, Left, Right), PickUp, UseKey, Wait
-
-**Movement Rules:**
-- **default:** Classic 4-way movement
-- **wrap:** Wrap-around grid
-- **slippery:** Slides continuously until blocked
-- **windy:** Random wind gusts alter movement
-- **gravity:** Entities fall until blocked
-
-*See `moves.py` for implementation details.*
-
-### Objectives
-
-**Win Conditions:**
-- **default:** Collect required items and reach the exit
-- **exit:** Go to the exit
-- **collect:** Collect all required items
-- **push:** Push all boxes to exits
-- **unlock:** Unlock all doors
-
-*See `objectives.py` for details.*
-
-### Objects & Interactions
-
-- Agents, Boxes (pushable & moving), Walls, Keys/Doors, Exits
-- Enemies and Hazards (damage, lethal, etc.)
-- **PowerUps:** Phasing, Immunity, Faster Movement Speed (with usage or time limits)
-- **Portals:** Teleport entities
-- Rewardable items, Required items
-
-### Level Generation
-
-- Customizable, procedurally-generated mazes
-  *Example: `levels/maze.py`*
-- Configure number of items, keys/doors, hazards, enemies, and more
-
-### Rendering
-
-- Tile-based rendering using Pillow
-  *See `renderer/texture.py`*
-- Layered rendering: background, main, corner icons per tile
-- Easily swap out tile sets by changing the texture map
+Full schema & details: docs/reference/api/#gym-environment
 
 ---
 
 ## Extending
 
-- Add new Components: define in `components/`
-- Add new Systems: put functions in `systems/`
-- Add new movement rules: add to `moves.py` and register in `MOVE_FN_REGISTRY`
-- Add new objectives: add to `objectives.py` and register in `OBJECTIVE_FN_REGISTRY`
-- Add new tile graphics: extend or override `TEXTURE_MAP` in `renderer/texture.py`
+| Domain | Steps |
+|--------|-------|
+| Movement | Implement fn `move_fn(state, pos)` → register in `MOVE_FN_REGISTRY` |
+| Objective | Implement fn `(state) -> bool` (win condition) → register in `OBJECTIVE_FN_REGISTRY` |
+| Component | Add dataclass + store to `State` + map in authoring `EntitySpec` + adapt conversions |
+| System | Pure `State -> State`; insert in `step()` ordering appropriately |
+| Effect | Add effect + optional limit components; integrate in status tick + GC |
+| Rendering | Extend `DEFAULT_TEXTURE_MAP`, add group rule for recoloring |
+| Level Factories | Add helpers in `levels/factories.py` |
+
+Guidelines:
+
+- Derive RNG from `(state.seed, state.turn)` only.
+- Keep updates batched; avoid mutating existing `PMap` references.
+- Avoid hidden global state; prefer function arguments.
 
 ---
 
-## Testing
+## Rendering & Assets
 
-Tests use `pytest`. To run all tests:
-```
-pytest
-```
-- Includes coverage of systems, integration, unit actions, and edge cases.
+Texture selection key: `(AppearanceName, tuple(sorted(properties))) → path|directory`.
+
+If value is a directory, a deterministic file is chosen from it (seed + turn) so runs are stable.
+
+Group recoloring: keys/doors (by key id), paired portals, etc. Add custom group rules for more categories.
+
+More in: docs/guides/rendering/ and docs/reference/api/#rendering
 
 ---
 
-## Contributing
+---
 
-Contributions are welcome!
+## Architecture Overview
 
-To contribute:
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Add tests for your changes.
-4. Run the test suite and ensure all tests pass.
-5. Submit a pull request and describe your changes.
+Ordered, pure systems (simplified) executed by `step()`:
 
-### Code Style
+1. `position_system` (snapshot previous positions)
+2. `moving_system` (autonomous movers)
+3. `pathfinding_system` (chasers)
+4. `status_tick_system` (effect time limits)
+5. `trail_system` (movement traces)
+6. Per sub-move (for multi-speed actions): `push_system → movement_system → portal_system → damage_system → tile_reward_system`
+7. Post action: `status_gc_system → tile_cost_system → win_system → lose_system → turn++ → gc`
 
-This project uses [Ruff](https://docs.astral.sh/ruff/) for all code formatting, linting, and import sorting.
+Advantages
 
-Before submitting a pull request, please run:
+- Predictable ordering & testability
+- Immutability eliminates hidden side-effects
+- Deterministic variant selection & random movement
+
+Entities are opaque integer IDs; component presence in a persistent map defines capabilities; systems only read/write via new `State` instances.
+
+See: `docs/design/ecs_architecture.md` for deep dive.
+
+---
+
+## Observation & Action Schema
+
+Gymnasium (`GridUniverseEnv`) observation dict:
+
+| Key | Type | Shape / Fields |
+|-----|------|----------------|
+| `image` | `np.ndarray(uint8)` | `(H, W, 4)` RGBA |
+| `info.agent.health` | int | current or -1 |
+| `info.agent.max_health` | int | max or -1 |
+| `info.agent.effects` | list | entries with id, type, limit_type, limit_amount, multiplier |
+| `info.agent.inventory` | list | item/key descriptors |
+| `info.status.score` | int | cumulative score |
+| `info.status.phase` | str | `ongoing|win|lose` |
+| `info.status.turn` | int | current turn |
+| `info.config.*` | misc | move/objective names, seed, width/height |
+
+Action space: `Discrete(7)` → `[UP, DOWN, LEFT, RIGHT, USE_KEY, PICK_UP, WAIT]`.
+
+Reward: delta of `state.score` per step.
+
+---
+
+## Project Structure
+
 ```
+grid_universe/
+  actions.py       # Action & GymAction enums
+  state.py         # Immutable ECS world snapshot
+  step.py          # Orchestrated reducer
+  moves.py         # Movement strategies + registry
+  objectives.py    # Objective strategies + registry
+  gym_env.py       # Gymnasium wrapper
+  components/      # properties/ & effects/ dataclasses
+  systems/         # Ordered pure systems
+  levels/          # Authoring model, factories, converters, generators
+  renderer/        # TextureRenderer + helpers
+  utils/           # ECS, grid, status, inventory, gc, image, trail
+app/               # Streamlit app
+tests/             # Unit + integration tests
+assets/            # Texture packs (kenney, futurama, ...)
+docs/              # MkDocs site sources
+```
+
+---
+
+## Development
+
+### Tests
+
+```bash
 pytest
+```
+
+### Lint & Format
+
+```bash
 ruff format .
 ruff check . --fix
 ```
+
+### Types
+
+```bash
+mypy grid_universe
+```
+
+### Docs (local)
+
+```bash
+pip install -e ".[doc]"
+mkdocs serve
+```
+
+### Contributing Workflow
+
+1. Branch (`feat/...` or `fix/...`).
+2. Add/modify code + tests.
+3. Run tests, lint, type check.
+4. Update docs if API surface changes.
+5. Open PR with rationale & examples.
+
+Principles: purity, determinism, small composable systems, explicit registries.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT – see [LICENSE](LICENSE).
