@@ -1,0 +1,45 @@
+site_name: Grid Universe
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.expand
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.highlight
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            heading_level: 3
+            show_root_full_path: false
+            separate_signature: true
+            members_order: source
+nav:
+  - Home: index.md
+  - Quick Start: quickstart.md
+  - Guides:
+      - Authoring Levels: guides/authoring_levels.md
+      - State and Systems: guides/state_and_systems.md
+      - Movement and Objectives: guides/movement_and_objectives.md
+      - Rendering: guides/rendering.md
+      - Functional API: guides/functional_api.md
+      - Gym Environment: guides/gym_env.md
+      - Extending the System: guides/extending_the_system.md
+  - Reference:
+      - API: reference/api.md
+  - Design:
+      - ECS Architecture: design/ecs_architecture.md
+      - Systems Lifecycle: design/systems_lifecycle.md
+      - Components Reference: design/components_reference.md
+watch:
+  - grid_universe

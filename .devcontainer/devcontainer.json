@@ -6,5 +6,5 @@
         "python.pythonPath": "${workspaceFolder}/.venv/bin/python"
     },
     "remoteUser": "vscode",
-    "forwardPorts": [8501]
+    "forwardPorts": [8501, 8000]
 }
