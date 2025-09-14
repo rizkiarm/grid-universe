@@ -221,6 +221,56 @@ Contents
 
 ::: grid_universe.examples.maze
 
+### Authored gameplay progression levels
+
+- Curated, hand-authored deterministic levels (L0–L13) that ramp mechanics: movement, maze turns, optional cost-reducing coin tiles, required cores, key–door, hazards, portals, pushable boxes, enemies, and power‑ups (Shield, Ghost, Boots), culminating in an integrated capstone puzzle.
+
+- Each builder function accepts an optional ``seed`` (stored on the resulting ``State`` and used by rendering RNG). Use ``generate_task_suite(base_seed=...)`` or ``generate_task_suite(seed_list=[...])`` to customize seeds while preserving structure.
+
+Key functions:
+
+```python
+from grid_universe.examples import gameplay_levels as gp
+
+# Single level with custom seed
+state = gp.build_level_power_boots(seed=9001)
+
+# Full suite with deterministic shifted seeds
+suite = gp.generate_task_suite(base_seed=5000)  # seeds = 5000..5013
+
+# Explicit per-level seeds
+suite = gp.generate_task_suite(seed_list=[10*i for i in range(14)])
+```
+
+::: grid_universe.examples.gameplay_levels
+
+### Cipher levels (maze-based)
+
+- Built on top of the procedural maze generator for structural consistency.
+- API:
+    - `generate(...)` – backward compatible convenience wrapper.
+    - `to_cipher_level(state, cipher_text_map, seed=None)` – transform an existing state.
+- Supports optional sampling of `(cipher_text, objective_name)` pairs (objective must be registered).
+
+Usage examples:
+
+```python
+from grid_universe.examples.cipher_objective_levels import generate, to_cipher_level
+from grid_universe.examples import maze
+
+# Direct generation (EXIT objective when num_required_items == 0)
+exit_state = generate(width=9, height=7, num_required_items=0, cipher_objective_pairs=[("ABC","exit")], seed=123)
+
+# Generation with required cores switches objective logic
+collect_state = generate(width=11, height=9, num_required_items=2, cipher_objective_pairs=[("DATA","default")], seed=456)
+
+# Transform an existing maze state with custom cipher/objective mapping
+base = maze.generate(width=9, height=7, seed=999, num_required_items=1)
+adapted = to_cipher_level(base, [("HELLO","exit")], seed=999)
+```
+
+::: grid_universe.examples.cipher_objective_levels
+
 
 ## Gym Environment
 

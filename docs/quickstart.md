@@ -232,6 +232,14 @@ print("Terminal:", is_terminal_state(state, agent_id))
 
 - Render frequently while debugging placement or rendering rules.
 
+## Examples
+
+Explore richer or specialized scenarios on the [Level Examples](guides/level_examples.md) page:
+
+- Procedural maze generator with adjustable densities and content counts
+- Gameplay progression suite (L0–L13) introducing mechanics stepwise (coins, cores, key–door, hazard, portal, push, enemy, power‑ups, capstone)
+- Cipher objective levels focused on decoding `state.message` containing the objective
+
 
 ## Troubleshooting
 

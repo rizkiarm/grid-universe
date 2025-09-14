@@ -21,7 +21,6 @@ plugins:
             show_source: true
             show_root_heading: true
             heading_level: 3
-            show_root_full_path: false
             separate_signature: true
             members_order: source
 nav:
@@ -29,6 +28,7 @@ nav:
   - Quick Start: quickstart.md
   - Guides:
       - Authoring Levels: guides/authoring_levels.md
+      - Level Examples: guides/level_examples.md
       - State and Systems: guides/state_and_systems.md
       - Movement and Objectives: guides/movement_and_objectives.md
       - Rendering: guides/rendering.md

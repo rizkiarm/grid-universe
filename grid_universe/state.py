@@ -62,7 +62,6 @@ from grid_universe.components.properties import (
     Status,
 )
 from grid_universe.types import EntityID, MoveFn, ObjectiveFn
-from dataclasses import replace as _dc_replace
 
 
 @dataclass(frozen=True)
@@ -196,21 +195,3 @@ class State:
                     pass
             description = description.set(field, value)
         return pmap(description)
-
-
-def with_state_seed(state: State, seed: Optional[int]) -> State:
-    """Return a new ``State`` with an updated RNG seed.
-
-    The ``seed`` field influences deterministic randomness in movement helpers
-    (e.g. ``windy_move_fn``) and texture selection / recoloring. This utility
-    preserves immutability by returning a dataclass copy with only ``seed``
-    changed.
-
-    Args:
-        state (State): Original immutable state.
-        seed (int | None): Replacement seed (``None`` to clear / disable deterministic randomness).
-
-    Returns:
-        State: New state instance with updated seed.
-    """
-    return _dc_replace(state, seed=seed)

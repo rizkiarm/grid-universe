@@ -6,7 +6,7 @@ from typing import Dict, Optional
 from pyrsistent import thaw
 
 from config import (
-    Config,
+    AppConfig,
     set_default_config,
     get_config_from_widgets,
     make_env_and_reset,
@@ -34,16 +34,13 @@ set_default_config()
 tab_game, tab_config, tab_state = st.tabs(["Game", "Config", "State"])
 
 with tab_config:
-    config: Config = get_config_from_widgets()
+    config: AppConfig = get_config_from_widgets()
     st.session_state["config"] = config
 
-    if st.button("🔄 Generate Maze", key="save_config_btn", use_container_width=True):
-        st.session_state["maze_seed_counter"] = 0  # reset counter
-        st.session_state["config"] = replace(
-            st.session_state["config"],
-            seed=st.session_state["config"].seed
-            + st.session_state["maze_seed_counter"],
-        )
+    if st.button("Save", key="save_config_btn", use_container_width=True):
+        st.session_state["seed_counter"] = 0
+        base_seed = config.seed if config.seed is not None else 0
+        st.session_state["config"] = replace(config, seed=base_seed)
         make_env_and_reset(st.session_state["config"])
     st.divider()
 
@@ -54,13 +51,12 @@ with tab_game:
     left_col, middle_col, right_col = st.columns([0.25, 0.5, 0.25])
 
     with right_col:
-        if st.button("🔄 New Maze", key="generate_btn", use_container_width=True):
-            st.session_state["maze_seed_counter"] += 1
-            st.session_state["config"] = replace(
-                st.session_state["config"],
-                seed=st.session_state["config"].seed
-                + st.session_state["maze_seed_counter"],
-            )
+        current_cfg: AppConfig = st.session_state["config"]
+        if st.button("🔁 New Level", key="generate_btn", use_container_width=True):
+            st.session_state["seed_counter"] += 1
+            base_seed = current_cfg.seed if current_cfg.seed is not None else 0
+            new_seed = base_seed + st.session_state["seed_counter"]
+            st.session_state["config"] = replace(current_cfg, seed=new_seed)
             make_env_and_reset(st.session_state["config"])
 
         # Need to put after generate maze
@@ -81,7 +77,11 @@ with tab_game:
                 .replace("fn", "")
                 .capitalize()
             )
+            message = env.state.message
+
             st.info(f"{objective}", icon="🎯")
+            if message:
+                st.info(f"{message}", icon="💬")
 
         st.divider()
 

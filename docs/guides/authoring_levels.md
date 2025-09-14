@@ -454,4 +454,4 @@ Q: My effect never triggers or expires.
 
 - See “Rendering” for texture maps, recoloring groups (keys/doors by `key_id`, portal pairs), and moving overlays.
 
-- Explore “Examples: Procedural maze” for a complete generator that populates a diverse level with controlled randomness.
+- Explore “Level Examples” for examples of complete generator.

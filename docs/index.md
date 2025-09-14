@@ -115,6 +115,10 @@ Contents
 - Examples
 
     - Maze generator with walls/floors, agent/exit, keys/doors, portals, enemies, hazards, and powerups
+    - Authored gameplay progression suite (L0–L13) introducing mechanics incrementally (coins, required cores, key–door, hazard, portal, pushable box, enemy patrol, power‑ups, capstone puzzle)
+    - Cipher objective levels injecting ciphertext objective via `state.message`
+
+See full usage patterns and seed customization on the [Level Examples page](guides/level_examples.md).
 
 
 ## Quick start (2 minutes)
