@@ -25,10 +25,10 @@ from grid_universe.utils.status import use_status_effect_if_present
 def movement_system(state: State, entity_id: EntityID, next_pos: Position) -> State:
     """Move agent one tile if allowed.
 
-    Arguments:
-        state: Current state.
-        entity_id: Agent entity id (ignored if not an agent).
-        next_pos: Desired destination ``Position``.
+    Args:
+        state (State): Current state.
+        entity_id (EntityID): Agent entity id (ignored if not an agent).
+        next_pos (Position): Desired destination position.
 
     Returns:
         State: Same state if blocked / invalid or updated with new position.

@@ -23,10 +23,10 @@ def wrap_position(x: int, y: int, width: int, height: int) -> Position:
 def is_blocked_at(state: State, pos: Position, check_collidable: bool = True) -> bool:
     """Return True if any blocking entity occupies ``pos``.
 
-    Arguments:
-        state: World state.
-        pos: Candidate destination.
-        check_collidable: If True, treat Collidable as blocking (for agent movement);
+    Args:
+        state (State): World state.
+        pos (Position): Candidate destination.
+        check_collidable (bool): If True, treat ``Collidable`` as blocking (for agent movement);
             pushing may disable this to allow pushing into collidable tiles.
     """
     for other_id, other_pos in state.position.items():

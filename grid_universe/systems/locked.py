@@ -63,15 +63,12 @@ def unlock(state: State, entity_id: EntityID, next_pos: Position) -> State:
 def unlock_system(state: State, entity_id: EntityID) -> State:
     """Run unlocking attempts for four-neighborhood around entity.
 
-    Arguments:
-        state:
-            Current immutable state.
-        entity_id:
-            Entity whose inventory is used to unlock adjacent locks.
+    Args:
+        state (State): Current immutable state.
+        entity_id (EntityID): Entity whose inventory is used to unlock adjacent locks.
 
     Returns:
-        State
-            Updated state
+        State: Updated state.
     """
     pos = state.position.get(entity_id)
     if pos is not None:

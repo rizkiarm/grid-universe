@@ -62,6 +62,7 @@ from grid_universe.components.properties import (
     Status,
 )
 from grid_universe.types import EntityID, MoveFn, ObjectiveFn
+from dataclasses import replace as _dc_replace
 
 
 @dataclass(frozen=True)
@@ -73,86 +74,46 @@ class State:
     caches). Systems should be pure functions that accept and return ``State``.
 
     Attributes:
-        width : int
-            Grid width in tiles.
-        height : int
-            Grid height in tiles.
-        move_fn : MoveFn
-            Movement candidate function used to resolve move actions.
-        objective_fn : ObjectiveFn
-            Predicate evaluated after each step to set ``win``.
-        entity : PMap[EntityID, Entity]
-            Registry of entity descriptors.
-        immunity : PMap[EntityID, Immunity]
-            Effect component map.
-        phasing : PMap[EntityID, Phasing]
-            Effect component map.
-        speed : PMap[EntityID, Speed]
-            Effect component map.
-        time_limit : PMap[EntityID, TimeLimit]
-            Effect limiter map (counting remaining steps).
-        usage_limit : PMap[EntityID, UsageLimit]
-            Effect limiter map (counting remaining uses).
-        agent : PMap[EntityID, Agent]
-            Player / AI controllable entity marker components.
-        appearance : PMap[EntityID, Appearance]
-            Rendering metadata (glyph, color layers, groups).
-        blocking : PMap[EntityID, Blocking]
-            Marks entities that prevent movement into their tile.
-        collectible : PMap[EntityID, Collectible]
-            Items that can be picked up to increase score or inventory.
-        collidable : PMap[EntityID, Collidable]
-            Entities that can collide (triggering damage, cost, etc.).
-        cost : PMap[EntityID, Cost]
-            Movement or interaction cost applied when entered.
-        damage : PMap[EntityID, Damage]
-            Passive damage applied on collision / contact.
-        dead : PMap[EntityID, Dead]
-            Marker for entities that have been removed logically (awaiting GC).
-        exit : PMap[EntityID, Exit]
-            Tiles that can satisfy the objective when required conditions met.
-        health : PMap[EntityID, Health]
-            Health pools for damage / lethal checks.
-        inventory : PMap[EntityID, Inventory]
-            Item/key collections carried by entities.
-        key : PMap[EntityID, Key]
-            Keys that can unlock Locked components.
-        lethal_damage : PMap[EntityID, LethalDamage]
-            Immediate kill damage sources (e.g., pits, hazards).
-        locked : PMap[EntityID, Locked]
-            Lock descriptors requiring matching keys.
-        moving : PMap[EntityID, Moving]
-            Entities currently undergoing movement (inter-step state).
-        pathfinding : PMap[EntityID, Pathfinding]
-            Agents with pathfinding goals and cached paths.
-        portal : PMap[EntityID, Portal]
-            Teleport endpoints / pairs.
-        position : PMap[EntityID, Position]
-            Current grid position of entities.
-        pushable : PMap[EntityID, Pushable]
-            Entities that can be displaced by push actions.
-        required : PMap[EntityID, Required]
-            Items/conditions needed to satisfy Exit / objective.
-        rewardable : PMap[EntityID, Rewardable]
-            Components conferring score rewards when collected or triggered.
-        status : PMap[EntityID, Status]
-            Ordered list container referencing effect component ids.
-        prev_position : PMap[EntityID, Position]
-            Snapshot of positions before movement this step.
-        trail : PMap[Position, PSet[EntityID]]
-            Positions traversed this step mapped to entity ids.
-        turn : int
-            Turn counter (0-based).
-        score : int
-            Accumulated score.
-        win : bool
-            True if objective met.
-        lose : bool
-            True if losing condition met.
-        message : str | None
-            Optional informational / terminal message.
-        seed : int | None
-            Base RNG seed for deterministic rendering or procedural systems.
+        width (int): Grid width in tiles.
+        height (int): Grid height in tiles.
+        move_fn (MoveFn): Movement candidate function used to resolve move actions.
+        objective_fn (ObjectiveFn): Predicate evaluated after each step to set ``win``.
+        entity (PMap[EntityID, Entity]): Registry of entity descriptors.
+        immunity (PMap[EntityID, Immunity]): Effect component map.
+        phasing (PMap[EntityID, Phasing]): Effect component map.
+        speed (PMap[EntityID, Speed]): Effect component map.
+        time_limit (PMap[EntityID, TimeLimit]): Effect limiter map (remaining steps).
+        usage_limit (PMap[EntityID, UsageLimit]): Effect limiter map (remaining uses).
+        agent (PMap[EntityID, Agent]): Player / AI controllable entity marker components.
+        appearance (PMap[EntityID, Appearance]): Rendering metadata (glyph, layering, groups).
+        blocking (PMap[EntityID, Blocking]): Entities that prevent movement into their tile.
+        collectible (PMap[EntityID, Collectible]): Items that can be picked up.
+        collidable (PMap[EntityID, Collidable]): Entities that can collide (triggering damage, cost, etc.).
+        cost (PMap[EntityID, Cost]): Movement or interaction cost applied when entered.
+        damage (PMap[EntityID, Damage]): Passive damage applied on collision / contact.
+        dead (PMap[EntityID, Dead]): Marker for logically removed entities (awaiting GC).
+        exit (PMap[EntityID, Exit]): Tiles that can satisfy the objective when conditions met.
+        health (PMap[EntityID, Health]): Health pools for damage / lethal checks.
+        inventory (PMap[EntityID, Inventory]): Item/key collections carried by entities.
+        key (PMap[EntityID, Key]): Keys that can unlock ``Locked`` components.
+        lethal_damage (PMap[EntityID, LethalDamage]): Immediate kill damage sources (pits, hazards).
+        locked (PMap[EntityID, Locked]): Lock descriptors requiring matching keys.
+        moving (PMap[EntityID, Moving]): Entities currently undergoing movement (inter-step state).
+        pathfinding (PMap[EntityID, Pathfinding]): Agents with pathfinding goals and cached paths.
+        portal (PMap[EntityID, Portal]): Teleport endpoints / pairs.
+        position (PMap[EntityID, Position]): Current grid position of entities.
+        pushable (PMap[EntityID, Pushable]): Entities that can be displaced by push actions.
+        required (PMap[EntityID, Required]): Items/conditions needed to satisfy Exit / objective.
+        rewardable (PMap[EntityID, Rewardable]): Components conferring score rewards when collected or triggered.
+        status (PMap[EntityID, Status]): Ordered list container referencing effect component ids.
+        prev_position (PMap[EntityID, Position]): Snapshot of positions before movement this step.
+        trail (PMap[Position, PSet[EntityID]]): Positions traversed this step mapped to entity ids.
+        turn (int): Turn counter (0-based).
+        score (int): Accumulated score.
+        win (bool): True if objective met.
+        lose (bool): True if losing condition met.
+        message (str | None): Optional informational / terminal message.
+        seed (int | None): Base RNG seed for deterministic rendering or procedural systems.
     """
 
     # Level
@@ -235,3 +196,21 @@ class State:
                     pass
             description = description.set(field, value)
         return pmap(description)
+
+
+def with_state_seed(state: State, seed: Optional[int]) -> State:
+    """Return a new ``State`` with an updated RNG seed.
+
+    The ``seed`` field influences deterministic randomness in movement helpers
+    (e.g. ``windy_move_fn``) and texture selection / recoloring. This utility
+    preserves immutability by returning a dataclass copy with only ``seed``
+    changed.
+
+    Args:
+        state (State): Original immutable state.
+        seed (int | None): Replacement seed (``None`` to clear / disable deterministic randomness).
+
+    Returns:
+        State: New state instance with updated seed.
+    """
+    return _dc_replace(state, seed=seed)

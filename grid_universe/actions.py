@@ -13,10 +13,13 @@ from enum import IntEnum, StrEnum, auto
 class Action(StrEnum):
     """String enum of player actions.
 
-    Members:
-        UP, DOWN, LEFT, RIGHT: Movement directions.
-        USE_KEY: Attempt to unlock co‑located locked entity with a matching key.
-        PICK_UP: Collect items at the current tile.
+    Enum Members:
+        UP: Move one tile up.
+        DOWN: Move one tile down.
+        LEFT: Move one tile left.
+        RIGHT: Move one tile right.
+        USE_KEY: Attempt to unlock a co‑located locked entity with a matching key.
+        PICK_UP: Collect items (powerups / coins / cores / keys) at the current tile.
         WAIT: Advance a turn without moving (effects still tick).
     """
 

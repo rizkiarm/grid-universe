@@ -197,50 +197,28 @@ def generate(
     placement and authoring-time reference wiring before producing the
     immutable simulation ``State``.
 
-    Parameters:
-        width:
-            Width of the maze grid.
-        height:
-            Height of the maze grid.
-        num_required_items:
-            Number of required cores that must be collected before exit.
-        num_rewardable_items:
-            Number of optional reward coins.
-        num_portals:
-            Pairs of portals to place (each pair consumes two open cells).
-        num_doors:
-            Number of door/key pairs; each door is locked by its matching key.
-        health:
-            Initial agent health points.
-        movement_cost:
-            Per-tile movement cost encoded in floor components.
-        required_item_reward:
-            Reward granted for collecting each required item.
-        rewardable_item_reward:
-            Reward granted for each optional reward item (coin).
-        boxes:
-            List of tuples defining (pushable?, speed) for box entities; speed > 0
-            creates moving boxes with random axis/direction.
-        powerups:
-            Sequence of effect specifications (type, limit type, limit amount,
-            extra kwargs) converted into pickup entities.
-        hazards:
-            Hazard specifications (appearance, damage, lethal flag).
-        enemies:
-            Enemy specs (damage, lethal, movement type, speed).
-        wall_percentage:
-            Fraction of original maze walls to retain (0.0 => open field, 1.0 =>
-            unmodified perfect maze).
-        move_fn:
-            Functions injected into the authored level to control movement.
-        objective_fn:
-            Functions injected into the authored level to control win condition logic.
-        seed:
-            Optional RNG seed for deterministic generation.
+    Args:
+        width (int): Width of the maze grid.
+        height (int): Height of the maze grid.
+        num_required_items (int): Number of required cores that must be collected before exit.
+        num_rewardable_items (int): Number of optional reward coins.
+        num_portals (int): Number of portal pairs to place (each pair consumes two open cells).
+        num_doors (int): Number of door/key pairs; each door is locked by its matching key.
+        health (int): Initial agent health points.
+        movement_cost (int): Per-tile movement cost encoded in floor components.
+        required_item_reward (int): Reward granted for collecting each required item.
+        rewardable_item_reward (int): Reward granted for each optional reward item (coin).
+        boxes (List[BoxSpec]): List defining ``(pushable?, speed)`` for box entities; speed > 0 creates moving boxes.
+        powerups (List[PowerupSpec]): Effect specifications converted into pickup entities.
+        hazards (List[HazardSpec]): Hazard specifications ``(appearance, damage, lethal)``.
+        enemies (List[EnemySpec]): Enemy specifications ``(damage, lethal, movement type, speed)``.
+        wall_percentage (float): Fraction of original maze walls to retain (``0.0`` => open field, ``1.0`` => perfect maze).
+        move_fn (MoveFn): Movement candidate function injected into the level.
+        objective_fn (ObjectiveFn): Win condition predicate injected into the level.
+        seed (int | None): RNG seed for deterministic generation.
 
     Returns:
-        State
-            Fully wired immutable state ready for simulation.
+        State: Fully wired immutable state ready for simulation.
     """
     rng = random.Random(seed)
 

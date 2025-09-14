@@ -17,18 +17,13 @@ from grid_universe.utils.grid import is_blocked_at, compute_destination
 def push_system(state: State, eid: EntityID, next_pos: Position) -> State:
     """Attempt to push any pushable entities at ``next_pos``.
 
-    Arguments:
-        state:
-            Current immutable state.
-        eid:
-            Entity initiating the push (must have a position).
-        next_pos:
-            Adjacent position the entity is trying to move into.
+    Args:
+        state (State): Current immutable state.
+        eid (EntityID): Entity initiating the push (must have a position).
+        next_pos (Position): Adjacent position the entity is trying to move into.
 
     Returns:
-        State
-            Updated state with moved positions if push succeeds; original state
-            otherwise.
+        State: Updated state with moved positions if push succeeds; original state otherwise.
     """
     current_pos = state.position.get(eid)
     if current_pos is None:

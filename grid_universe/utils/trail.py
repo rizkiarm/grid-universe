@@ -19,18 +19,15 @@ def get_augmented_trail(
 ) -> PMap[Position, PSet[EntityID]]:
     """Return merged mapping of positions to entity sets (current + historic).
 
-    Arguments:
-        state:
-            Current immutable world state containing both live entity positions
+    Args:
+        state (State): Current immutable world state containing both live entity positions
             and the accumulated historic ``trail`` mapping of prior positions.
-        entity_ids:
-            Entity ids whose current position should be merged into the historic
-            trail. Entities absent from ``state.position`` are ignored.
+        entity_ids (PSet[EntityID]): Entity ids whose current position should be merged
+            into the historic trail. Entities absent from ``state.position`` are ignored.
 
     Returns:
-        PMap[Position, PSet[EntityID]]
-            Mapping from grid positions to the (persistent) set of entity ids
-            that have either previously occupied (historic) or currently occupy
+        PMap[Position, PSet[EntityID]]: Mapping from grid positions to the persistent set of
+            entity ids that have either previously occupied (historic) or currently occupy
             that position among the provided tracked entities.
     """
     pos_to_eids: DefaultDict[Position, Set[EntityID]] = defaultdict(set)

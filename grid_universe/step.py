@@ -50,16 +50,15 @@ def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> S
     may translate to multiple movement sub‑steps for speed effects), runs
     interaction / status systems, and returns a new ``State``.
 
-    Arguments:
-        state: Previous immutable world state.
-        action: Player action enum value to apply.
-        agent_id: Optional explicit agent entity id. If ``None`` the first
+    Args:
+        state (State): Previous immutable world state.
+        action (Action): Player action enum value to apply.
+        agent_id (EntityID | None): Explicit agent entity id. If ``None`` the first
             entity in ``state.agent`` is used. Raises if no agent exists.
 
     Returns:
-        State: The next state snapshot after applying the action. If the input
-        state is already terminal (win/lose) or invalid the same state object
-        may be returned unchanged.
+        State: Next state snapshot. If the input state is already terminal (win/lose)
+            or invalid the same object may be returned unchanged.
 
     Raises:
         ValueError: If there is no agent or the action is not recognized.
@@ -110,10 +109,10 @@ def _step_move(state: State, action: Action, agent_id: EntityID) -> State:
 
     Early exit if win/lose/agent death or movement blocked mid chain.
 
-    Arguments:
-        state: Current state prior to executing the movement action.
-        action: One of the directional ``Action`` enum members.
-        agent_id: Controlled agent entity id.
+    Args:
+        state (State): Current state prior to executing the movement action.
+        action (Action): One of the directional ``Action`` enum members.
+        agent_id (EntityID): Controlled agent entity id.
 
     Returns:
         State: Updated state after applying movement (and possible sub‑moves).
@@ -194,6 +193,14 @@ def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
 
     Applies teleportation, collision / damage resolution and immediate tile
     reward scoring before potentially performing further sub‑moves.
+
+    Args:
+        state (State): Current state after a movement attempt.
+        action (Action): Action being processed.
+        agent_id (EntityID): Acting agent.
+
+    Returns:
+        State: Updated state after interaction systems.
     """
     state = portal_system(state)
     state = damage_system(state)
@@ -208,6 +215,13 @@ def _after_step(state: State, agent_id: EntityID) -> State:
     logical action (avoiding double penalization for sub‑moves), evaluates win
     / lose conditions, increments the turn counter and prunes unreachable
     entities.
+
+    Args:
+        state (State): State after all sub‑steps for the action.
+        agent_id (EntityID): Acting agent id.
+
+    Returns:
+        State: Finalized state for the action step.
     """
     state = status_gc_system(state)
     state = tile_cost_system(

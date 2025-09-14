@@ -29,15 +29,12 @@ from grid_universe.utils.status import add_status, has_effect, valid_effect
 def collectible_system(state: State, entity_id: EntityID) -> State:
     """Process collectible pickups for a single entity.
 
-    Arguments:
-        state:
-            Current immutable state.
-        entity_id:
-            Entity performing collection (typically an agent).
+    Args:
+        state (State): Current immutable state.
+        entity_id (EntityID): Entity performing collection (typically an agent).
 
     Returns:
-        State
-            Updated state with inventory/status/score changes applied and collected
+        State: Updated state with inventory/status/score changes applied and collected
             entities removed.
     """
     entity_pos = state.position.get(entity_id)

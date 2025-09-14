@@ -62,19 +62,13 @@ ObjectAsset = Tuple[AppearanceName, Tuple[str, ...]]
 class ObjectRendering:
     """Lightweight container capturing render-relevant entity facets.
 
-    Arguments:
-        appearance:
-            The entity's :class:`Appearance` component (or a default anonymous one).
-        properties:
-            Tuple of property component collection names in which the entity is
-            present (e.g. ``('blocking', 'locked')``) used to select texture
-            variants.
-        group:
-            Optional deterministic recolor group identifier.
-        move_dir:
-            Optional (dx, dy) direction for movement glyph overlay.
-        move_speed:
-            Movement speed used as the number of direction triangles to draw.
+    Attributes:
+        appearance (Appearance): The entity's appearance component (or a default anonymous one).
+        properties (Tuple[str, ...]): Property component collection names (e.g. ``('blocking', 'locked')``)
+            used to select texture variants.
+        group (str | None): Deterministic recolor group identifier.
+        move_dir (tuple[int, int] | None): (dx, dy) direction for movement glyph overlay.
+        move_speed (int): Movement speed (number of direction triangles to draw).
     """
 
     appearance: Appearance
@@ -200,15 +194,12 @@ def derive_groups(
     shared hue (e.g., all portals in a pair share the same color while still
     using the original texture shading).
 
-    Arguments:
-        state:
-            Immutable simulation state.
-        rules:
-            Ordered list of functions; first non-None group returned is used.
+    Args:
+        state (State): Immutable simulation state.
+        rules (List[GroupRule]): Ordered list of functions; first non-None group returned is used.
 
     Returns:
-        dict[EntityID, Optional[str]]
-            Mapping of entity id to chosen group id (or ``None`` if ungrouped).
+        Dict[EntityID, str | None]: Mapping of entity id to chosen group id (or ``None`` if ungrouped).
     """
     out: Dict[EntityID, Optional[str]] = {}
     for eid, _ in state.entity.items():
@@ -416,27 +407,17 @@ def render(
 ) -> Image.Image:
     """Render a ``State`` into a PIL Image.
 
-    Arguments:
-        state:
-            Immutable game state to visualize.
-        resolution:
-            Output image width in pixels (height derived from aspect ratio).
-        subicon_percent:
-            Relative size of corner icons compared to a cell's size.
-        texture_map:
-            Mapping from (appearance name, property tuple) to asset path. Falls
-            back to ``DEFAULT_TEXTURE_MAP``.
-        asset_root:
-            Root directory containing the asset hierarchy (e.g. "assets").
-        tex_lookup_fn:
-            Optional override for texture loading, recoloring & overlay logic;
-            receives an ``ObjectRendering`` and target size.
-        cache:
-            Mutable memoization dict keyed by (path, size, group, move_dir, speed).
+    Args:
+        state (State): Immutable game state to visualize.
+        resolution (int): Output image width in pixels (height derived from aspect ratio).
+        subicon_percent (float): Relative size of corner icons compared to a cell's size.
+        texture_map (TextureMap | None): Mapping from ``(appearance name, property tuple)`` to asset path.
+        asset_root (str): Root directory containing the asset hierarchy (e.g. ``"assets"``).
+        tex_lookup_fn (TexLookupFn | None): Override for texture loading/recoloring/overlay logic.
+        cache (dict | None): Mutable memoization dict keyed by ``(path, size, group, move_dir, speed)``.
 
     Returns:
-        PIL.Image.Image
-            Composited RGBA image of the entire grid.
+        Image.Image: Composited RGBA image of the entire grid.
     """
     cell_size: int = resolution // state.width
     subicon_size: int = int(cell_size * subicon_percent)

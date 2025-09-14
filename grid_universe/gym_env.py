@@ -8,7 +8,15 @@ differentiate *natural* vs *forced* episode ends).
 
 Observation schema (see docs for full details):
 
-``{"image": np.ndarray(H,W,4), "info": {"agent": {...}, "status": {...}, "config": {...}}}``
+``{
+    "image": np.ndarray(H,W,4),
+    "info": {
+            "agent": {...},
+            "status": {...},
+            "config": {...},
+            "message": str  # empty string if None
+    }
+}``
 
 Usage:
 
@@ -48,13 +56,13 @@ ObsType = Dict[str, Any]
 def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
     """Serialize an effect entity.
 
-    Arguments:
-        state: Current state snapshot.
-        effect_id: Entity id for the effect object.
+    Args:
+        state (State): Current state snapshot.
+        effect_id (EntityID): Entity id for the effect object.
 
     Returns:
-        Dict[str, Any]: JSON‑friendly payload with id, type, limit meta and
-        speed multiplier if applicable.
+        Dict[str, Any]: JSON‑friendly payload with id, type, limit metadata and
+            speed multiplier if applicable.
     """
     effect_type: Optional[str] = None
     extra: Dict[str, Any] = {}
@@ -195,12 +203,12 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     ):
         """Create a new environment instance.
 
-        Arguments:
-            render_mode: "texture" to return PIL image frames, "human" to open window.
-            render_resolution: Width (pixels) of rendered image; height is scaled.
-            render_texture_map: Mapping of (AppearanceName, properties) to asset paths.
-            initial_state_fn: Callable returning an initial ``State`` (e.g. procedural generator).
-            **kwargs: Forwarded to ``initial_state_fn`` (e.g. size, densities, seed).
+        Args:
+            render_mode (str): "texture" to return PIL image frames, "human" to open a window.
+            render_resolution (int): Width (pixels) of rendered image (height derived).
+            render_texture_map (TextureMap): Mapping of ``(AppearanceName, properties)`` to asset paths.
+            initial_state_fn (Callable[..., State]): Callable returning an initial ``State``.
+            **kwargs: Forwarded to ``initial_state_fn`` (e.g., size, densities, seed).
         """
         from gymnasium import spaces  # ensure gymnasium.spaces is available
         import numpy as np
@@ -228,6 +236,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         # Observation space helpers (Gymnasium has no Integer/Optional)
         text_space_short = spaces.Text(max_length=32)  # small enums like type/phase
         text_space_medium = spaces.Text(max_length=128)  # function names, key ids
+        text_space_long = spaces.Text(max_length=512)  # message / narrative
 
         def int_box(low: int, high: int) -> spaces.Box:
             return spaces.Box(
@@ -302,6 +311,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
                                 "height": int_box(1, 10_000),
                             }
                         ),
+                        "message": text_space_long,
                     }
                 ),
             }
@@ -318,12 +328,12 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     ) -> Tuple[ObsType, Dict[str, object]]:
         """Start a new episode.
 
-        Arguments:
-            seed: Currently unused (procedural seed is passed via kwargs on construction).
-            options: Gymnasium options (unused).
+        Args:
+            seed (int | None): Currently unused (procedural seed is passed via kwargs on construction).
+            options (dict | None): Gymnasium options (unused).
 
         Returns:
-            Observation dict and empty info dict per Gymnasium API.
+            Tuple[ObsType, dict]: Observation dict and empty info dict per Gymnasium API.
         """
         self.state = self._initial_state_fn(**self._initial_state_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
@@ -339,11 +349,11 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
     ) -> Tuple[ObsType, float, bool, bool, Dict[str, object]]:
         """Apply one environment step.
 
-        Arguments:
-            action: Integer index into the ``Action`` enum.
+        Args:
+            action (np.integer): Integer index into the ``Action`` enum.
 
         Returns:
-            (observation, reward, terminated, truncated, info)
+            Tuple[ObsType, float, bool, bool, dict]: ``(observation, reward, terminated, truncated, info)``.
         """
         assert self.state is not None and self.agent_id is not None
 
@@ -364,8 +374,8 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         """Render the current state.
 
         Args:
-            mode: "human" to display, "texture" to return PIL image. Defaults to
-                instance's configured render mode.
+            mode (str | None): "human" to display, "texture" to return PIL image. Defaults to
+                the instance's configured render mode.
         """
         render_mode = mode or self._render_mode
         assert self.state is not None
@@ -382,13 +392,14 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         else:
             raise NotImplementedError(f"Render mode '{render_mode}' not supported.")
 
-    def state_info(self) -> Dict[str, Dict[str, Any]]:
+    def state_info(self) -> Dict[str, Any]:
         """Return structured ``info`` sub-dict used in observations."""
         assert self.state is not None and self.agent_id is not None
-        info_dict = {
+        info_dict: Dict[str, Any] = {
             "agent": agent_observation_dict(self.state, self.agent_id),
             "status": env_status_observation_dict(self.state),
             "config": env_config_observation_dict(self.state),
+            "message": self.state.message or "",
         }
         return info_dict
 

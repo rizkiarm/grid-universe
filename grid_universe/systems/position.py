@@ -18,13 +18,11 @@ from grid_universe.types import EntityID
 def position_system(state: State) -> State:
     """Snapshot current entity positions.
 
-    Arguments:
-        state: State
-            Current immutable simulation state.
+    Args:
+        state (State): Current immutable simulation state.
 
     Returns:
-        State
-            New state with ``prev_position`` replaced by a pmap copy of the
+        State: New state with ``prev_position`` replaced by a pmap copy of the
             current ``position`` mapping.
     """
     prev_position: Dict[EntityID, Position] = {}
