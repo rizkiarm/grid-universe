@@ -7,6 +7,7 @@ AoE/effect systems to reason about *paths taken* rather than only endpoints.
 
 from collections import defaultdict
 from typing import DefaultDict, Set
+from dataclasses import replace
 from pyrsistent import pmap, pset
 from pyrsistent.typing import PMap, PSet
 from grid_universe.components import Position
@@ -42,3 +43,15 @@ def get_augmented_trail(
         pos_to_eids[pos].update(eid_set)
     # Convert to persistent structures:
     return pmap({pos: pset(eids) for pos, eids in pos_to_eids.items()})
+
+
+def add_trail_position(state: State, entity_id: EntityID, new_pos: Position) -> State:
+    """Return new state with ``entity_id`` recorded as having entered ``new_pos``.
+
+    Idempotent for (entity, position) within an action: repeated additions of
+    the same (entity, tile) pair are harmless due to set semantics.
+    """
+    return replace(
+        state,
+        trail=state.trail.set(new_pos, state.trail.get(new_pos, pset()).add(entity_id)),
+    )

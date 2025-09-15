@@ -1,113 +1,236 @@
 """Damage / lethal damage resolution system.
 
-Resolves co-location and *crossing* path damage after movement sub‑steps.
-Supports immunity / phasing effects which are consumed (usage/time) upon
-preventing damage. Lethal damage flags immediate death regardless of remaining
-health. Multiple damagers at a tile apply cumulatively (order not relevant).
+Rules (inclusion predicates):
+    * Overlap: target_curr == damager_curr
+    * Swap: target_prev == damager_curr AND target_curr == damager_prev
+    * Trail intersection: (target_trail & damager_trail) != ∅
+    * Endpoint cross: target_curr == damager_prev AND (target_prev ∈ damager_trail OR damager_prev ∈ target_trail)
+
+Exclusion (takes precedence):
+    * Pure vacated origin: target steps onto damager_prev without swap and *no* path intersection
+        (no trail overlap, target_prev not in damager_trail, and damager_prev/current not in target_trail)
+
+Additionally:
+    * A damager may harm a specific target at most once per turn (tracked via ``damage_hits``).
+    * Self‑damage is ignored.
+    * Trail lookups are cached.
 """
 
 from dataclasses import replace
-from typing import Set, Tuple
-from pyrsistent import PMap, pset
-from pyrsistent.typing import PSet
+from typing import Set, Tuple, Dict
+from pyrsistent import PMap, PSet
 from grid_universe.state import State
 from grid_universe.components import Health, Dead, UsageLimit, Position
 from grid_universe.types import EntityID
-from grid_universe.utils.ecs import entities_with_components_at
 from grid_universe.utils.health import apply_damage_and_check_death
 from grid_universe.utils.status import use_status_effect_if_present
-from grid_universe.utils.trail import get_augmented_trail
 
 
-def get_damager_ids(
-    state: State, augmented_trail: PMap[Position, PSet[EntityID]], position: Position
-) -> Set[EntityID]:
-    """Return damaging entity ids occupying ``position`` this tick."""
-    damagers = set(state.damage) | set(state.lethal_damage)
-    return set(augmented_trail.get(position, pset())) & damagers
+def _build_trail_cache(state: State) -> Dict[EntityID, Set[Position]]:
+    """Invert ``state.trail`` once into entity -> visited positions set.
+
+    This replaces repeated scans per (target, damager) pair.
+    """
+    cache: Dict[EntityID, Set[Position]] = {}
+    for pos, ids in state.trail.items():  # pos -> PSet[eid]
+        for eid in ids:
+            cache.setdefault(eid, set()).add(pos)  # local, mutable sets OK
+    return cache
 
 
-def get_cross_damager_ids(
+def _is_swap(
+    a_prev: Position, a_curr: Position, b_prev: Position, b_curr: Position
+) -> bool:
+    return a_prev == b_curr and a_curr == b_prev
+
+
+def _overlap(pos_a: Position, pos_b: Position) -> bool:
+    return pos_a == pos_b
+
+
+def _pure_vacated_origin(
+    target_prev: Position,
+    target_curr: Position,
+    damager_prev: Position,
+    damager_curr: Position,
+    target_trail: Set[Position],
+    damager_trail: Set[Position],
+) -> bool:
+    """Return True when target steps onto the damager's *just vacated* origin tile.
+
+    We only exclude damage if there is no other interaction evidence:
+        * target_curr == damager_prev
+        * NOT swap
+        * target_prev not in damager_trail (no crossing through damager path)
+        * damager_curr not in target_trail (target never visited damager's new tile)
+        * trails otherwise disjoint (enforced by caller passing ``trails_intersect == False``)
+    """
+    if target_curr != damager_prev:
+        return False
+    if _is_swap(target_prev, target_curr, damager_prev, damager_curr):
+        return False
+    if target_prev in damager_trail:
+        return False
+    if damager_curr in target_trail:
+        return False
+    return True
+
+
+def _candidate_damagers(state: State) -> Set[EntityID]:
+    """Return all entities capable of dealing damage (normal or lethal)."""
+    return set(state.damage) | set(state.lethal_damage)
+
+
+DamageHit = Tuple[EntityID, EntityID, int]  # (target, damager, turn)
+
+
+def _apply_single_damage(
     state: State,
-    entity_id: EntityID,
-    prev_entity_pos: Position,
-    curr_entity_pos: Position,
-) -> Set[EntityID]:
-    """Damagers that swapped positions (crossed paths) with the entity."""
-    cross_damager_ids: Set[EntityID] = set()
-    for eid in entities_with_components_at(
-        state, prev_entity_pos, state.damage
-    ) + entities_with_components_at(state, prev_entity_pos, state.lethal_damage):
-        if state.prev_position.get(eid) == curr_entity_pos:
-            cross_damager_ids.add(eid)
-    return cross_damager_ids
-
-
-def apply_damage(
-    state: State,
-    augmented_trail: PMap[Position, PSet[EntityID]],
-    entity_id: EntityID,
+    target_id: EntityID,
+    damager_id: EntityID,
     health: PMap[EntityID, Health],
     dead: PMap[EntityID, Dead],
     usage_limit: PMap[EntityID, UsageLimit],
-) -> Tuple[PMap[EntityID, Health], PMap[EntityID, Dead], PMap[EntityID, UsageLimit]]:
-    """Apply damage to a single entity if exposed to damagers this tick."""
-    initial = health, dead, usage_limit
-
-    entity_pos = state.position.get(entity_id)
-    if entity_pos is None or entity_id in state.dead:
-        return initial
-
-    damager_ids: Set[EntityID] = get_damager_ids(state, augmented_trail, entity_pos)
-
-    prev_entity_pos = state.prev_position.get(entity_id)
-    if prev_entity_pos is not None:
-        cross_damager_ids = get_cross_damager_ids(
-            state, entity_id, prev_entity_pos, entity_pos
+    damage_hits: PSet[DamageHit],
+) -> Tuple[
+    PMap[EntityID, Health],
+    PMap[EntityID, Dead],
+    PMap[EntityID, UsageLimit],
+    PSet[DamageHit],
+]:
+    """Apply damage from damager -> target if not already applied this turn."""
+    hit_key: DamageHit = (target_id, damager_id, state.turn)
+    if hit_key in damage_hits:
+        return health, dead, usage_limit, damage_hits
+    # Status-based avoidance (immunity / phasing) consumes effect use.
+    if target_id in state.status:
+        usage_limit, effect_id = use_status_effect_if_present(
+            state.status[target_id].effect_ids,
+            [state.immunity, state.phasing],
+            state.time_limit,
+            usage_limit,
         )
-        damager_ids = damager_ids.union(cross_damager_ids)
+        if effect_id is not None:
+            return health, dead, usage_limit, damage_hits
+    damage = state.damage[damager_id].amount if damager_id in state.damage else 0
+    if damage < 0:
+        raise ValueError(f"Damager {damager_id} has negative damage: {damage}")
+    health, dead = apply_damage_and_check_death(
+        health, dead, target_id, damage, damager_id in state.lethal_damage
+    )
+    damage_hits = damage_hits.add(hit_key)
+    return health, dead, usage_limit, damage_hits
 
-    if not damager_ids:
-        return initial
+
+def _apply_damage_for_target(
+    state: State,
+    target_id: EntityID,
+    health: PMap[EntityID, Health],
+    dead: PMap[EntityID, Dead],
+    usage_limit: PMap[EntityID, UsageLimit],
+    damage_hits: PSet[DamageHit],
+    damager_ids: Set[EntityID],
+    trail_cache: Dict[EntityID, Set[Position]],
+) -> Tuple[
+    PMap[EntityID, Health],
+    PMap[EntityID, Dead],
+    PMap[EntityID, UsageLimit],
+    PSet[DamageHit],
+]:
+    """Evaluate all damagers against a single target and apply damage if predicates pass."""
+    target_pos = state.position.get(target_id)
+    if target_pos is None or target_id in dead:
+        return health, dead, usage_limit, damage_hits
+
+    target_prev = state.prev_position.get(target_id)
+    target_trail = trail_cache.get(target_id, set())
 
     for damager_id in damager_ids:
-        if entity_id in state.status:
-            usage_limit, effect_id = use_status_effect_if_present(
-                state.status[entity_id].effect_ids,
-                [state.immunity, state.phasing],
-                state.time_limit,
-                usage_limit,
-            )
-            if effect_id is not None:
+        if damager_id == target_id:
+            continue  # skip self
+        damager_pos = state.position.get(damager_id)
+        if damager_pos is None:
+            continue
+
+        damager_prev = state.prev_position.get(damager_id)
+
+        # If either lacks prev position, only overlap is reliable.
+        if target_prev is None or damager_prev is None:
+            if _overlap(target_pos, damager_pos):
+                health, dead, usage_limit, damage_hits = _apply_single_damage(
+                    state,
+                    target_id,
+                    damager_id,
+                    health,
+                    dead,
+                    usage_limit,
+                    damage_hits,
+                )
+            continue
+
+        damager_trail = trail_cache.get(damager_id, set())
+
+        overlap = _overlap(target_pos, damager_pos)
+        swap = _is_swap(target_prev, target_pos, damager_prev, damager_pos)
+        trails_intersect = bool(target_trail & damager_trail)
+
+        # Pure vacated origin exclusion
+        if not overlap and not trails_intersect:
+            if _pure_vacated_origin(
+                target_prev,
+                target_pos,
+                damager_prev,
+                damager_pos,
+                target_trail,
+                damager_trail,
+            ):
                 continue
 
-        damage_amount = (
-            state.damage[damager_id].amount if damager_id in state.damage else 0
+        endpoint_cross = target_pos == damager_prev and (
+            target_prev in damager_trail or damager_prev in target_trail
         )
-        if damage_amount < 0:
-            raise ValueError(
-                f"Damager {damager_id} has negative damage: {damage_amount}"
+
+        if overlap or swap or trails_intersect or endpoint_cross:
+            health, dead, usage_limit, damage_hits = _apply_single_damage(
+                state,
+                target_id,
+                damager_id,
+                health,
+                dead,
+                usage_limit,
+                damage_hits,
             )
 
-        health, dead = apply_damage_and_check_death(
-            health, dead, entity_id, damage_amount, damager_id in state.lethal_damage
-        )
-
-    return health, dead, usage_limit
+    return health, dead, usage_limit, damage_hits
 
 
 def damage_system(state: State) -> State:
-    """Iterate all health-bearing entities and apply damage results."""
+    """Resolve damage / lethal interactions for this turn.
+
+    Complexity: O(H * D + T) where
+        H = # entities with health
+        D = # entities with damage/lethal components
+        T = total trail entries this action
+    """
     health: PMap[EntityID, Health] = state.health
     dead: PMap[EntityID, Dead] = state.dead
     usage_limit: PMap[EntityID, UsageLimit] = state.usage_limit
-    augmented_trail: PMap[Position, PSet[EntityID]] = get_augmented_trail(
-        state, pset(set(state.health) | set(state.damage) | set(state.lethal_damage))
-    )
+    damage_hits: PSet[DamageHit] = state.damage_hits
 
-    for entity_id in state.health:
-        health, dead, usage_limit = apply_damage(
-            state, augmented_trail, entity_id, health, dead, usage_limit
+    damager_ids = _candidate_damagers(state)
+    trail_cache = _build_trail_cache(state)
+
+    # Iterate over snapshot list to avoid issues if component maps structurally change.
+    for target_id in list(state.health.keys()):
+        health, dead, usage_limit, damage_hits = _apply_damage_for_target(
+            state,
+            target_id,
+            health,
+            dead,
+            usage_limit,
+            damage_hits,
+            damager_ids,
+            trail_cache,
         )
 
     return replace(
@@ -115,4 +238,5 @@ def damage_system(state: State) -> State:
         health=health,
         dead=dead,
         usage_limit=usage_limit,
+        damage_hits=damage_hits,
     )

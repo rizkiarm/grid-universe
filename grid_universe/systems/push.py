@@ -12,6 +12,7 @@ from grid_universe.components import Position
 from grid_universe.types import EntityID
 from grid_universe.utils.ecs import entities_with_components_at
 from grid_universe.utils.grid import is_blocked_at, compute_destination
+from grid_universe.utils.trail import add_trail_position
 
 
 def push_system(state: State, eid: EntityID, next_pos: Position) -> State:
@@ -45,5 +46,6 @@ def push_system(state: State, eid: EntityID, next_pos: Position) -> State:
     new_position = state.position.set(eid, next_pos)
     for pushable_id in pushable_ids:
         new_position = new_position.set(pushable_id, push_to)
+        add_trail_position(state, pushable_id, push_to)
 
     return replace(state, position=new_position)

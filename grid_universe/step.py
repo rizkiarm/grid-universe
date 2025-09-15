@@ -10,22 +10,21 @@ Ordering rationale (high level):
 1. ``position_system`` snapshots previous positions (enables trail / cross checks).
 2. Autonomous movers & pathfinding update entities (``moving_system`` / ``pathfinding_system``).
 3. ``status_tick_system`` decrements effect limits before applying player action.
-4. ``trail_system`` records traversed tiles from autonomous movement.
-5. Player action sub‑steps (movement may produce multiple sub‑moves via speed effects).
-6. After each sub‑move we run interaction systems (portal, damage, rewards) to
+4. Player action sub‑steps (movement may produce multiple sub‑moves via speed effects).
+5. After each sub‑move we run interaction systems (portal, damage, rewards) to
     allow chained behaviors (e.g. portal then damage at destination).
-7. After the *entire* action we apply GC, tile costs, terminal checks, and bump turn.
+6. After the *entire* action we apply GC, tile costs, terminal checks, and bump turn.
 
 All helper ``_step_*`` functions are internal and assume validation of inputs.
 """
 
 from dataclasses import replace
 from typing import Optional
+from pyrsistent import pset, pmap
 from grid_universe.actions import Action, MOVE_ACTIONS
 from grid_universe.systems.damage import damage_system
 from grid_universe.systems.pathfinding import pathfinding_system
 from grid_universe.systems.status import status_gc_system, status_tick_system
-from grid_universe.systems.trail import trail_system
 from grid_universe.types import MoveFn
 from grid_universe.state import State
 from grid_universe.systems.movement import movement_system
@@ -41,6 +40,7 @@ from grid_universe.types import EntityID
 from grid_universe.utils.gc import run_garbage_collector
 from grid_universe.utils.status import use_status_effect_if_present
 from grid_universe.utils.terminal import is_terminal_state, is_valid_state
+from grid_universe.utils.trail import add_trail_position
 
 
 def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> State:
@@ -72,11 +72,13 @@ def step(state: State, action: Action, agent_id: Optional[EntityID] = None) -> S
     if not is_valid_state(state, agent_id) or is_terminal_state(state, agent_id):
         return state
 
+    # Reset per-action damage hit tracking and trail at the very start of a new step
+    state = replace(state, damage_hits=pset(), trail=pmap())
+
     state = position_system(state)  # before movements
     state = moving_system(state)
     state = pathfinding_system(state)
     state = status_tick_system(state)
-    state = trail_system(state)  # after movements
 
     if action in MOVE_ACTIONS:
         state = _step_move(state, action, agent_id)
@@ -203,6 +205,7 @@ def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
         State: Updated state after interaction systems.
     """
     state = portal_system(state)
+    state = add_trail_position(state, agent_id, state.position[agent_id])
     state = damage_system(state)
     state = tile_reward_system(state, agent_id)
     return state

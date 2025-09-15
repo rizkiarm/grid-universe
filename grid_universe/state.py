@@ -27,7 +27,7 @@ see :mod:`grid_universe.step` for how the reducer orchestrates systems.
 
 from dataclasses import dataclass
 from typing import Any, Optional
-from pyrsistent import PMap, PSet, pmap
+from pyrsistent import PMap, PSet, pmap, pset
 
 from grid_universe.entity import Entity
 from grid_universe.components.effects import (
@@ -157,6 +157,7 @@ class State:
     ## Extra
     prev_position: PMap[EntityID, Position] = pmap()
     trail: PMap[Position, PSet[EntityID]] = pmap()
+    damage_hits: PSet[tuple[EntityID, EntityID, int]] = pset()
 
     # Status
     turn: int = 0

@@ -9,6 +9,7 @@ from dataclasses import replace
 from typing import Tuple
 from pyrsistent.typing import PMap
 from grid_universe.state import State
+from grid_universe.utils.trail import add_trail_position
 from grid_universe.components import Moving, MovingAxis, Position
 from grid_universe.types import EntityID
 from grid_universe.utils.grid import is_blocked_at, is_in_bounds
@@ -70,6 +71,7 @@ def moving_system(state: State) -> State:
             state_moving, state_position, blocked = move(
                 state, entity_id, pos, next_pos, state_moving, state_position
             )
+            state = add_trail_position(state, entity_id, state_position[entity_id])
             if blocked:
                 break
 

@@ -16,6 +16,11 @@ from grid_universe.components import (
     UsageLimit,
     Position,
     Collectible,
+    Moving,
+    MovingAxis,
+    Speed,
+    Portal,
+    Collidable,
 )
 from grid_universe.types import EntityID
 from grid_universe.step import step
@@ -343,3 +348,198 @@ def test_no_health_component_is_robust() -> None:
     state = replace(state, health=pmap())  # Remove all health
     state2 = step(state, Action.WAIT, agent_id=agent_id)
     assert agent_id not in state2.health
+
+
+@pytest.mark.parametrize("agent_initial_x", [0, 1])
+@pytest.mark.parametrize("damager_speed", [1, 2])
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2])
+def test_damage_on_crossing_swap_positions(
+    agent_initial_x: int, damager_speed: int, agent_speed_multiplier: int
+) -> None:
+    """Crossing swap applies one damage across speeds.
+
+    Damager starts at (damager_speed,0) moving LEFT speed=damager_speed so it ends at (0,0) with prev_position (damager_speed-1,0).
+    Agent moves RIGHT from (0,0). Crossing logic (swap endpoints) should trigger exactly once.
+    """
+    damager_start_x = damager_speed  # ensures path length equals speed
+    if agent_initial_x >= damager_start_x:
+        return  # no crossing possible
+    agent_id: EntityID = 1
+    damager_id: EntityID = 2
+    speed_effect_id: EntityID = 990
+    extra: Dict[str, Dict[EntityID, Any]] = {
+        "position": {damager_id: Position(damager_start_x, 0)},
+        "damage": {damager_id: Damage(amount=4)},
+        "health": {agent_id: Health(health=10, max_health=10)},
+        "moving": {
+            damager_id: Moving(
+                axis=MovingAxis.HORIZONTAL,
+                direction=-1,
+                speed=damager_speed,
+                bounce=False,
+            )
+        },
+    }
+    if agent_speed_multiplier > 1:
+        extra["speed"] = {speed_effect_id: Speed(multiplier=agent_speed_multiplier)}
+        extra["status"] = {agent_id: Status(effect_ids=pset([speed_effect_id]))}
+    state, _ = make_agent_state(
+        agent_pos=(agent_initial_x, 0),
+        extra_components=extra,
+        agent_id=agent_id,
+        width=8,
+    )
+    state2 = step(state, Action.RIGHT, agent_id=agent_id)
+    # Single crossing hit: 10 -> 6
+    assert agent_health(state2, agent_id) == 6, (
+        f"Crossing should inflict exactly one 4-damage hit (health now {agent_health(state2, agent_id)}); damager_speed={damager_speed} agent_initial_x={agent_initial_x} agent_speed={agent_speed_multiplier}"
+    )
+
+
+@pytest.mark.parametrize("agent_initial_y", [0, 1])
+@pytest.mark.parametrize("damager_initial_x", [0, 1])
+@pytest.mark.parametrize("damager_speed", [2, 3])
+@pytest.mark.parametrize("agent_speed_multiplier", [2, 3])
+def test_damage_on_path_intersection_trail(
+    agent_initial_y: int,
+    damager_initial_x: int,
+    damager_speed: int,
+    agent_speed_multiplier: int,
+) -> None:
+    """Agent path intersects damager path -> single damage for all speed combos."""
+    agent_id: EntityID = 1
+    damager_id: EntityID = 2
+    extra: Dict[str, Dict[EntityID, Any]] = {
+        "position": {damager_id: Position(damager_initial_x, 2)},
+        "damage": {damager_id: Damage(amount=5)},
+        "health": {agent_id: Health(health=10, max_health=10)},
+        "moving": {
+            damager_id: Moving(
+                axis=MovingAxis.HORIZONTAL,
+                direction=1,
+                speed=damager_speed,
+                bounce=False,
+            )
+        },
+    }
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 991
+        extra["speed"] = {speed_effect_id: Speed(multiplier=agent_speed_multiplier)}
+        extra["status"] = {agent_id: Status(effect_ids=pset([speed_effect_id]))}
+    state, _ = make_agent_state(
+        agent_pos=(2, agent_initial_y),
+        extra_components=extra,
+        agent_id=agent_id,
+        width=8,
+    )
+    state2 = step(state, Action.DOWN, agent_id=agent_id)
+    assert agent_health(state2, agent_id) == 5, (
+        f"Intersection should deal 5 damage; got {agent_health(state2, agent_id)} agent_initial_y={agent_initial_y} damager_initial_x={damager_initial_x} damager_speed={damager_speed} agent_speed={agent_speed_multiplier}"
+    )
+
+
+@pytest.mark.parametrize("damager_speed", [1, 2])
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2])
+def test_no_damage_agent_moves_away_before_damager_arrives(
+    damager_speed: int, agent_speed_multiplier: int
+) -> None:
+    """Agent leaves tile before damager arrives; no damage across speeds."""
+    agent_id: EntityID = 1
+    damager_id: EntityID = 2
+    extra: Dict[str, Dict[EntityID, Any]] = {
+        "position": {damager_id: Position(0, 0)},
+        "damage": {damager_id: Damage(amount=7)},
+        "health": {agent_id: Health(health=9, max_health=9)},
+        "moving": {
+            damager_id: Moving(
+                axis=MovingAxis.HORIZONTAL,
+                direction=1,
+                speed=damager_speed,
+                bounce=False,
+            )
+        },
+    }
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 992
+        extra["speed"] = {speed_effect_id: Speed(multiplier=agent_speed_multiplier)}
+        extra["status"] = {agent_id: Status(effect_ids=pset([speed_effect_id]))}
+    state, _ = make_agent_state(
+        agent_pos=(1, 0), extra_components=extra, agent_id=agent_id, width=8
+    )
+    state2 = step(state, Action.DOWN, agent_id=agent_id)
+    assert agent_health(state2, agent_id) == 9, (
+        f"Should be no damage; got {agent_health(state2, agent_id)} damager_speed={damager_speed} agent_speed={agent_speed_multiplier}"
+    )
+
+
+@pytest.mark.parametrize("damager_speed", [1, 2])
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2, 3])
+def test_no_damage_damager_moves_away_from_incoming_agent(
+    damager_speed: int, agent_speed_multiplier: int
+) -> None:
+    """Damager moves further away; agent cannot contact or cross -> no damage."""
+    agent_id: EntityID = 1
+    damager_id: EntityID = 2
+    extra: Dict[str, Dict[EntityID, Any]] = {
+        "position": {damager_id: Position(2, 0)},
+        "damage": {damager_id: Damage(amount=3)},
+        "health": {agent_id: Health(health=6, max_health=6)},
+        "moving": {
+            damager_id: Moving(
+                axis=MovingAxis.VERTICAL, direction=1, speed=damager_speed, bounce=False
+            )
+        },
+    }
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 993
+        extra["speed"] = {speed_effect_id: Speed(multiplier=agent_speed_multiplier)}
+        extra["status"] = {agent_id: Status(effect_ids=pset([speed_effect_id]))}
+    state, _ = make_agent_state(
+        agent_pos=(0, 0), extra_components=extra, agent_id=agent_id, width=10
+    )
+    state2 = step(state, Action.RIGHT, agent_id=agent_id)
+    assert agent_health(state2, agent_id) == 6, (
+        f"Damager moved away; expect no damage. Got {agent_health(state2, agent_id)} damager_speed={damager_speed} agent_speed={agent_speed_multiplier}"
+    )
+
+
+def test_no_damage_agent_teleports_past_damager_via_portals() -> None:
+    """Agent teleports past a horizontal damager via portals; no damage since no overlap/swap/intersection.
+
+    Layout (x axis):
+        A(0,0)  P1(1,0)  D(2,0)  P2(3,0)
+    Step: Agent moves RIGHT onto portal P1 and is teleported to P2 (3,0). Damager is stationary at (2,0).
+    No overlap, no swap, agent path (0->1) does not intersect damager segment (none, stationary), teleport jump (1->3) is not a straight segment crossing.
+    Expected: agent health unchanged.
+    """
+    agent_id: EntityID = 1
+    damager_id: EntityID = 2
+    portal1_id: EntityID = 10
+    portal2_id: EntityID = 11
+
+    extra: Dict[str, Dict[EntityID, Any]] = {
+        "position": {
+            damager_id: Position(2, 0),
+            portal1_id: Position(1, 0),
+            portal2_id: Position(3, 0),
+        },
+        "damage": {damager_id: Damage(amount=5)},
+        "health": {agent_id: Health(health=10, max_health=10)},
+        "portal": {
+            portal1_id: Portal(pair_entity=portal2_id),
+            portal2_id: Portal(pair_entity=portal1_id),
+        },
+        "collidable": {
+            agent_id: Collidable(),
+            portal1_id: Collidable(),
+            portal2_id: Collidable(),
+        },
+    }
+    state, _ = make_agent_state(
+        agent_pos=(0, 0), extra_components=extra, agent_id=agent_id, width=6
+    )
+    state2 = step(state, Action.RIGHT, agent_id=agent_id)
+    assert state2.position[agent_id] == Position(3, 0)
+    assert agent_health(state2, agent_id) == 10, (
+        f"Teleport past damager should not inflict damage; got {agent_health(state2, agent_id)}"
+    )
