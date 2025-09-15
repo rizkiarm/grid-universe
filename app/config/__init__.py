@@ -4,6 +4,7 @@ from .sources import (
     maze_source,
     gameplay_source,
     cipher_source,
+    editor_source,
 )  # registration side-effects
 from .sources.base import all_level_sources, find_level_source_by_config, LevelSource
 
@@ -25,7 +26,7 @@ def _initial_config() -> AppConfig:
 
 
 # Touch imported modules to placate static analyzers (ensures side-effects retained)
-_ = (maze_source, gameplay_source, cipher_source)
+_ = (maze_source, gameplay_source, cipher_source, editor_source)
 
 
 def set_default_config() -> None:

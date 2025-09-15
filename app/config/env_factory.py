@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from typing import Tuple, Dict
 import streamlit as st
 
-from grid_universe.gym_env import GridUniverseEnv, ObsType
 
 from .types import AppConfig
 from .sources.base import find_level_source_by_config
@@ -11,7 +9,7 @@ from .sources.base import find_level_source_by_config
 
 def make_env_and_reset(
     config: AppConfig,
-) -> Tuple[GridUniverseEnv, ObsType, Dict[str, object]]:
+):
     """Create & reset an environment for a given config via its registered source.
 
     Centralizes session_state bookkeeping (env, obs, info, reward, prev_health)
@@ -22,7 +20,12 @@ def make_env_and_reset(
         raise ValueError(
             f"No registered level source for config type: {type(config).__name__}"
         )
-    env = source.make_env(config)
+    try:
+        env = source.make_env(config)
+    except ValueError as e:
+        # Provide a user‑visible error (common case: missing agent in editor level)
+        st.error(f"Environment creation failed: {e}")
+        return
     obs, info = env.reset(seed=getattr(config, "seed", None))
     st.session_state["env"] = env
     st.session_state["obs"] = obs
@@ -34,4 +37,3 @@ def make_env_and_reset(
             st.session_state["prev_health"] = env.state.health[agent_id].health
         else:
             st.session_state["prev_health"] = 0
-    return env, obs, info

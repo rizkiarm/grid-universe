@@ -353,6 +353,7 @@ def _objective_section(cfg: MazeConfig) -> ObjectiveFn:
 
 def build_maze_config(current: object) -> MazeConfig:
     base = current if isinstance(current, MazeConfig) else _default_maze_config()
+    st.info("Procedural maze generator.", icon="🛠️")
     width, height, wall_pct, move_cost = _maze_size_section(base)
     num_req, num_reward, reward_req, reward_reward = _items_section(base)
     health = _agent_section(base)
