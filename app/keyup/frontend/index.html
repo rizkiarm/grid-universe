@@ -58,6 +58,8 @@
         root = document.getElementById("root");
         let default_text = "Default";
         let focused_text = "Focused";
+        let auto_clear = true;
+        let clear_delay_ms = 50;
 
         function focus() {
             root.className = "alert alert-info text-center";
@@ -73,12 +75,20 @@
 
         function onRender(event) {
             if (!window.rendered) {
-                ({ default_text, focused_text } = event.detail.args);
+                ({ default_text, focused_text, auto_clear, clear_delay_ms } = event.detail.args);
 
                 blur();
 
                 document.addEventListener("keyup", function (event) {
+                    // Send the key that was pressed.
                     Streamlit.setComponentValue(event.key);
+                    // Optionally clear the value soon after so subsequent reruns
+                    // don't keep reporting the same key.
+                    if (auto_clear) {
+                        setTimeout(() => {
+                            Streamlit.setComponentValue(null);
+                        }, clear_delay_ms);
+                    }
                 });
                 window.addEventListener("focus", focus);
                 window.addEventListener("blur", blur);
