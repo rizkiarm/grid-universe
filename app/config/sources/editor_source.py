@@ -29,6 +29,7 @@ from grid_universe.levels.factories import (
     create_wall,
 )
 from grid_universe.components.properties.appearance import AppearanceName
+from grid_universe.components.properties import MovingAxis
 from grid_universe.levels.convert import to_state
 from grid_universe.gym_env import GridUniverseEnv
 from grid_universe.renderer.texture import (
@@ -145,27 +146,80 @@ def _door_params() -> Dict[str, Any]:
     return {"key_id": key_id or "A"}
 
 
+def _movement_params(kind: str) -> Dict[str, Any]:
+    """Shared UI for movement (axis, direction, bounce, speed).
+
+    kind: prefix for Streamlit widget keys to avoid collisions.
+    Returns dict with moving_* keys expected by factories.
+    """
+    axis_label = st.selectbox(
+        "Axis",
+        ["None", "Horizontal", "Vertical"],
+        key=f"{kind}_move_axis",
+        help="Movement axis (None = static).",
+    )
+    axis: Optional[MovingAxis]
+    if axis_label == "Horizontal":
+        axis = MovingAxis.HORIZONTAL
+    elif axis_label == "Vertical":
+        axis = MovingAxis.VERTICAL
+    else:
+        axis = None
+    direction = st.selectbox(
+        "Direction",
+        ["+1 (forward/right/down)", "-1 (back/left/up)"],
+        index=0,
+        key=f"{kind}_move_dir",
+    )
+    dir_val = 1 if direction.startswith("+1") else -1
+    bounce = st.checkbox(
+        "Bounce (reverse at ends)", value=True, key=f"{kind}_move_bounce"
+    )
+    speed = st.number_input(
+        "Speed (tiles / step)", 1, 10, 1, key=f"{kind}_move_speed"
+    )
+    return {
+        "moving_axis": axis,
+        "moving_direction": dir_val if axis is not None else None,
+        "moving_bounce": bool(bounce),
+        "moving_speed": int(speed),
+    }
+
+
 def _monster_params() -> Dict[str, Any]:
     damage = st.number_input("Damage", 1, 50, 3, key="monster_dmg")
     lethal = st.checkbox("Lethal?", value=False, key="monster_lethal")
-    return {"damage": int(damage), "lethal": bool(lethal)}
+    st.markdown("**Movement**")
+    move = _movement_params("monster")
+    return {"damage": int(damage), "lethal": bool(lethal), **move}
 
 
 def _box_params() -> Dict[str, Any]:
     pushable = st.checkbox("Pushable?", value=True, key="box_pushable")
-    return {"pushable": bool(pushable)}
+    st.markdown("**Movement**")
+    move = _movement_params("box")
+    return {"pushable": bool(pushable), **move}
 
 
 def _hazard_params(kind: str) -> Callable[[], Dict[str, Any]]:
     def _inner() -> Dict[str, Any]:
+        damage = st.number_input(
+            "Damage", 0, 50, 2, key=f"{kind}_damage", help="Amount of health lost on contact."
+        )
         lethal_default = kind == "lava"
-        lethal = st.checkbox("Lethal?", value=lethal_default, key=f"{kind}_lethal")
-        damage = (
-            0 if lethal else st.number_input("Damage", 1, 50, 2, key=f"{kind}_damage")
+        lethal = st.checkbox(
+            "Lethal?", value=lethal_default, key=f"{kind}_lethal", help="If checked, instantly defeats agents regardless of damage."
         )
         return {"damage": int(damage), "lethal": bool(lethal)}
 
     return _inner
+
+
+def _floor_params() -> Dict[str, Any]:
+    cost = st.number_input(
+        "Move Cost", 1, 99, 1, key="floor_cost", help="Energy / cost units required to traverse this tile."
+    )
+    return {"cost": int(cost)}
 
 
 def _speed_params() -> Dict[str, Any]:
@@ -189,7 +243,12 @@ def _limit_params(effect: str) -> Dict[str, Any]:
 
 
 PALETTE: Dict[str, ToolSpec] = {
-    "floor": ToolSpec("Floor", lambda p: create_floor(cost_amount=1), icon="⬜"),
+    "floor": ToolSpec(
+        "Floor",
+        lambda p: create_floor(cost_amount=p.get("cost", 1)),
+        _floor_params,
+        icon="⬜",
+    ),
     "wall": ToolSpec("Wall", lambda p: create_wall(), icon="🟫"),
     "agent": ToolSpec(
         "Agent", lambda p: create_agent(health=p["health"]), _agent_params, icon="😊"
@@ -210,10 +269,29 @@ PALETTE: Dict[str, ToolSpec] = {
         description="Click two cells sequentially to pair portals.",
     ),
     "box": ToolSpec(
-        "Box", lambda p: create_box(pushable=p["pushable"]), _box_params, icon="📦"
+        "Box",
+        lambda p: create_box(
+            pushable=p["pushable"],
+            moving_axis=p.get("moving_axis"),
+            moving_direction=p.get("moving_direction"),
+            moving_bounce=p.get("moving_bounce", True),
+            moving_speed=p.get("moving_speed", 1),
+        ),
+        _box_params,
+        icon="📦",
     ),
     "monster": ToolSpec(
-        "Monster", lambda p: create_monster(**p), _monster_params, icon="👹"
+        "Monster",
+        lambda p: create_monster(
+            damage=p["damage"],
+            lethal=p["lethal"],
+            moving_axis=p.get("moving_axis"),
+            moving_direction=p.get("moving_direction"),
+            moving_bounce=p.get("moving_bounce", True),
+            moving_speed=p.get("moving_speed", 1),
+        ),
+        _monster_params,
+        icon="👹",
     ),
     "spike": ToolSpec(
         "Spike",
@@ -223,7 +301,9 @@ PALETTE: Dict[str, ToolSpec] = {
     ),
     "lava": ToolSpec(
         "Lava",
-        lambda p: create_hazard(AppearanceName.LAVA, p["damage"], True),
+        lambda p: create_hazard(
+            AppearanceName.LAVA, p["damage"], p.get("lethal", True)
+        ),
         _hazard_params("lava"),
         icon="🔥",
     ),
@@ -269,6 +349,19 @@ def _place_tool(
     if tool_key == "erase":
         # retain floor only
         grid[y][x] = [next(t for t in grid[y][x] if t["type"] == "floor")]
+        return
+    if tool_key == "floor":
+        # Update existing floor cost (do not append duplicate floor token)
+        floor_entry_opt: Optional[Dict[str, Any]] = next(
+            (t for t in grid[y][x] if t["type"] == "floor"), None
+        )
+        if floor_entry_opt is None:
+            grid[y][x] = [
+                {"type": "floor", "params": {"cost": params.get("cost", 1) if params else 1}}
+            ]
+        else:
+            if params and "cost" in params:
+                floor_entry_opt["params"]["cost"] = params["cost"]
         return
     # Remove all non-floor entries
     floor_entry_opt: Optional[Dict[str, Any]] = next(
@@ -426,7 +519,7 @@ def build_editor_config(current: object) -> EditorConfig:
                 cell = grid[yy][xx]
                 entries = [t for t in cell if t["type"] != "floor"]
                 label = "".join(
-                    PALETTE[entry["type"].lower()].icon for entry in entries
+                    PALETTE[entry["type"].lower()].icon for entry in entries if entry["type"].lower() in PALETTE
                 )
                 if cols[xx].button(
                     label or PALETTE["floor"].icon, key=f"editor_cell_{xx}_{yy}"
@@ -529,13 +622,27 @@ def _make_env(cfg: EditorConfig) -> GridUniverseEnv:
 # -----------------------------
 def _default_tool_params(tool_key: str) -> Dict[str, Any]:
     defaults: Dict[str, Dict[str, Any]] = {
+        "floor": {"cost": 1},
         "agent": {"health": 5},
         "coin": {"reward": None},
         "core": {"reward": 10, "required": True},
         "key": {"key_id": "A"},
         "door": {"key_id": "A"},
-        "monster": {"damage": 3, "lethal": False},
-        "box": {"pushable": True},
+        "monster": {
+            "damage": 3,
+            "lethal": False,
+            "moving_axis": None,
+            "moving_direction": None,
+            "moving_bounce": True,
+            "moving_speed": 1,
+        },
+        "box": {
+            "pushable": True,
+            "moving_axis": None,
+            "moving_direction": None,
+            "moving_bounce": True,
+            "moving_speed": 1,
+        },
         "spike": {"damage": 2, "lethal": False},
         "lava": {"damage": 2, "lethal": True},
         "speed": {"multiplier": 2, "time": None, "usage": None},

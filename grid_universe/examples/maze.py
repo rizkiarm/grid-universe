@@ -57,7 +57,6 @@ from grid_universe.moves import default_move_fn
 from grid_universe.objectives import default_objective_fn
 from grid_universe.components.properties import (
     AppearanceName,
-    Moving,
     MovingAxis,
     PathfindingType,
 )
@@ -323,10 +322,8 @@ def generate(
         if not open_non_essential:
             break
         pos = open_non_essential.pop()
-        box = create_box(pushable=pushable)
-        if speed > 0:
-            axis, direction = _random_axis_and_dir(rng)
-            box.moving = Moving(axis=axis, direction=direction, speed=speed)
+        axis, direction = _random_axis_and_dir(rng) if speed > 0 else (None, None)
+        box = create_box(pushable=pushable, moving_axis=axis, moving_direction=direction, moving_speed=speed)
         level.add(pos, box)
 
     # 13) Enemies (wire pathfinding to agent by reference if requested)
@@ -348,10 +345,8 @@ def generate(
                 damage=dmg, lethal=lethal, pathfind_target=agent, path_type=path_type
             )
         else:
-            enemy = create_monster(damage=dmg, lethal=lethal)
-            if mtype == MovementType.DIRECTIONAL and mspeed > 0:
-                axis, direction = _random_axis_and_dir(rng)
-                enemy.moving = Moving(axis=axis, direction=direction, speed=mspeed)
+            maxis, mdirection = _random_axis_and_dir(rng) if mspeed > 0 else (None, None)
+            enemy = create_monster(damage=dmg, lethal=lethal, moving_axis=maxis, moving_direction=mdirection, moving_speed=mspeed)
 
         level.add(pos, enemy)
 

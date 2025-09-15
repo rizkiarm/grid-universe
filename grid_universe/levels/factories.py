@@ -32,6 +32,8 @@ from grid_universe.components.properties import (
     Rewardable,
     PathfindingType,
     Status,
+    Moving,    
+    MovingAxis,
 )
 from grid_universe.components.effects import (
     Immunity,
@@ -133,13 +135,25 @@ def create_portal(*, pair: Optional[EntitySpec] = None) -> EntitySpec:
     return obj
 
 
-def create_box(pushable: bool = True) -> EntitySpec:
+def create_box(
+        pushable: bool = True,       
+        moving_axis: Optional[MovingAxis] = None,
+        moving_direction: Optional[int] = None,
+        moving_bounce: bool = True,
+        moving_speed: int = 1,
+) -> EntitySpec:
     """Pushable / blocking box (optionally not pushable)."""
     return EntitySpec(
         appearance=Appearance(name=AppearanceName.BOX, priority=2),
         blocking=Blocking(),
         collidable=Collidable(),
         pushable=Pushable() if pushable else None,
+        moving=None if moving_axis is None or moving_direction is None else Moving(
+            axis=moving_axis,
+            direction=moving_direction,
+            bounce=moving_bounce,
+            speed=moving_speed,
+        ),
     )
 
 
@@ -147,6 +161,10 @@ def create_monster(
     damage: int = 3,
     lethal: bool = False,
     *,
+    moving_axis: Optional[MovingAxis] = None,
+    moving_direction: Optional[int] = None,
+    moving_bounce: bool = True,
+    moving_speed: int = 1,
     pathfind_target: Optional[EntitySpec] = None,
     path_type: PathfindingType = PathfindingType.PATH,
 ) -> EntitySpec:
@@ -156,6 +174,12 @@ def create_monster(
         collidable=Collidable(),
         damage=Damage(amount=damage),
         lethal_damage=LethalDamage() if lethal else None,
+        moving=None if moving_axis is None or moving_direction is None else Moving(
+            axis=moving_axis,
+            direction=moving_direction,
+            bounce=moving_bounce,
+            speed=moving_speed,
+        ),
     )
     if pathfind_target is not None:
         obj.pathfind_target_ref = pathfind_target

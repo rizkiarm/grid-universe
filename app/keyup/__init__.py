@@ -14,7 +14,7 @@ def keyup(
     focused_text: str = "Focused",
     key: Optional[str] = None,
     auto_clear: bool = True,
-    clear_delay_ms: int = 50,
+    clear_delay_ms: int = 200,
 ):
     """Return the last key pressed (once) and then clear it.
 
@@ -41,7 +41,7 @@ def keyup(
         clear_delay_ms: int
             Delay in milliseconds before clearing. Needs to be long enough so the
             first (actual key) message is processed by Streamlit before the clear
-            message arrives. 50ms is a conservative default.
+            message arrives.
     """
     return component(
         default_text=default_text,
