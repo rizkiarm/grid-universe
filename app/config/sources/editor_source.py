@@ -570,6 +570,17 @@ def build_editor_config(current: object) -> EditorConfig:
             msg = str(e) or e.__class__.__name__
             st.error(f"Preview failed: {msg}")
 
+    # Live code export
+    with st.expander("Export as Python", expanded=False):
+        code_str = _generate_level_code(temp_cfg)
+        st.code(code_str, language="python")
+        st.download_button(
+            "Download generated_level.py",
+            data=code_str,
+            file_name="generated_level.py",
+            mime="text/x-python",
+        )
+
     # Final snapshot config
     snap_tokens: Tuple[Tuple[Tuple[Dict[str, Any], ...], ...], ...] = tuple(
         tuple(tuple(cell) for cell in row) for row in grid
@@ -583,6 +594,261 @@ def build_editor_config(current: object) -> EditorConfig:
         render_texture_map=texture_map,
         grid_tokens=snap_tokens,
     )
+
+
+def _registry_name_by_value(
+    reg: Dict[str, Any], value: Any, default_key: Optional[str] = None
+) -> str:
+    for k, v in reg.items():
+        if v is value:
+            return k
+    return default_key or next(iter(reg.keys()))
+
+
+def _py_axis(axis: Optional[MovingAxis]) -> str:
+    if axis is None:
+        return "None"
+    if axis == MovingAxis.HORIZONTAL:
+        return "MovingAxis.HORIZONTAL"
+    if axis == MovingAxis.VERTICAL:
+        return "MovingAxis.VERTICAL"
+    return "None"
+
+
+def _factory_call_str(ttype: str, params: Dict[str, Any]) -> str:
+    # Build factory call string for a single non-portal token
+    if ttype == "floor":
+        return f"create_floor(cost_amount={int(params.get('cost', 1))})"
+    if ttype == "wall":
+        return "create_wall()"
+    if ttype == "agent":
+        return f"create_agent(health={int(params.get('health', 5))})"
+    if ttype == "exit":
+        return "create_exit()"
+    if ttype == "coin":
+        reward = params.get("reward")
+        return (
+            f"create_coin(reward={repr(int(reward)) if reward is not None else 'None'})"
+        )
+    if ttype == "core":
+        reward = params.get("reward")
+        required = bool(params.get("required", True))
+        return f"create_core(reward={repr(int(reward)) if reward is not None else 'None'}, required={repr(required)})"
+    if ttype == "key":
+        return f"create_key({repr(params.get('key_id', 'A'))})"
+    if ttype == "door":
+        return f"create_door({repr(params.get('key_id', 'A'))})"
+    if ttype == "box":
+        return (
+            "create_box("
+            f"pushable={repr(bool(params.get('pushable', True)))}, "
+            f"moving_axis={_py_axis(params.get('moving_axis'))}, "
+            f"moving_direction={repr(params.get('moving_direction')) if params.get('moving_axis') is not None else 'None'}, "
+            f"moving_bounce={repr(bool(params.get('moving_bounce', True)))}, "
+            f"moving_speed={int(params.get('moving_speed', 1))}"
+            ")"
+        )
+    if ttype == "monster":
+        return (
+            "create_monster("
+            f"damage={int(params.get('damage', 3))}, "
+            f"lethal={repr(bool(params.get('lethal', False)))}, "
+            f"moving_axis={_py_axis(params.get('moving_axis'))}, "
+            f"moving_direction={repr(params.get('moving_direction')) if params.get('moving_axis') is not None else 'None'}, "
+            f"moving_bounce={repr(bool(params.get('moving_bounce', True)))}, "
+            f"moving_speed={int(params.get('moving_speed', 1))}"
+            ")"
+        )
+    if ttype == "spike":
+        return (
+            "create_hazard("
+            "AppearanceName.SPIKE, "
+            f"{int(params.get('damage', 2))}, "
+            f"{repr(bool(params.get('lethal', False)))}"
+            ")"
+        )
+    if ttype == "lava":
+        return (
+            "create_hazard("
+            "AppearanceName.LAVA, "
+            f"{int(params.get('damage', 2))}, "
+            f"{repr(bool(params.get('lethal', True)))}"
+            ")"
+        )
+    if ttype == "speed":
+        time = params.get("time")
+        usage = params.get("usage")
+        return (
+            "create_speed_effect("
+            f"multiplier={int(params.get('multiplier', 2))}, "
+            f"time={repr(int(time)) if time is not None else 'None'}, "
+            f"usage={repr(int(usage)) if usage is not None else 'None'}"
+            ")"
+        )
+    if ttype == "shield":
+        time = params.get("time")
+        usage = params.get("usage")
+        return (
+            "create_immunity_effect("
+            f"time={repr(int(time)) if time is not None else 'None'}, "
+            f"usage={repr(int(usage)) if usage is not None else 'None'}"
+            ")"
+        )
+    if ttype == "ghost":
+        time = params.get("time")
+        usage = params.get("usage")
+        return (
+            "create_phasing_effect("
+            f"time={repr(int(time)) if time is not None else 'None'}, "
+            f"usage={repr(int(usage)) if usage is not None else 'None'}"
+            ")"
+        )
+    # fallback no-op
+    return "create_floor(cost_amount=1)"
+
+
+def _generate_level_code(cfg: EditorConfig) -> str:
+    move_key = _registry_name_by_value(MOVE_FN_REGISTRY, cfg.move_fn)
+    obj_key = _registry_name_by_value(OBJECTIVE_FN_REGISTRY, cfg.objective_fn)
+
+    # Collect portal positions and pairing, and group non-portal by factory call
+    portal_positions: List[Tuple[int, int]] = []
+    grouped: Dict[str, List[Tuple[int, int]]] = {}
+    factories_used: Dict[str, bool] = {}
+    uses_appearance_name = False
+    uses_moving_axis = False
+
+    def _mark_factory(ttype: str) -> None:
+        name_map = {
+            "floor": "create_floor",
+            "wall": "create_wall",
+            "agent": "create_agent",
+            "exit": "create_exit",
+            "coin": "create_coin",
+            "core": "create_core",
+            "key": "create_key",
+            "door": "create_door",
+            "box": "create_box",
+            "monster": "create_monster",
+            "spike": "create_hazard",
+            "lava": "create_hazard",
+            "speed": "create_speed_effect",
+            "shield": "create_immunity_effect",
+            "ghost": "create_phasing_effect",
+            "portal": "create_portal",
+        }
+        fname = name_map.get(ttype)
+        if fname:
+            factories_used[fname] = True
+
+    for y in range(cfg.height):
+        for x in range(cfg.width):
+            for token in cfg.grid_tokens[y][x]:
+                ttype = token["type"]
+                if ttype == "erase":
+                    continue
+                if ttype == "portal":
+                    portal_positions.append((x, y))
+                    _mark_factory("portal")
+                    continue
+                params = cast(Dict[str, Any], token.get("params", {}) or {})
+                if ttype in ("spike", "lava"):
+                    uses_appearance_name = True
+                if ttype in ("box", "monster"):
+                    if params.get("moving_axis") is not None:
+                        uses_moving_axis = True
+                call = _factory_call_str(ttype, params)
+                grouped.setdefault(call, []).append((x, y))
+                _mark_factory(ttype)
+
+    # Pair portals like the runtime does
+    if "editor_portal_pairs" in st.session_state:
+        pairs = cast(
+            List[Tuple[Tuple[int, int], Tuple[int, int]]],
+            st.session_state["editor_portal_pairs"],
+        )
+    else:
+        ordered = list(portal_positions)
+        pairs = [(ordered[i], ordered[i + 1]) for i in range(0, len(ordered) - 1, 2)]
+    paired_positions = set(pos for pair in pairs for pos in pair)
+    unpaired = [pos for pos in portal_positions if pos not in paired_positions]
+
+    # Build imports (only what we need)
+    lines: List[str] = []
+    append = lines.append
+    append("# Auto-generated by Grid Universe Level Editor")
+    append("from grid_universe.levels.grid import Level")
+    if factories_used:
+        factory_imports = ", ".join(sorted(factories_used.keys()))
+        append(f"from grid_universe.levels.factories import {factory_imports}")
+    if uses_appearance_name:
+        append(
+            "from grid_universe.components.properties.appearance import AppearanceName"
+        )
+    if uses_moving_axis:
+        append("from grid_universe.components.properties import MovingAxis")
+    append("from grid_universe.levels.convert import to_state")
+    append("from grid_universe.moves import MOVE_FN_REGISTRY")
+    append("from grid_universe.objectives import OBJECTIVE_FN_REGISTRY")
+    append("from grid_universe.gym_env import GridUniverseEnv")
+    append("")
+    append("def build_level() -> Level:")
+    append(
+        f"    level = Level(width={cfg.width}, height={cfg.height}, move_fn=MOVE_FN_REGISTRY[{repr(move_key)}], objective_fn=OBJECTIVE_FN_REGISTRY[{repr(obj_key)}], seed={repr(cfg.seed)})"
+    )
+    append("")
+    # Grouped non-portal adds using readable loops; no loop if single position
+    for call, positions in sorted(grouped.items(), key=lambda kv: kv[0]):
+        if len(positions) == 1:
+            x, y = positions[0]
+            append(f"    level.add(({x}, {y}), {call})")
+        else:
+            pos_list = ", ".join([f"({x}, {y})" for (x, y) in positions])
+            append(f"    for x, y in [{pos_list}]:")
+            append(f"        level.add((x, y), {call})")
+
+    # Portals
+    if pairs:
+        if len(pairs) == 1:
+            (ax, ay), (bx, by) = pairs[0]
+            append("    p1 = create_portal()")
+            append("    p2 = create_portal(pair=p1)")
+            append(f"    level.add(({ax}, {ay}), p1)")
+            append(f"    level.add(({bx}, {by}), p2)")
+        else:
+            pair_list = ", ".join(
+                [f"(({ax}, {ay}), ({bx}, {by}))" for (ax, ay), (bx, by) in pairs]
+            )
+            append(f"    for (ax, ay), (bx, by) in [{pair_list}]:")
+            append("        p1 = create_portal()")
+            append("        p2 = create_portal(pair=p1)")
+            append("        level.add((ax, ay), p1)")
+            append("        level.add((bx, by), p2)")
+    if unpaired:
+        if len(unpaired) == 1:
+            ux, uy = unpaired[0]
+            append(f"    level.add(({ux}, {uy}), create_portal())")
+        else:
+            unpaired_list = ", ".join([f"({ux}, {uy})" for (ux, uy) in unpaired])
+            append(f"    for x, y in [{unpaired_list}]:")
+            append("        level.add((x, y), create_portal())")
+
+    append("")
+    append("    return level")
+    append("")
+    append("def build_env() -> GridUniverseEnv:")
+    append("    def _initial_state_fn(**_):")
+    append("        return to_state(build_level())")
+    append("    state = _initial_state_fn()")
+    append(
+        "    return GridUniverseEnv(render_mode='texture', initial_state_fn=_initial_state_fn, width=state.width, height=state.height)"
+    )
+    append("")
+    append("if __name__ == '__main__':")
+    append("    env = build_env()")
+    append("    img = env.render(mode='texture')")
+    append("    if img is not None: img.show()")
+    return "\n".join(lines)
 
 
 def _move_fn_section(cfg: EditorConfig) -> MoveFn:
