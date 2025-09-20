@@ -2,6 +2,8 @@
 
 This quick start gets you from zero to a running Grid Universe: install the package, build a minimal level, step actions, render images, and (optionally) use the Gym environment. It also covers seeding, assets, and common troubleshooting.
 
+> Looking for gameplay rules? Check the player-focused [Player Guide](guides/player_guide.md) for portals, pushing, damage, keys/doors, scoring, and win/lose behavior.
+
 Contents
 
 - Installation

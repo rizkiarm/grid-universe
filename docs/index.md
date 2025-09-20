@@ -2,6 +2,9 @@
 
 A modular, extensible, entity–component–system (ECS) gridworld for research, teaching, and prototyping. Author levels in a simple, mutable API; convert to an immutable State; run deterministic systems for movement, damage, portals, pathfinding, effects, and more; render with textures; and integrate with Gymnasium.
 
+!!! tip "New to the game?"
+    If you're here to play or want a player-focused overview of rules and expected behavior (portals, enemy damage, pushing, keys/doors, scoring), see the [Player Guide](guides/player_guide.md).
+
 Contents
 
 - Why Grid Universe
