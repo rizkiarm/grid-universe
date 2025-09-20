@@ -106,7 +106,7 @@ Contents
 
     - `status_tick_system`: decrement `TimeLimit`.
 
-    - `trail_system`: record traversed tiles for this turn.
+    - Trail updates: recorded as entities move.
 
     - Per-submove (agent MOVE actions):
 
@@ -184,7 +184,7 @@ Contents
 
 - Deterministic RNG
 
-    - `windy_move_fn` and texture-variant selection derive randomness from a hash of `(state.seed, state.turn)`.
+    - Movement randomness (e.g., `windy_move_fn`) derives from a hash of `(state.seed, state.turn)`. Texture directory variant selection uses a deterministic choice seeded from `state.seed`.
 
 - Best practice
 
@@ -266,7 +266,7 @@ We’ll walk through one `Action.RIGHT` with `default_move_fn` and a `Speed(mult
 
     - `status_tick_system` decrements `TimeLimit` for all `Status` effect IDs.
 
-    - `trail_system` records tiles traversed from `prev_position` to `position` for all movers.
+    - Trail is recorded incrementally as movers/pathfinders advance.
 
 - Action (RIGHT)
 
@@ -280,11 +280,13 @@ We’ll walk through one `Action.RIGHT` with `default_move_fn` and a `Speed(mult
 
         - After the move (or failed attempt), run:
 
-            - `portal_system`: if the agent just entered a portal tile, teleport to pair portal position.
+            - Record trail; then `portal_system`: if the agent just entered a portal tile, teleport.
 
             - `damage_system`: apply damage/lethal based on co-location or cross paths; `Immunity`/`Phasing` can cancel with usage.
 
             - `tile_reward_system`: add reward for non-collectible `Rewardable` at current tile.
+
+            - `position_system` and terminal checks (`win_system`/`lose_system`).
 
         - If blocked or terminal (`win/lose/dead`), break early.
 

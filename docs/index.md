@@ -62,7 +62,7 @@ Contents
 
 - Determinism
 
-    - Many stochastic behaviors derive randomness from `(state.seed, state.turn)`. Set seeds for reproducible runs.
+    - Movement-related stochastic behaviors generally derive per‑turn randomness from `(state.seed, state.turn)`. The renderer’s directory‑variant selection uses a deterministic choice based on `state.seed`. Set seeds for reproducible runs.
 
 
 ## Architecture (high level)
@@ -77,11 +77,11 @@ Contents
 
 - Step lifecycle:
 
-    - Pre: position → moving → pathfinding → status tick → trail.
+    - Pre: position → moving → pathfinding → status tick.
 
-    - Per-submove (on MOVE actions): push → move → portal → damage → tile reward.
+    - Per-submove (on MOVE actions, and once for non‑move actions): record trail → portal → damage → tile reward → position snapshot → win/lose.
 
-    - Post: status GC → tile cost → win/lose → turn++ → garbage collector.
+    - Post: status GC → tile cost → turn++ → garbage collector.
 
 - Conversion:
 

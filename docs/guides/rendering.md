@@ -79,7 +79,7 @@ The renderer maps `(AppearanceName, properties)` → a file path or a directory 
 
     - All texture paths are resolved relative to `asset_root` (default `"assets"`).
 
-    - If the resolved path is a directory, the renderer lists image files (`.png`, `.jpg`, `.jpeg`, `.gif`), sorts them, and then chooses one via a deterministic RNG seeded from `state.seed` (and a draw for each object).
+    - If the resolved path is a directory, the renderer lists image files (`.png`, `.jpg`, `.jpeg`, `.gif`), sorts them, and then chooses one via a deterministic RNG seeded from `state.seed` (one selection per object as rendered).
 
 - Loading:
 

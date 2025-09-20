@@ -65,9 +65,9 @@ The exact execution order in `grid_universe.step.step` is:
 
         - Decrement `TimeLimit` for all effects referenced by `Status` across all entities.
 
-    5) `trail_system`
+    5) Trail updates
 
-        - Record Manhattan paths traversed between `prev_position` and `position` for the turn so far.
+        - Trail entries are recorded incrementally while movers advance and after each substep.
 
 - Action handling
 
@@ -85,11 +85,17 @@ The exact execution order in `grid_universe.step.step` is:
 
                 - Per-substep suite (in this exact order):
 
+                    - Record trail for the agent’s current position.
+
                     - `portal_system`: teleport collidable entrants to paired portals; uses `prev_position` and `trail` to detect entrants.
 
                     - `damage_system`: apply `Damage`/`LethalDamage` considering co-location and cross-path; `Immunity`/`Phasing` can negate.
 
                     - `tile_reward_system`: add score for non-collectible `Rewardable` tiles the agent is on.
+
+                    - `position_system`: snapshot positions again for downstream checks.
+
+                    - `win_system`, `lose_system`: evaluate terminal conditions after the substep.
 
                 - If the move was blocked or `state` became terminal (`win`/`lose`/`dead`), break early.
 
@@ -99,7 +105,7 @@ The exact execution order in `grid_universe.step.step` is:
 
         - Then run the per-substep suite once:
 
-            - `portal_system → damage_system → tile_reward_system`
+            - `trail record → portal_system → damage_system → tile_reward_system → position_system → win_system → lose_system`
 
     - Else if action == `PICK_UP`:
 
@@ -107,11 +113,11 @@ The exact execution order in `grid_universe.step.step` is:
 
         - Then run the per-substep suite once:
 
-            - `portal_system → damage_system → tile_reward_system`
+            - `trail record → portal_system → damage_system → tile_reward_system → position_system → win_system → lose_system`
 
     - Else if action == `WAIT`:
 
-        - No movement or world change; per-substep suite is not run here (the code runs it for non-move actions; check your version if you want `WAIT` to also trigger the suite).
+        - No movement or world change; the per‑substep suite runs once (trail record, portal, damage, tile reward, position snapshot, win/lose).
 
 - Post-step systems (exactly once per step)
 
@@ -123,19 +129,11 @@ The exact execution order in `grid_universe.step.step` is:
 
         - Subtract `Cost` for the agent’s current tile (only once per action, not per submove).
 
-    3) `win_system`
-
-        - Evaluate `objective_fn`; if true, set `win=True`.
-
-    4) `lose_system`
-
-        - If agent is in `Dead`, set `lose=True`.
-
-    5) turn increment
+    3) turn increment
 
         - `turn += 1`
 
-    6) `run_garbage_collector`
+    4) `run_garbage_collector`
 
         - Prune entities not reachable via any live maps (positions, inventory sets, status sets, etc.).
 
@@ -148,7 +146,7 @@ Many systems consume artifacts produced by earlier systems:
 
 - `moving_system` and `pathfinding_system` occur before the agent acts to “advance the world” around the agent first.
 
-- `trail_system` needs both `prev_position` and the updated `position` to fill in traversed tiles; some systems (`portal`, `damage`) rely on `trail` to detect entrants/crossings.
+- Trail is updated during autonomous movement and after each substep; `portal` and `damage` consult `trail` (and `prev_position`) to detect entrants, swaps, and cross‑through collisions.
 
 - `portal_system` uses both `trail` and `prev_position` to detect entrants and avoid re-teleport loops in the same turn.
 
@@ -167,7 +165,9 @@ Invariants you should preserve:
 
 ## Per-substep vs per-step systems
 
-Per-substep (executed after each micro-move or attempted push):
+Per-substep (executed after each micro‑move or attempted push, and once for non‑move actions):
+
+- Record trail for the acting agent’s current tile
 
 - `portal_system`
 
@@ -175,15 +175,15 @@ Per-substep (executed after each micro-move or attempted push):
 
 - `tile_reward_system`
 
+- `position_system` (snapshot after substep)
+
+- `win_system`, `lose_system`
+
 Per-step (executed once, after action handling):
 
 - `status_gc_system`
 
 - `tile_cost_system`
-
-- `win_system`
-
-- `lose_system`
 
 - turn increment
 
@@ -227,7 +227,7 @@ Where a new system should be placed depends on its semantics:
 
 - If it modifies the world generally each turn (autonomous changes, environmental decay):
 
-    - Place it in pre-action updates (after `status_tick_system`, before `trail_system` if it moves things and you want them recorded by `trail`).
+    - Place it in pre-action updates (after `status_tick_system`). Trail is recorded incrementally as movers/pathfinders advance.
 
 - If it’s a “once-per-action” effect (e.g., banking points, draining resources post-action):
 
@@ -272,7 +272,7 @@ Timeline:
 
     - `status_tick_system`: decrement `TimeLimit`.
 
-    - `trail_system`: record trails for box and enemy moves.
+    - Trail is recorded as movers advance (no global trail pass).
 
 - Action, submove 1:
 
@@ -285,6 +285,8 @@ Timeline:
     - `damage_system`: apply damage if agent now overlaps spikes or crossed a damager.
 
     - `tile_reward_system`: add rewards (e.g., floor bonuses).
+
+    - `position_system` then `win_system / lose_system`.
 
 - Action, submove 2 (`Speed`):
 

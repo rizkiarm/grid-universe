@@ -376,6 +376,10 @@ Observation (`obs: Dict[str, Any]`) returned by `GridUniverseEnv`:
 
         - `height`: int
 
+    - `message`
+
+        - `str` (empty string when absent); optional narrative/task hint text
+
 Action space:
 
 - `Discrete(7)`, mapping to `Action` enum indices:

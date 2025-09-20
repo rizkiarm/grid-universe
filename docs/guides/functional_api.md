@@ -169,18 +169,24 @@ Movement/push happens before portal/damage processing in each submove. You can i
     state = portal_system(state)
     ```
 
-- Damage (who threatens the agent now):
+- Damage (simple local check):
+
+    The engine doesn’t expose a public “who will damage me” helper. For a quick
+    local snapshot of potential threats on your current tile (overlap only), you can intersect
+    entities-at-position with known damagers:
 
     ```python
-    from grid_universe.systems.damage import get_damager_ids
-    from grid_universe.utils.trail import get_augmented_trail
-    from pyrsistent import pset
+    from grid_universe.utils.ecs import entities_at
 
-    aug = get_augmented_trail(state, pset(set(state.health) | set(state.damage) | set(state.lethal_damage)))
     pos = state.position[agent_id]
-    threats = get_damager_ids(state, aug, pos)
-    print("Damagers at agent tile:", threats)
+    ids_here = entities_at(state, pos)
+    damagers = set(state.damage) | set(state.lethal_damage)
+    print("Damagers overlapping agent:", list(ids_here & damagers))
     ```
+
+    Note: true damage resolution also considers cross‑paths, swaps, and trails; use
+    the main reducer (step()) to advance the state and rely on `damage_system` invoked
+    by the step pipeline for authoritative results.
 
 
 ## Collecting items and unlocking doors

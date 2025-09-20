@@ -153,13 +153,11 @@ This section lists each system with its purpose, inputs, outputs, and key detail
 
     - Output: Updated `time_limit` for effect IDs present in `Status.effect_ids`.
 
-- `trail_system(state) -> state`
+Trail updates
 
-    - Purpose: Record intermediate tiles traversed between `prev_position` and `position` (Manhattan path).
+    - Purpose: Record per‑turn traversed tiles for entities as they move.
 
-    - Input: `state.position`, `state.prev_position`.
-
-    - Output: `state.trail` augmented with traversed tiles for entities that moved this turn.
+    - Timing: Recorded incrementally during mover/pathfinder updates and after each substep; there is no standalone global trail pass.
 
     - Used by: `portal_system` (to detect entrants), `damage_system` (to detect overlaps and cross paths).
 
@@ -322,7 +320,7 @@ The main reducer is `grid_universe.step.step`. Its control flow:
 
     4) `status_tick_system`
 
-    5) `trail_system`
+    5) Trail updates
 
 - Action handling
 
@@ -342,11 +340,15 @@ The main reducer is `grid_universe.step.step`. Its control flow:
 
                     - After either, run the per-substep suite:
 
+                        - Record trail for the agent’s current tile
+
                         - `portal_system`
 
                         - `damage_system`
 
                         - `tile_reward_system`
+
+                        - `position_system` then `win_system` / `lose_system`
 
                     - If `win/lose/dead` or blocked, exit early.
 
@@ -354,29 +356,21 @@ The main reducer is `grid_universe.step.step`. Its control flow:
 
     - If action is `PICK_UP` → `collectible_system`.
 
-    - If action is `WAIT` → no movement; skip straight to post-step.
+    - If action is `WAIT` → no movement, but still run the per-substep suite once (trail, portal, damage, tile reward, position snapshot, win/lose).
 
 - If action is not a MOVE, immediately run the per-substep suite once
 
-    - `portal_system`
+    - Record trail for the agent’s current tile → `portal_system` → `damage_system` → `tile_reward_system` → `position_system` → `win_system` → `lose_system`
 
-    - `damage_system`
-
-    - `tile_reward_system`
-
-- Post-step systems (always run if not returned earlier)
+-- Post-step systems (always run if not returned earlier)
 
     1) `status_gc_system`
 
     2) `tile_cost_system`
 
-    3) `win_system`
+    3) `turn += 1`
 
-    4) `lose_system`
-
-    5) `turn += 1`
-
-    6) `run_garbage_collector`
+    4) `run_garbage_collector`
 
 
 ## Submoves: speed effects and per-substep systems
@@ -385,7 +379,7 @@ The main reducer is `grid_universe.step.step`. Its control flow:
 
 - Usage limits for `Speed` are decremented when it actually increases movement.
 
-- Per-substep suite (portals, damage, tile rewards) runs after each micro-move or push attempt, so immediate effects (like teleport or damage) can end the step early.
+- Per-substep suite (trail record, portals, damage, tile rewards, position snapshot, win/lose) runs after each micro-move or push attempt, so immediate effects (like teleport or damage) can end the step early.
 
 - `tile_cost_system` is deliberately post-step (once) to avoid penalizing more for higher speed.
 
@@ -398,7 +392,7 @@ The main reducer is `grid_universe.step.step`. Its control flow:
 
     - `windy_move_fn`: secondary step trigger derives from `hash((state.seed or 0, state.turn))` for reproducibility.
 
-    - The renderer’s directory-based texture selection uses the seed to choose deterministically.
+    - The renderer’s directory-based texture selection uses a deterministic choice derived from `state.seed`.
 
 - Best practice:
 

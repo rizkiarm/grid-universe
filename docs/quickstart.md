@@ -24,7 +24,7 @@ Requirements
 - OS packages: none special; Pillow will use system libraries available on your platform.
 
 Install (editable)
-```
+```bash
 # from your repo root
 pip install -e .
 ```
@@ -37,7 +37,7 @@ Optional extras
 
 - Doc: local docs tooling (MkDocs)
 
-```python
+```bash
 pip install -e ".[dev]"
 pip install -e ".[app]"
 pip install -e ".[doc]"
@@ -45,7 +45,7 @@ pip install -e ".[doc]"
 
 Verify import
 
-```python
+```bash
 python -c "import grid_universe as _; print('OK')"
 ```
 
@@ -166,7 +166,7 @@ Use seeds to make runs reproducible.
 
 - Level(seed=...): stored on State.seed; procedural generators and certain systems use it.
 
-- Some movement functions (e.g., `windy_move_fn`) and renderer’s directory-variant selection derive randomness from `(state.seed, state.turn)`.
+- Some movement functions (e.g., `windy_move_fn`) derive per‑turn randomness from `(state.seed, state.turn)`. The renderer’s directory‑variant selection uses a deterministic RNG seeded from `state.seed`.
 
 Example pattern for deterministic per-turn RNG:
 

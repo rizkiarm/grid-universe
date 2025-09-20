@@ -220,7 +220,7 @@ Notes:
 
 The `step()` lifecycle (`grid_universe/step.py`) calls:
 
-- Pre: `position_system → moving_system → pathfinding_system → status_tick_system → trail_system`
+- Pre: `position_system → moving_system → pathfinding_system → status_tick_system`
 
 - Per-submove (for MOVE actions): `push_system → movement_system → portal_system → damage_system → tile_reward_system`
 

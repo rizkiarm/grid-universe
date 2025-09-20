@@ -27,7 +27,7 @@ Contents
   
     - An RGBA image (texture-rendered snapshot of `State`).
   
-    - A structured info dict (agent health/effects/inventory, score/phase/turn, config metadata).
+    - A structured info dict (agent health/effects/inventory, score/phase/turn, config metadata, message string).
 
 - Reward:
   
@@ -76,7 +76,7 @@ obs, info = env.reset()
   
     - `image`: `Box(low=0, high=255, shape=(H, W, 4), dtype=uint8)`
   
-    - `info`: `Dict` with nested dicts for `agent`, `status`, `config` (see below)
+    - `info`: `Dict` with nested dicts for `agent`, `status`, `config`, and `message` (see below)
 
 - `agent` sub-dict:
 
@@ -113,6 +113,10 @@ obs, info = env.reset()
     - `turn`: int
 
 - `config` sub-dict:
+- `message` field:
+
+    - A free-form text string (empty string if None) for narrative or task hints.
+
 
     - `move_fn`: str (function name)
     
@@ -205,7 +209,7 @@ img.save("episode_last_frame.png")
 
 - Pass `seed` to `GridUniverseEnv` to forward to the generator (`examples.maze.generate`), which sets `State.seed`.
 
-- Some movement functions (e.g., `windy_move_fn`) and the renderer’s directory-based texture choice use `(state.seed, state.turn)` for deterministic randomness.
+- Some movement functions (e.g., `windy_move_fn`) use per‑turn RNG derived from `(state.seed, state.turn)`. The renderer’s directory‑based texture choice uses a seed derived from `state.seed` to pick a file deterministically per state.
 
 - For strict reproducibility:
   
