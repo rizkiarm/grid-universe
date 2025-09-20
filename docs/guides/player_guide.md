@@ -28,11 +28,10 @@ Each turn is processed in a strict order so interactions feel predictable:
 1. Effects tick first: time-based status effects (like speed or immunity) decrement timers before your action.
 2. Enemies and movers may act: autonomous entities can move toward targets or follow paths.
 3. Your action runs. For movement actions:
-  - Pushing happens before walking. If you walk into a pushable box and the space behind it is free, you push the box and move into its old tile. If the push can’t happen, you try to walk normally.
-  - If you can’t move (blocked by walls, closed doors, or other blockers), your movement for this sub-step ends.
-  - After each small step, interactions are resolved immediately: portals teleport you, hazards/enemies can damage you, and standing on reward tiles grants points. If you die or win, the turn ends.
-  - Speed effects can grant multiple small steps in one action. Interactions run after each step.
-
+    - Pushing happens before walking. If you walk into a pushable box and the space behind it is free, you push the box and move into its old tile. If the push can’t happen, you try to walk normally.
+    - If you can’t move (blocked by walls, closed doors, or other blockers), your movement for this sub-step ends.
+    - After each small step, interactions are resolved immediately: portals teleport you, hazards/enemies can damage you, and standing on reward tiles grants points. If you die or win, the turn ends.
+    - Speed effects can grant multiple small steps in one action. Interactions run after each step.
 4. End of turn: tile costs (like floor upkeep) are applied once per action, then the turn counter increases.
 
 Key consequences:
@@ -47,9 +46,9 @@ Key consequences:
 - Blocked tiles: walls, locked doors, and some objects prevent movement. Boxes that can be pushed still block normal walking if they can’t be pushed.
 - Phasing effect: lets you walk through blocking tiles while the effect lasts (it consumes uses/time when it helps you pass through blockers).
 - Level variants you might encounter:
-  - Sliding/ice: you keep moving in the same direction until something stops you.
-  - Wrap-around edges: stepping off the edge puts you on the opposite side.
-  - Gravity/windy: some levels add a fall after moving, or a chance to be blown by wind.
+    - Sliding/ice: you keep moving in the same direction until something stops you.
+    - Wrap-around edges: stepping off the edge puts you on the opposite side.
+    - Gravity/windy: some levels add a fall after moving, or a chance to be blown by wind.
 
 
 ## Pushing boxes (and other pushables)
@@ -90,9 +89,9 @@ Tip: Because interactions run after each small step, be careful when moving mult
 ## Collectibles and inventory
 
 - Pick Up collects items on your tile:
-  - Coins (or non‑required items): add to your score.
-  - Cores (required items): needed to meet the default objective; may also grant score.
-  - Keys: stored in your inventory for unlocking doors.
+    - Coins (or non‑required items): add to your score.
+    - Cores (required items): needed to meet the default objective; may also grant score.
+    - Keys: stored in your inventory for unlocking doors.
 - Some rewards are “on the ground” and not picked up—standing on them grants points automatically after your step (see Tile rewards below).
 
 
