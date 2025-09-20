@@ -215,7 +215,7 @@ def test_portal_pair_missing_does_not_crash() -> None:
     assert new_state.position[agent_id] == Position(*agent_pos)
 
 
-def test_multiple_entities_on_portal_all_teleported_on_entry() -> None:
+def test_multiple_entities_on_portal_all_blocked() -> None:
     agent_id: EntityID = new_entity_id()
     pushable_id: EntityID = new_entity_id()
     portal1_id: EntityID = new_entity_id()
@@ -268,8 +268,8 @@ def test_multiple_entities_on_portal_all_teleported_on_entry() -> None:
         collidable=pmap(collidable),
     )
     new_state: State = portal_system(state)
-    assert new_state.position[agent_id] == Position(*portal2_pos)
-    assert new_state.position[pushable_id] == Position(*portal1_pos)
+    assert new_state.position[agent_id] == Position(*portal1_pos)
+    assert new_state.position[pushable_id] == Position(*portal2_pos)
 
 
 def test_entity_chained_portals_no_infinite_teleport() -> None:

@@ -288,7 +288,6 @@ def test_multiple_agents_take_appropriate_damage() -> None:
         damage=state1.damage.update(state2.damage),
         entity=state1.entity.update(state2.entity),
     )
-    print(state.position)
     state = step(state, Action.WAIT, agent_id=agent1)
     state = step(state, Action.WAIT, agent_id=agent2)
     assert agent_health(state, agent1) == 3
@@ -531,8 +530,6 @@ def test_no_damage_agent_teleports_past_damager_via_portals() -> None:
         },
         "collidable": {
             agent_id: Collidable(),
-            portal1_id: Collidable(),
-            portal2_id: Collidable(),
         },
     }
     state, _ = make_agent_state(

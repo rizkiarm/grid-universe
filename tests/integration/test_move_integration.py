@@ -1,5 +1,7 @@
 from dataclasses import replace
 
+import pytest
+
 from grid_universe.components import (
     Damage,
     Position,
@@ -17,6 +19,7 @@ from grid_universe.objectives import default_objective_fn
 from grid_universe.step import step
 from grid_universe.actions import Action
 from pyrsistent import pmap, pset
+from grid_universe.types import EntityID
 from tests.test_utils import (
     make_agent_box_wall_state,
     make_exit_entity,
@@ -40,13 +43,24 @@ def test_move_blocked_by_wall() -> None:
     assert_entity_positions(new_state, {agent_id: (0, 0), wall_ids[0]: (1, 0)})
 
 
-def test_move_pushes_box() -> None:
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2])
+def test_move_pushes_box(agent_speed_multiplier: int) -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
         agent_pos=(0, 0), box_positions=[(1, 0)]
     )
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 992
+        speed = pmap({speed_effect_id: Speed(multiplier=agent_speed_multiplier)})
+        status = pmap({agent_id: Status(effect_ids=pset([speed_effect_id]))})
+        state = replace(state, speed=speed, status=status)
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
-    assert_entity_positions(new_state, {agent_id: (1, 0), box_ids[0]: (2, 0)})
+    expected_agent_pos = agent_speed_multiplier
+    expected_box_pos = agent_speed_multiplier + 1
+    assert_entity_positions(
+        new_state,
+        {agent_id: (expected_agent_pos, 0), box_ids[0]: (expected_box_pos, 0)},
+    )
 
 
 def test_move_push_blocked_by_wall_after_box() -> None:
@@ -74,16 +88,23 @@ def test_move_pushes_box_out_of_bounds() -> None:
     assert_entity_positions(new_state, {agent_id: (3, 0), box_ids[0]: (4, 0)})
 
 
-def test_move_wrapping_enabled() -> None:
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2])
+def test_move_wrapping_enabled(agent_speed_multiplier: int) -> None:
     from grid_universe.moves import wrap_around_move_fn
 
     state, agent_id, _, _ = make_agent_box_wall_state(
         agent_pos=(4, 0), width=5, height=1
     )
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 992
+        speed = pmap({speed_effect_id: Speed(multiplier=agent_speed_multiplier)})
+        status = pmap({agent_id: Status(effect_ids=pset([speed_effect_id]))})
+        state = replace(state, speed=speed, status=status)
     state = replace(state, move_fn=wrap_around_move_fn)
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
-    assert_entity_positions(new_state, {agent_id: (0, 0)})
+    expected_agent_pos = (agent_speed_multiplier - 1) % state.width
+    assert_entity_positions(new_state, {agent_id: (expected_agent_pos, 0)})
 
 
 def test_move_ghost_powerup_ignores_wall_box() -> None:
@@ -104,8 +125,14 @@ def test_move_ghost_powerup_ignores_wall_box() -> None:
     )
 
 
-def test_move_onto_portal_teleports_agent() -> None:
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2])
+def test_move_onto_portal_teleports_agent(agent_speed_multiplier: int) -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(agent_pos=(0, 0))
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 992
+        speed = pmap({speed_effect_id: Speed(multiplier=agent_speed_multiplier)})
+        status = pmap({agent_id: Status(effect_ids=pset([speed_effect_id]))})
+        state = replace(state, speed=speed, status=status)
     portal1_id, portal2_id = 999, 1000
     pos = state.position.set(portal1_id, Position(1, 0)).set(portal2_id, Position(3, 0))
     portal = pmap(
@@ -117,7 +144,8 @@ def test_move_onto_portal_teleports_agent() -> None:
     state = replace(state, position=pos, portal=portal)
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
-    assert_entity_positions(new_state, {agent_id: (3, 0)})
+    shift = agent_speed_multiplier - 1
+    assert_entity_positions(new_state, {agent_id: (3 + shift, 0)})
 
 
 def test_move_onto_hazard_takes_damage() -> None:
@@ -179,8 +207,14 @@ def test_move_double_speed_powerup_moves_twice_and_blocks_at_wall() -> None:
     assert_entity_positions(new_state, {agent_id: (1, 0), wall_ids[0]: (2, 0)})
 
 
-def test_move_onto_exit_triggers_win() -> None:
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2])
+def test_move_onto_exit_triggers_win(agent_speed_multiplier: int) -> None:
     state, agent_id, _, _ = make_agent_box_wall_state(agent_pos=(0, 0))
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 992
+        speed = pmap({speed_effect_id: Speed(multiplier=agent_speed_multiplier)})
+        status = pmap({agent_id: Status(effect_ids=pset([speed_effect_id]))})
+        state = replace(state, speed=speed, status=status)
     exit_id, exit_map, exit_pos, entity_map = make_exit_entity((1, 0))
     pos = state.position.update(exit_pos)
     entity = state.entity.update(entity_map)
@@ -230,10 +264,16 @@ def test_move_chained_portal_no_loop() -> None:
     assert new_state.position[agent_id] in [Position(2, 0), Position(3, 0)]
 
 
-def test_move_push_box_onto_portal_box_teleported() -> None:
+@pytest.mark.parametrize("agent_speed_multiplier", [1, 2])
+def test_move_push_box_onto_portal_box_teleported(agent_speed_multiplier: int) -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
         agent_pos=(0, 0), box_positions=[(1, 0)]
     )
+    if agent_speed_multiplier > 1:
+        speed_effect_id: EntityID = 992
+        speed = pmap({speed_effect_id: Speed(multiplier=agent_speed_multiplier)})
+        status = pmap({agent_id: Status(effect_ids=pset([speed_effect_id]))})
+        state = replace(state, speed=speed, status=status)
     portal_a, portal_b = 110, 111
     pos = state.position.set(portal_a, Position(2, 0)).set(portal_b, Position(4, 0))
     portal = pmap(
@@ -243,8 +283,12 @@ def test_move_push_box_onto_portal_box_teleported() -> None:
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     box_pos = new_state.position[box_ids[0]]
-    assert new_state.position[agent_id] == Position(1, 0)
-    assert box_pos in [Position(2, 0), Position(4, 0)]
+    assert (
+        new_state.position[agent_id] == Position(1, 0)
+        if agent_speed_multiplier == 1
+        else Position(2, 0)
+    )
+    assert box_pos == Position(4, 0)
 
 
 def test_move_box_chain_blocked() -> None:

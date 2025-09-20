@@ -342,8 +342,22 @@ def build_level_enemy_patrol(seed: int = 109) -> State:
         if y not in [h // 2, h // 2 + 1]:
             lvl.add((w // 2, y), create_wall())
             lvl.add((w // 2 + 1, y), create_wall())
-    enemy1 = create_monster(damage=1, lethal=False, moving_axis=MovingAxis.VERTICAL, moving_direction=1, moving_bounce=True, moving_speed=1)
-    enemy2 = create_monster(damage=1, lethal=False, moving_axis=MovingAxis.VERTICAL, moving_direction=1, moving_bounce=True, moving_speed=1)
+    enemy1 = create_monster(
+        damage=1,
+        lethal=False,
+        moving_axis=MovingAxis.VERTICAL,
+        moving_direction=1,
+        moving_bounce=True,
+        moving_speed=1,
+    )
+    enemy2 = create_monster(
+        damage=1,
+        lethal=False,
+        moving_axis=MovingAxis.VERTICAL,
+        moving_direction=1,
+        moving_bounce=True,
+        moving_speed=1,
+    )
     lvl.add((w // 2, h // 2), enemy1)
     lvl.add((w // 2 + 1, h // 2), enemy2)
     return to_state(lvl)
@@ -436,9 +450,30 @@ def build_level_power_boots(seed: int = 112) -> State:
     lvl.add(
         (w // 2 - 1, h // 2 + 1), create_speed_effect(multiplier=2, time=5)
     )  # Boots
-    enemy1 = create_monster(damage=1, lethal=False, moving_axis=MovingAxis.VERTICAL, moving_direction=1, moving_bounce=True, moving_speed=1)
-    enemy2 = create_monster(damage=1, lethal=False, moving_axis=MovingAxis.VERTICAL, moving_direction=1, moving_bounce=True, moving_speed=1)
-    enemy3 = create_monster(damage=1, lethal=False, moving_axis=MovingAxis.VERTICAL, moving_direction=1, moving_bounce=True, moving_speed=1)
+    enemy1 = create_monster(
+        damage=1,
+        lethal=False,
+        moving_axis=MovingAxis.VERTICAL,
+        moving_direction=1,
+        moving_bounce=True,
+        moving_speed=1,
+    )
+    enemy2 = create_monster(
+        damage=1,
+        lethal=False,
+        moving_axis=MovingAxis.VERTICAL,
+        moving_direction=1,
+        moving_bounce=True,
+        moving_speed=1,
+    )
+    enemy3 = create_monster(
+        damage=1,
+        lethal=False,
+        moving_axis=MovingAxis.VERTICAL,
+        moving_direction=1,
+        moving_bounce=True,
+        moving_speed=1,
+    )
     lvl.add((w // 2, h // 2), enemy1)
     lvl.add((w // 2 + 1, h // 2), enemy2)
     lvl.add((w // 2 + 2, h // 2), enemy3)

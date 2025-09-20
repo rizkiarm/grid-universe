@@ -175,9 +175,7 @@ def _movement_params(kind: str) -> Dict[str, Any]:
     bounce = st.checkbox(
         "Bounce (reverse at ends)", value=True, key=f"{kind}_move_bounce"
     )
-    speed = st.number_input(
-        "Speed (tiles / step)", 1, 10, 1, key=f"{kind}_move_speed"
-    )
+    speed = st.number_input("Speed (tiles / step)", 1, 10, 1, key=f"{kind}_move_speed")
     return {
         "moving_axis": axis,
         "moving_direction": dir_val if axis is not None else None,
@@ -204,11 +202,19 @@ def _box_params() -> Dict[str, Any]:
 def _hazard_params(kind: str) -> Callable[[], Dict[str, Any]]:
     def _inner() -> Dict[str, Any]:
         damage = st.number_input(
-            "Damage", 0, 50, 2, key=f"{kind}_damage", help="Amount of health lost on contact."
+            "Damage",
+            0,
+            50,
+            2,
+            key=f"{kind}_damage",
+            help="Amount of health lost on contact.",
         )
         lethal_default = kind == "lava"
         lethal = st.checkbox(
-            "Lethal?", value=lethal_default, key=f"{kind}_lethal", help="If checked, instantly defeats agents regardless of damage."
+            "Lethal?",
+            value=lethal_default,
+            key=f"{kind}_lethal",
+            help="If checked, instantly defeats agents regardless of damage.",
         )
         return {"damage": int(damage), "lethal": bool(lethal)}
 
@@ -217,7 +223,12 @@ def _hazard_params(kind: str) -> Callable[[], Dict[str, Any]]:
 
 def _floor_params() -> Dict[str, Any]:
     cost = st.number_input(
-        "Move Cost", 1, 99, 1, key="floor_cost", help="Energy / cost units required to traverse this tile."
+        "Move Cost",
+        1,
+        99,
+        1,
+        key="floor_cost",
+        help="Energy / cost units required to traverse this tile.",
     )
     return {"cost": int(cost)}
 
@@ -357,7 +368,10 @@ def _place_tool(
         )
         if floor_entry_opt is None:
             grid[y][x] = [
-                {"type": "floor", "params": {"cost": params.get("cost", 1) if params else 1}}
+                {
+                    "type": "floor",
+                    "params": {"cost": params.get("cost", 1) if params else 1},
+                }
             ]
         else:
             if params and "cost" in params:
@@ -519,7 +533,9 @@ def build_editor_config(current: object) -> EditorConfig:
                 cell = grid[yy][xx]
                 entries = [t for t in cell if t["type"] != "floor"]
                 label = "".join(
-                    PALETTE[entry["type"].lower()].icon for entry in entries if entry["type"].lower() in PALETTE
+                    PALETTE[entry["type"].lower()].icon
+                    for entry in entries
+                    if entry["type"].lower() in PALETTE
                 )
                 if cols[xx].button(
                     label or PALETTE["floor"].icon, key=f"editor_cell_{xx}_{yy}"

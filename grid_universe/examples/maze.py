@@ -323,7 +323,12 @@ def generate(
             break
         pos = open_non_essential.pop()
         axis, direction = _random_axis_and_dir(rng) if speed > 0 else (None, None)
-        box = create_box(pushable=pushable, moving_axis=axis, moving_direction=direction, moving_speed=speed)
+        box = create_box(
+            pushable=pushable,
+            moving_axis=axis,
+            moving_direction=direction,
+            moving_speed=speed,
+        )
         level.add(pos, box)
 
     # 13) Enemies (wire pathfinding to agent by reference if requested)
@@ -345,8 +350,16 @@ def generate(
                 damage=dmg, lethal=lethal, pathfind_target=agent, path_type=path_type
             )
         else:
-            maxis, mdirection = _random_axis_and_dir(rng) if mspeed > 0 else (None, None)
-            enemy = create_monster(damage=dmg, lethal=lethal, moving_axis=maxis, moving_direction=mdirection, moving_speed=mspeed)
+            maxis, mdirection = (
+                _random_axis_and_dir(rng) if mspeed > 0 else (None, None)
+            )
+            enemy = create_monster(
+                damage=dmg,
+                lethal=lethal,
+                moving_axis=maxis,
+                moving_direction=mdirection,
+                moving_speed=mspeed,
+            )
 
         level.add(pos, enemy)
 

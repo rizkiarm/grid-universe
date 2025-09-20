@@ -140,7 +140,10 @@ def _step_move(state: State, action: Action, agent_id: EntityID) -> State:
     blocked: bool = False
 
     for _ in range(move_count):
-        for next_pos in move_fn(state, agent_id, action):
+        positions = move_fn(state, agent_id, action)
+        if len(positions) == 0:
+            positions = [current_pos]  # no move possible
+        for next_pos in positions:
             # Try to push
             pushed_state = push_system(state, agent_id, next_pos)
             if pushed_state != state:
@@ -204,10 +207,13 @@ def _after_substep(state: State, action: Action, agent_id: EntityID) -> State:
     Returns:
         State: Updated state after interaction systems.
     """
-    state = portal_system(state)
     state = add_trail_position(state, agent_id, state.position[agent_id])
+    state = portal_system(state)
     state = damage_system(state)
     state = tile_reward_system(state, agent_id)
+    state = position_system(state)
+    state = win_system(state, agent_id)
+    state = lose_system(state, agent_id)
     return state
 
 
@@ -230,8 +236,6 @@ def _after_step(state: State, agent_id: EntityID) -> State:
     state = tile_cost_system(
         state, agent_id
     )  # doesn't penalize faster move (move with submoves)
-    state = win_system(state, agent_id)
-    state = lose_system(state, agent_id)
     state = replace(state, turn=state.turn + 1)
     state = run_garbage_collector(state)
     return state

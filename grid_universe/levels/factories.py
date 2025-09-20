@@ -32,7 +32,7 @@ from grid_universe.components.properties import (
     Rewardable,
     PathfindingType,
     Status,
-    Moving,    
+    Moving,
     MovingAxis,
 )
 from grid_universe.components.effects import (
@@ -136,11 +136,11 @@ def create_portal(*, pair: Optional[EntitySpec] = None) -> EntitySpec:
 
 
 def create_box(
-        pushable: bool = True,       
-        moving_axis: Optional[MovingAxis] = None,
-        moving_direction: Optional[int] = None,
-        moving_bounce: bool = True,
-        moving_speed: int = 1,
+    pushable: bool = True,
+    moving_axis: Optional[MovingAxis] = None,
+    moving_direction: Optional[int] = None,
+    moving_bounce: bool = True,
+    moving_speed: int = 1,
 ) -> EntitySpec:
     """Pushable / blocking box (optionally not pushable)."""
     return EntitySpec(
@@ -148,7 +148,9 @@ def create_box(
         blocking=Blocking(),
         collidable=Collidable(),
         pushable=Pushable() if pushable else None,
-        moving=None if moving_axis is None or moving_direction is None else Moving(
+        moving=None
+        if moving_axis is None or moving_direction is None
+        else Moving(
             axis=moving_axis,
             direction=moving_direction,
             bounce=moving_bounce,
@@ -174,7 +176,9 @@ def create_monster(
         collidable=Collidable(),
         damage=Damage(amount=damage),
         lethal_damage=LethalDamage() if lethal else None,
-        moving=None if moving_axis is None or moving_direction is None else Moving(
+        moving=None
+        if moving_axis is None or moving_direction is None
+        else Moving(
             axis=moving_axis,
             direction=moving_direction,
             bounce=moving_bounce,
