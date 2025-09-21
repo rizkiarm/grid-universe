@@ -22,6 +22,7 @@ from dataclasses import replace
 from typing import Optional
 from pyrsistent import pset, pmap
 from grid_universe.actions import Action, MOVE_ACTIONS
+from grid_universe.components.properties.position import Position
 from grid_universe.systems.damage import damage_system
 from grid_universe.systems.pathfinding import pathfinding_system
 from grid_universe.systems.status import status_gc_system, status_tick_system
@@ -137,29 +138,16 @@ def _step_move(state: State, action: Action, agent_id: EntityID) -> State:
             move_count = state.speed[effect_id].multiplier * move_count
             state = replace(state, usage_limit=usage_limit)
 
-    blocked: bool = False
-
     for _ in range(move_count):
         positions = move_fn(state, agent_id, action)
         if len(positions) == 0:
             positions = [current_pos]  # no move possible
         for next_pos in positions:
-            # Try to push
-            pushed_state = push_system(state, agent_id, next_pos)
-            if pushed_state != state:
-                state = pushed_state
-            else:
-                moved_state = movement_system(state, agent_id, next_pos)
-                if moved_state == state:
-                    # Blocked; post-move systems, then break
-                    blocked = True
-                state = moved_state
-
-            # Post-move systems for this step
+            prev_state = state
+            state = _substep(state, action, agent_id, next_pos)
             state = _after_substep(state, action, agent_id)
-
-            if state.win or state.lose or agent_id in state.dead or blocked:
-                return state
+            if prev_state == state:
+                return state  # movement blocked, stop processing further sub-moves
 
     return state
 
@@ -190,6 +178,24 @@ def _step_wait(state: State, action: Action, agent_id: EntityID) -> State:
 
     Effects still tick earlier in the reducer; this simply consumes a turn.
     """
+    return state
+
+
+def _substep(
+    state: State, action: Action, agent_id: EntityID, next_pos: Position
+) -> State:
+    """Process a single movement sub‑step.
+
+    Args:
+        state (State): Current state prior to executing the sub‑step.
+        action (Action): One of the directional ``Action`` enum members.
+        agent_id (EntityID): Controlled agent entity id.
+
+    Returns:
+        State: Updated state after applying the sub‑step.
+    """
+    state = push_system(state, agent_id, next_pos)
+    state = movement_system(state, agent_id, next_pos)
     return state
 
 
