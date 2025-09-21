@@ -109,6 +109,9 @@ class State:
         trail (PMap[Position, PSet[EntityID]]): Positions traversed this step mapped to entity ids.
         turn (int): Turn counter (0-based).
         score (int): Accumulated score.
+        turn_limit (int | None): Optional maximum number of turns allowed. When
+            set, reaching this number triggers a ``lose`` state unless already
+            ``win``. ``None`` disables the limit.
         win (bool): True if objective met.
         lose (bool): True if losing condition met.
         message (str | None): Optional informational / terminal message.
@@ -165,6 +168,7 @@ class State:
     win: bool = False
     lose: bool = False
     message: Optional[str] = None
+    turn_limit: Optional[int] = None
 
     # RNG
     seed: Optional[int] = None

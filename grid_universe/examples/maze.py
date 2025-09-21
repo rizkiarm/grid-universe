@@ -189,6 +189,7 @@ def generate(
     move_fn: MoveFn = default_move_fn,
     objective_fn: ObjectiveFn = default_objective_fn,
     seed: Optional[int] = None,
+    turn_limit: Optional[int] = None,
 ) -> State:
     """Generate a randomized maze game state.
 
@@ -232,6 +233,7 @@ def generate(
         move_fn=move_fn,
         objective_fn=objective_fn,
         seed=seed,
+        turn_limit=turn_limit,
     )
 
     # 3) Collect positions

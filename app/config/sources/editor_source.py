@@ -72,6 +72,7 @@ Design constraints:
 class EditorConfig:
     width: int
     height: int
+    turn_limit: Optional[int]
     move_fn: MoveFn
     objective_fn: ObjectiveFn
     seed: Optional[int]
@@ -91,6 +92,7 @@ def _default_editor_config() -> EditorConfig:
     return EditorConfig(
         width=width,
         height=height,
+        turn_limit=None,
         move_fn=default_move_fn,
         objective_fn=default_objective_fn,
         seed=None,
@@ -411,6 +413,7 @@ def _build_level_from_tokens(cfg: EditorConfig) -> Level:
         move_fn=cfg.move_fn,
         objective_fn=cfg.objective_fn,
         seed=cfg.seed,
+        turn_limit=cfg.turn_limit,
     )
 
     portal_specs: Dict[Tuple[int, int], Any] = {}
@@ -475,13 +478,22 @@ def build_editor_config(current: object) -> EditorConfig:
     st.info("Interactive level editor.", icon="🛠️")
 
     # Size + rules row
-    c1, c2, c3 = st.columns([1, 1, 1])
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
     with c1:
         width = st.number_input("Width", 3, 30, base.width, key="editor_width")
     with c2:
         height = st.number_input("Height", 3, 30, base.height, key="editor_height")
     with c3:
         seed = st.number_input("Seed", 0, None, 0, key="editor_seed")
+    with c4:
+        tl_val = st.number_input(
+            "Turn limit (0=∞)",
+            0,
+            9999,
+            value=int(base.turn_limit or 0),
+            key="editor_turn_limit",
+        )
+        turn_limit = int(tl_val) if int(tl_val) > 0 else None
     move_fn = _move_fn_section(base)
     objective_fn = _objective_fn_section(base)
     texture_map = texture_map_section(base)  # type: ignore[arg-type]
@@ -554,6 +566,7 @@ def build_editor_config(current: object) -> EditorConfig:
         temp_cfg = EditorConfig(
             width=int(width),
             height=int(height),
+            turn_limit=turn_limit,
             move_fn=move_fn,
             objective_fn=objective_fn,
             seed=seed,
@@ -588,6 +601,7 @@ def build_editor_config(current: object) -> EditorConfig:
     return EditorConfig(
         width=int(width),
         height=int(height),
+        turn_limit=turn_limit,
         move_fn=move_fn,
         objective_fn=objective_fn,
         seed=seed,
@@ -793,8 +807,11 @@ def _generate_level_code(cfg: EditorConfig) -> str:
     append("from grid_universe.gym_env import GridUniverseEnv")
     append("")
     append("def build_level() -> Level:")
+    turn_limit_arg = (
+        f", turn_limit={int(cfg.turn_limit)}" if cfg.turn_limit is not None else ""
+    )
     append(
-        f"    level = Level(width={cfg.width}, height={cfg.height}, move_fn=MOVE_FN_REGISTRY[{repr(move_key)}], objective_fn=OBJECTIVE_FN_REGISTRY[{repr(obj_key)}], seed={repr(cfg.seed)})"
+        f"    level = Level(width={cfg.width}, height={cfg.height}, move_fn=MOVE_FN_REGISTRY[{repr(move_key)}], objective_fn=OBJECTIVE_FN_REGISTRY[{repr(obj_key)}], seed={repr(cfg.seed)}{turn_limit_arg})"
     )
     append("")
     # Grouped non-portal adds using readable loops; no loop if single position

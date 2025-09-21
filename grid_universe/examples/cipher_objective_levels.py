@@ -7,6 +7,10 @@ from grid_universe.state import State
 from grid_universe.objectives import OBJECTIVE_FN_REGISTRY
 from grid_universe.examples import maze
 
+
+TURN_LIMIT = 20
+
+
 CipherObjectivePair = Tuple[str, str]
 
 
@@ -98,6 +102,7 @@ def generate(
         enemies=[],
         wall_percentage=0.8,
         seed=seed,
+        turn_limit=TURN_LIMIT,
     )
 
     return to_cipher_level(base, cipher_objective_pairs, seed=seed)

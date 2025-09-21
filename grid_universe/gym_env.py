@@ -178,9 +178,10 @@ def env_config_observation_dict(state: State) -> Dict[str, Any]:
     return {
         "move_fn": move_fn_name,
         "objective_fn": objective_fn_name,
-        "seed": state.seed,
+        "seed": state.seed if state.seed is not None else -1,
         "width": state.width,
         "height": state.height,
+        "turn_limit": state.turn_limit if state.turn_limit is not None else -1,
     }
 
 
@@ -309,6 +310,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
                                 ),  # use -1 to represent None if needed
                                 "width": int_box(1, 10_000),
                                 "height": int_box(1, 10_000),
+                                "turn_limit": int_box(-1, 1_000_000_000),
                             }
                         ),
                         "message": text_space_long,

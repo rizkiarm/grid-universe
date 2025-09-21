@@ -151,6 +151,7 @@ def _build_state(
         win=level.win,
         lose=level.lose,
         message=level.message,
+        turn_limit=level.turn_limit,
         seed=level.seed,
     )
 
@@ -304,6 +305,7 @@ def from_state(state: State) -> Level:
         seed=state.seed,
         turn=state.turn,
         score=state.score,
+        turn_limit=state.turn_limit,
         win=state.win,
         lose=state.lose,
         message=state.message,

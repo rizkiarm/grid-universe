@@ -42,6 +42,7 @@ class Level:
     win: bool = False
     lose: bool = False
     message: Optional[str] = None
+    turn_limit: Optional[int] = None
 
     def __post_init__(self) -> None:
         # Initialize empty grid

@@ -30,3 +30,14 @@ def lose_system(state: State, agent_id: EntityID) -> State:
     if agent_id in state.dead and not state.lose:
         return replace(state, lose=True)
     return state
+
+
+def turn_system(state: State, agent_id: EntityID) -> State:
+    """Set ``lose`` flag if turn limit is reached."""
+    if (
+        state.turn_limit is not None
+        and state.turn >= state.turn_limit
+        and not state.win
+    ):
+        state = replace(state, lose=True)
+    return state

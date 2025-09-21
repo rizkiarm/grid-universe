@@ -39,6 +39,10 @@ COIN_REWARD = 2
 # Required core reward must be 0 (objective only, no scoring bonus).
 CORE_REWARD = 0
 
+# -------------------------
+# Constants
+# -------------------------
+TURN_LIMIT = 20
 
 # -------------------------
 # Helpers
@@ -99,7 +103,12 @@ def build_level_basic_movement(seed: int = 100) -> State:
     """
     w, h = 7, 5
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     lvl.add((1, h // 2), create_agent(health=5))
@@ -122,7 +131,12 @@ def build_level_maze_turns(seed: int = 101) -> State:
     """
     w, h = 9, 7
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     _border(lvl)
@@ -149,7 +163,12 @@ def build_level_optional_coin(seed: int = 102) -> State:
     """
     w, h = 9, 7
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     _border(lvl)
@@ -177,7 +196,12 @@ def build_level_required_one(seed: int = 103) -> State:
     """
     w, h = 9, 7
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=default_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     _border(lvl)
@@ -202,7 +226,12 @@ def build_level_required_two(seed: int = 104) -> State:
     """
     w, h = 11, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=default_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     _border(lvl)
@@ -232,7 +261,12 @@ def build_level_key_door(seed: int = 105) -> State:
     """
     w, h = 11, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     for y in range(h):
@@ -258,7 +292,12 @@ def build_level_hazard_detour(seed: int = 106) -> State:
     """
     w, h = 11, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     lvl.add((1, h // 2), create_agent(health=6))
@@ -285,7 +324,12 @@ def build_level_portal_shortcut(seed: int = 107) -> State:
     """
     w, h = 11, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     lvl.add((1, h // 2), create_agent(health=5))
@@ -310,7 +354,12 @@ def build_level_pushable_box(seed: int = 108) -> State:
     """
     w, h = 11, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     for y in range(h):
@@ -333,7 +382,12 @@ def build_level_enemy_patrol(seed: int = 109) -> State:
     """
     w, h = 13, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     lvl.add((2, h // 2), create_agent(health=1))
@@ -382,7 +436,12 @@ def build_level_power_shield(seed: int = 110) -> State:
     """
     w, h = 11, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     lvl.add((1, h // 2), create_agent(health=2))
@@ -411,7 +470,12 @@ def build_level_power_ghost(seed: int = 111) -> State:
     """
     w, h = 13, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     lvl.add((1, h // 2), create_agent(health=5))
@@ -437,7 +501,12 @@ def build_level_power_boots(seed: int = 112) -> State:
     """
     w, h = 13, 9
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=exit_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=exit_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     lvl.add((1, h // 2), create_agent(health=1))
@@ -506,7 +575,12 @@ def build_level_capstone(seed: int = 113) -> State:
     """
     w, h = 13, 11
     lvl = Level(
-        w, h, move_fn=default_move_fn, objective_fn=default_objective_fn, seed=seed
+        w,
+        h,
+        move_fn=default_move_fn,
+        objective_fn=default_objective_fn,
+        seed=seed,
+        turn_limit=TURN_LIMIT,
     )
     _floors(lvl)
     _border(lvl)

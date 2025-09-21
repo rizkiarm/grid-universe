@@ -82,6 +82,8 @@ with tab_game:
             st.info(f"{objective}", icon="🎯")
             if message:
                 st.info(f"{message}", icon="💬")
+            if env.state.turn_limit is not None:
+                st.info(f"Turn: {env.state.turn} / {env.state.turn_limit}", icon="⏳")
 
         st.divider()
 
@@ -140,7 +142,7 @@ with tab_game:
             st.success("🎉 **Goal reached!** 🎉")
             st.balloons()
         if env.state and env.state.lose:
-            st.error("💀 **You have died!** 💀")
+            st.error("💀 **You lose!** 💀")
         img = env.render(mode="texture")
         if img is not None:
             img_compressed = img.convert("P")  # Converts to 8-bit palette mode

@@ -33,6 +33,7 @@ from ..shared_ui import texture_map_section, seed_section
 class MazeConfig:
     width: int
     height: int
+    turn_limit: int | None
     num_required_items: int
     num_rewardable_items: int
     num_portals: int
@@ -56,6 +57,7 @@ def _default_maze_config() -> MazeConfig:
     return MazeConfig(
         width=10,
         height=10,
+        turn_limit=None,
         num_required_items=3,
         num_rewardable_items=3,
         num_portals=1,
@@ -95,6 +97,17 @@ def _maze_size_section(cfg: MazeConfig) -> Tuple[int, int, float, int]:
         "Floor cost", 0, 10, cfg.movement_cost, key="movement_cost"
     )
     return width, height, wall_percentage, movement_cost
+
+
+def _run_section(cfg: MazeConfig) -> int | None:
+    st.subheader("Run Settings")
+    tl = st.number_input(
+        "Turn limit (0 = unlimited)",
+        min_value=0,
+        value=0 if cfg.turn_limit is None else int(cfg.turn_limit),
+        key="turn_limit",
+    )
+    return int(tl) if int(tl) > 0 else None
 
 
 def _items_section(cfg: MazeConfig) -> Tuple[int, int, int, int]:
@@ -364,11 +377,13 @@ def build_maze_config(current: object) -> MazeConfig:
     enemies = _enemies_section(base)
     move_fn = _movement_section(base)
     objective_fn = _objective_section(base)
+    turn_limit = _run_section(base)
     seed = seed_section(key="maze_seed")
     texture = texture_map_section(base)  # type: ignore[arg-type]
     return MazeConfig(
         width=width,
         height=height,
+        turn_limit=turn_limit,
         num_required_items=num_req,
         num_rewardable_items=num_reward,
         num_portals=num_portals,

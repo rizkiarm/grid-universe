@@ -34,7 +34,7 @@ from grid_universe.systems.push import push_system
 from grid_universe.systems.portal import portal_system
 from grid_universe.systems.collectible import collectible_system
 from grid_universe.systems.locked import unlock_system
-from grid_universe.systems.terminal import win_system, lose_system
+from grid_universe.systems.terminal import turn_system, win_system, lose_system
 from grid_universe.systems.tile import tile_reward_system, tile_cost_system
 from grid_universe.types import EntityID
 from grid_universe.utils.gc import run_garbage_collector
@@ -232,10 +232,11 @@ def _after_step(state: State, agent_id: EntityID) -> State:
     Returns:
         State: Finalized state for the action step.
     """
-    state = status_gc_system(state)
     state = tile_cost_system(
         state, agent_id
     )  # doesn't penalize faster move (move with submoves)
     state = replace(state, turn=state.turn + 1)
+    state = turn_system(state, agent_id)
+    state = status_gc_system(state)
     state = run_garbage_collector(state)
     return state
