@@ -241,7 +241,6 @@ def _after_step(state: State, agent_id: EntityID) -> State:
     state = tile_cost_system(
         state, agent_id
     )  # doesn't penalize faster move (move with submoves)
-    state = replace(state, turn=state.turn + 1)
     state = turn_system(state, agent_id)
     state = status_gc_system(state)
     state = run_garbage_collector(state)

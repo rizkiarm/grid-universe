@@ -34,6 +34,7 @@ def lose_system(state: State, agent_id: EntityID) -> State:
 
 def turn_system(state: State, agent_id: EntityID) -> State:
     """Set ``lose`` flag if turn limit is reached."""
+    state = replace(state, turn=state.turn + 1)
     if (
         state.turn_limit is not None
         and state.turn >= state.turn_limit
