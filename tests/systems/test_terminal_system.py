@@ -16,13 +16,11 @@ from grid_universe.components import (
 )
 from grid_universe.state import State
 from grid_universe.types import EntityID
-from grid_universe.entity import Entity
 
 
 def make_terminal_state(
     agent_on_exit: bool, all_required_collected: bool, agent_dead: bool
 ) -> Tuple[State, EntityID, EntityID, List[EntityID]]:
-    entity: Dict[EntityID, Entity] = {}
     agent_id: EntityID = 1
     exit_id: EntityID = 2
     required_ids: List[EntityID] = [3, 4]
@@ -41,12 +39,9 @@ def make_terminal_state(
     # Place agent and exit
     pos[agent_id] = Position(1, 1) if agent_on_exit else Position(0, 0)
     pos[exit_id] = Position(1, 1)
-    entity[agent_id] = Entity()
-    entity[exit_id] = Entity()
 
     # Place required items (and optionally mark as collected)
     for i, rid in enumerate(required_ids):
-        entity[rid] = Entity()
         required[rid] = Required()
         if not all_required_collected:
             collectible[rid] = Collectible()
@@ -63,7 +58,6 @@ def make_terminal_state(
         height=10,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
         exit=pmap({exit_id: Exit()}),
@@ -187,8 +181,6 @@ def test_win_when_on_any_exit() -> None:
     exit2_id = 77
     pos = state.position.set(exit2_id, state.position[agent_id])
     exits = state.exit.set(exit2_id, Exit())
-    state = replace(
-        state, exit=exits, position=pos, entity=state.entity.set(exit2_id, Entity())
-    )
+    state = replace(state, exit=exits, position=pos)
     new_state = win_system(state, agent_id)
     assert new_state.win

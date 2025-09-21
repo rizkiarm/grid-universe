@@ -1,7 +1,6 @@
 from dataclasses import replace
 from pyrsistent import pset, PSet
 
-from grid_universe.entity import Entity
 from grid_universe.state import State
 from grid_universe.step import step
 from grid_universe.types import EntityID
@@ -34,7 +33,6 @@ def add_key_entity(state: State, key_id: EntityID, key_id_str: str) -> State:
     return replace(
         state,
         key=state.key.set(key_id, Key(key_id=key_id_str)),
-        entity=state.entity.set(key_id, Entity()),
     )
 
 
@@ -46,7 +44,6 @@ def add_door_with_lock(
         locked=state.locked.set(door_id, Locked(key_id=key_id_str)),
         blocking=state.blocking.set(door_id, Blocking()),
         position=state.position.set(door_id, pos),
-        entity=state.entity.set(door_id, Entity()),
     )
 
 
@@ -274,7 +271,6 @@ def test_multi_agent_unlock_affects_only_actor() -> None:
         locked=state.locked.set(door_id2, Locked(key_id="blue")),
         blocking=state.blocking.set(door_id2, Blocking()),
         position=state.position.set(agent_id2, Position(0, 4)).set(door_id2, pos2),
-        entity=state.entity.set(agent_id2, Entity()).set(door_id2, Entity()),
         inventory=state.inventory.set(agent_id2, Inventory(item_ids=pset([key_id2]))),
     )
     state = add_key_to_inventory(state, agent_id1, key_id1)

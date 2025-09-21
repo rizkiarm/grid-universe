@@ -19,22 +19,9 @@ IDs are *not* recycled; a simple incrementing counter is sufficient because
 serialization across processes, inject your own ID strategy.
 """
 
-from dataclasses import dataclass
 from typing import Iterator, List
 
 from grid_universe.types import EntityID
-
-
-@dataclass(frozen=True)
-class Entity:
-    """Marker dataclass for entities.
-
-    Reserved for potential future metadata (e.g. authoring tags, spawn info).
-    Keeping a distinct object type simplifies some type annotations and
-    allows tools to introspect entity registries.
-    """
-
-    pass
 
 
 def entity_id_generator() -> Iterator[EntityID]:

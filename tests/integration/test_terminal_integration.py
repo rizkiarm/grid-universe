@@ -13,7 +13,6 @@ from grid_universe.components import (
     Dead,
     Position,
 )
-from grid_universe.entity import Entity
 from grid_universe.actions import Action
 from grid_universe.step import step
 
@@ -34,13 +33,9 @@ def make_terminal_state(
     }
     required: Dict[EntityID, Required] = {}
     collectible: Dict[EntityID, Collectible] = {}
-    entity: Dict[EntityID, Entity] = {}
     pos[agent_id] = Position(1, 1) if agent_on_exit else Position(0, 0)
     pos[exit_id] = Position(1, 1)
-    entity[agent_id] = Entity()
-    entity[exit_id] = Entity()
     for rid in required_ids:
-        entity[rid] = Entity()
         required[rid] = Required()
         if rid not in collected_required_ids:
             collectible[rid] = Collectible()
@@ -51,7 +46,6 @@ def make_terminal_state(
         height=10,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
         exit=pmap({exit_id: Exit()}),
@@ -189,7 +183,6 @@ def test_win_when_on_any_exit() -> None:
     exit2_id = 77
     pos = state.position.set(exit2_id, state.position[agent_id])
     exits = state.exit.set(exit2_id, Exit())
-    entity = state.entity.set(exit2_id, Entity())
-    state = replace(state, exit=exits, position=pos, entity=entity)
+    state = replace(state, exit=exits, position=pos)
     new_state: State = step(state, Action.UP, agent_id=agent_id)
     assert new_state.win

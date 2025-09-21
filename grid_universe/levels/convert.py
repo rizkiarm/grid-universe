@@ -17,7 +17,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pyrsistent import pmap, pset
 
-from grid_universe.entity import Entity
 from grid_universe.state import State
 from grid_universe.types import EntityID
 from grid_universe.components.properties import (
@@ -71,7 +70,6 @@ def _init_store_maps() -> Dict[str, Dict[EntityID, Any]]:
 
 def _alloc_from_obj(
     obj: EntitySpec,
-    entity: Dict[EntityID, Entity],
     stores: Dict[str, Dict[EntityID, Any]],
     next_eid_ref: List[int],
     place_pos: Optional[Position] = None,
@@ -80,15 +78,12 @@ def _alloc_from_obj(
     Allocate a new EntityID, create Entity(), copy present components from obj, and optionally set Position.
 
     - obj: authoring-time EntityObject
-    - entity: eid -> Entity()
     - stores: store_name -> {eid: component}
     - next_eid_ref: single-item list acting as a mutable counter
     - place_pos: (x, y) to create a Position component; None for off-grid entities
     """
     eid: EntityID = next_eid_ref[0]
     next_eid_ref[0] += 1
-
-    entity[eid] = Entity()
 
     # Copy ECS components present on the object (includes Inventory/Status if provided)
     for store_name, comp in obj.iter_components():
@@ -101,9 +96,7 @@ def _alloc_from_obj(
     return eid
 
 
-def _build_state(
-    level: Level, entity: Dict[EntityID, Entity], stores: Dict[str, Dict[EntityID, Any]]
-) -> State:
+def _build_state(level: Level, stores: Dict[str, Dict[EntityID, Any]]) -> State:
     """
     Convert mutable dict stores to pyrsistent maps and construct immutable State.
     """
@@ -112,7 +105,6 @@ def _build_state(
         height=level.height,
         move_fn=level.move_fn,
         objective_fn=level.objective_fn,
-        entity=pmap(entity),
         # effects
         immunity=pmap(stores["immunity"]),
         phasing=pmap(stores["phasing"]),
@@ -173,7 +165,6 @@ def to_state(level: Level) -> State:
           creating a Pathfinding component if missing (type defaults to PathfindingType.PATH or uses obj.pathfinding_type).
         * portal_pair_ref: if set (on-grid for both ends), sets reciprocal Portal.pair_entity.
     """
-    entity: Dict[EntityID, Entity] = {}
     stores: Dict[str, Dict[EntityID, Any]] = _init_store_maps()
     next_eid_ref: List[int] = [0]
 
@@ -184,9 +175,7 @@ def to_state(level: Level) -> State:
     for y in range(level.height):
         for x in range(level.width):
             for obj in level.grid[y][x]:
-                eid = _alloc_from_obj(
-                    obj, entity, stores, next_eid_ref, place_pos=(x, y)
-                )
+                eid = _alloc_from_obj(obj, stores, next_eid_ref, place_pos=(x, y))
                 obj_to_eid[id(obj)] = eid
                 placed.append((obj, eid))
 
@@ -199,9 +188,7 @@ def to_state(level: Level) -> State:
                         else Inventory(pset()),
                     )
                     item_ids: List[EntityID] = [
-                        _alloc_from_obj(
-                            item, entity, stores, next_eid_ref, place_pos=None
-                        )
+                        _alloc_from_obj(item, stores, next_eid_ref, place_pos=None)
                         for item in obj.inventory_list
                     ]
                     stores["inventory"][eid] = Inventory(
@@ -216,9 +203,7 @@ def to_state(level: Level) -> State:
                         eid, obj.status if obj.status is not None else Status(pset())
                     )
                     eff_ids: List[EntityID] = [
-                        _alloc_from_obj(
-                            eff, entity, stores, next_eid_ref, place_pos=None
-                        )
+                        _alloc_from_obj(eff, stores, next_eid_ref, place_pos=None)
                         for eff in obj.status_list
                     ]
                     stores["status"][eid] = Status(
@@ -228,7 +213,7 @@ def to_state(level: Level) -> State:
                     stores["status"][eid] = obj.status
 
     # Build immutable State before wiring
-    state: State = _build_state(level, entity, stores)
+    state: State = _build_state(level, stores)
 
     # Wiring: pathfinding target references
     sp = state.pathfinding

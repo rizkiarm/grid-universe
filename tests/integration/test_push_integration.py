@@ -17,7 +17,6 @@ from grid_universe.components import (
     Appearance,
     AppearanceName,
 )
-from grid_universe.entity import Entity
 from grid_universe.actions import Action
 from grid_universe.step import step
 
@@ -36,7 +35,6 @@ def make_push_state(
     blocking: Dict[EntityID, Blocking] = {}
     collidable: Dict[EntityID, Collidable] = {}
     appearance: Dict[EntityID, Appearance] = {}
-    entity: Dict[EntityID, Entity] = {}
 
     agent_id: EntityID = 1
     pos[agent_id] = Position(*agent_pos)
@@ -44,7 +42,6 @@ def make_push_state(
     inventory[agent_id] = Inventory(pset())
     collidable[agent_id] = Collidable()
     appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
-    entity[agent_id] = Entity()
 
     box_ids: List[EntityID] = []
     for bpos in box_positions:
@@ -53,7 +50,6 @@ def make_push_state(
         pushable[bid] = Pushable()
         collidable[bid] = Collidable()
         appearance[bid] = Appearance(name=AppearanceName.BOX)
-        entity[bid] = Entity()
         box_ids.append(bid)
 
     wall_ids: List[EntityID] = []
@@ -63,7 +59,6 @@ def make_push_state(
         blocking[wid] = Blocking()
         collidable[wid] = Collidable()
         appearance[wid] = Appearance(name=AppearanceName.WALL)
-        entity[wid] = Entity()
         wall_ids.append(wid)
 
     state: State = State(
@@ -78,7 +73,6 @@ def make_push_state(
             )
         ],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
         pushable=pmap(pushable),
@@ -178,7 +172,6 @@ def test_push_box_onto_collectible() -> None:
         state,
         collectible=state.collectible.set(collectible_id, Collectible()),
         position=state.position.set(collectible_id, Position(2, 0)),
-        entity=state.entity.set(collectible_id, Entity()),
     )
     state = step(
         state,
@@ -204,7 +197,6 @@ def test_push_box_onto_exit() -> None:
         state,
         exit=state.exit.set(exit_id, Exit()),
         position=state.position.set(exit_id, Position(2, 0)),
-        entity=state.entity.set(exit_id, Entity()),
     )
     state = step(
         state,
@@ -321,7 +313,6 @@ def test_push_box_blocked_by_agent() -> None:
         collidable=state.collidable.set(agent2_id, Collidable()),
         position=state.position.set(agent2_id, Position(2, 0)),
         inventory=state.inventory.set(agent2_id, Inventory(pset())),
-        entity=state.entity.set(agent2_id, Entity()),
     )
     state = step(
         state,
@@ -348,7 +339,6 @@ def test_push_box_missing_position_component() -> None:
         appearance=state.appearance.set(
             missing_box_id, Appearance(name=AppearanceName.BOX)
         ),
-        entity=state.entity.set(missing_box_id, Entity()),
         # No position for box 42
     )
     state = step(

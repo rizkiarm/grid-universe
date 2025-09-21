@@ -16,7 +16,6 @@ from grid_universe.components import (
 )
 from grid_universe.systems.tile import tile_reward_system, tile_cost_system
 from grid_universe.types import EntityID
-from grid_universe.entity import Entity
 
 
 def make_tile_state(
@@ -29,7 +28,6 @@ def make_tile_state(
     agent_dead: bool = False,
     agent_in_state: bool = True,
 ) -> Tuple[State, EntityID]:
-    entity: Dict[EntityID, Entity] = {}
     agent_id: EntityID = 1
     pos: Dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
     agent_map: Dict[EntityID, Agent] = {agent_id: Agent()} if agent_in_state else {}
@@ -47,29 +45,23 @@ def make_tile_state(
     collectible_ids = collectible_ids or []
 
     for rid in rewardable_ids:
-        entity[rid] = Entity()
         pos[rid] = Position(*agent_pos)
         reward_map[rid] = Rewardable(amount=reward_amount)
         appearance[rid] = Appearance(name=AppearanceName.COIN)
     for cid in cost_ids:
-        entity[cid] = Entity()
         pos[cid] = Position(*agent_pos)
         cost_map[cid] = Cost(amount=cost_amount)
         appearance[cid] = Appearance(name=AppearanceName.COIN)
     for colid in collectible_ids:
-        entity[colid] = Entity()
         pos[colid] = Position(*agent_pos)
         collectible_map[colid] = Collectible()
         appearance[colid] = Appearance(name=AppearanceName.CORE)
-
-    entity[agent_id] = Entity()
 
     state: State = State(
         width=3,
         height=1,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
         collectible=pmap(collectible_map),
@@ -152,7 +144,6 @@ def test_rewardable_at_another_position() -> None:
         state,
         rewardable=reward_map,
         position=pos_map,
-        entity=state.entity.set(rewardable_id, Entity()),
     )
     assert agent_step_and_score(state, agent_id) == 0
 
@@ -166,7 +157,6 @@ def test_cost_at_another_position() -> None:
         state,
         cost=cost_map,
         position=pos_map,
-        entity=state.entity.set(cost_id, Entity()),
     )
     assert agent_step_and_score(state, agent_id) == 0
 
@@ -191,12 +181,6 @@ def test_agent_missing_position() -> None:
 def test_multiple_agents_separate_scores() -> None:
     agent1_id = 1
     agent2_id = 2
-    entity: Dict[EntityID, Entity] = {
-        agent1_id: Entity(),
-        agent2_id: Entity(),
-        3: Entity(),
-        4: Entity(),
-    }
     pos = {
         agent1_id: Position(0, 0),
         agent2_id: Position(1, 0),
@@ -218,7 +202,6 @@ def test_multiple_agents_separate_scores() -> None:
         height=1,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
         rewardable=pmap(rewardable),

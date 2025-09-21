@@ -16,7 +16,7 @@ from grid_universe.components import (
     Appearance,
     AppearanceName,
 )
-from grid_universe.entity import new_entity_id, Entity
+from grid_universe.entity import new_entity_id
 
 
 def add_key_to_inventory(state: State, agent_id: EntityID, key_id: EntityID) -> State:
@@ -48,7 +48,6 @@ def make_minimal_key_door_state() -> tuple[State, dict]:
     """
     Returns a minimal state with: agent, key, locked door.
     """
-    entity: dict = {}
     pos: dict = {}
     agent: dict = {}
     inventory: dict = {}
@@ -79,16 +78,12 @@ def make_minimal_key_door_state() -> tuple[State, dict]:
     appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
     appearance[key_id] = Appearance(name=AppearanceName.KEY)
     appearance[door_id] = Appearance(name=AppearanceName.DOOR)
-    entity[agent_id] = Entity()
-    entity[key_id] = Entity()
-    entity[door_id] = Entity()
 
     state = State(
         width=3,
         height=3,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
         locked=pmap(locked),
@@ -187,7 +182,6 @@ def test_unlock_multiple_doors_with_enough_keys():
         locked=state.locked.set(door_id2, Locked(key_id=keyid_str)),
         blocking=state.blocking.set(door_id2, Blocking()),
         position=state.position.set(door_id2, pos2),
-        entity=state.entity.set(door_id2, Entity()).set(key_id2, Entity()),
     )
     state = set_inventory(
         state, agent_id, state.inventory[agent_id].item_ids.add(key_id).add(key_id2)
@@ -213,7 +207,6 @@ def test_unlock_multiple_doors_with_limited_keys():
         locked=state.locked.set(door_id2, Locked(key_id=keyid_str)),
         blocking=state.blocking.set(door_id2, Blocking()),
         position=state.position.set(door_id2, pos2),
-        entity=state.entity.set(door_id2, Entity()),
     )
     state = set_inventory(
         state, agent_id, state.inventory[agent_id].item_ids.add(key_id)
@@ -299,9 +292,6 @@ def test_multi_agent_unlock_affects_only_actor():
         blocking=state.blocking.set(door_id2, Blocking()),
         position=state.position.set(agent_id2, Position(0, 4)).set(door_id2, pos2),
         inventory=state.inventory.set(agent_id2, Inventory(item_ids=pset([key_id2]))),
-        entity=state.entity.set(agent_id2, Entity())
-        .set(key_id2, Entity())
-        .set(door_id2, Entity()),
     )
     state = add_key_to_inventory(state, agent_id1, key_id1)
     state = move_agent_adjacent_to(state, agent_id1, state.position[door_id1])
@@ -326,7 +316,6 @@ def test_unlock_adjacent_to_multiple_locked():
         locked=state.locked.set(door_id2, Locked(key_id=keyid_str)),
         blocking=state.blocking.set(door_id2, Blocking()),
         position=state.position.set(door_id2, pos2),
-        entity=state.entity.set(door_id2, Entity()).set(key_id2, Entity()),
     )
     state = set_inventory(
         state, agent_id, state.inventory[agent_id].item_ids.add(key_id1).add(key_id2)

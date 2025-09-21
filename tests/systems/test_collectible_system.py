@@ -12,7 +12,7 @@ from grid_universe.components import (
     Appearance,
     AppearanceName,
 )
-from grid_universe.entity import Entity, new_entity_id
+from grid_universe.entity import new_entity_id
 from grid_universe.types import EntityID
 from pyrsistent import pmap, pset
 from grid_universe.state import State
@@ -45,10 +45,6 @@ def make_collectible_state(
             name=AppearanceName.COIN if collect_type == "item" else AppearanceName.CORE
         ),
     }
-    entity: Dict[EntityID, Entity] = {
-        agent_id: Entity(),
-        collectible_id: Entity(),
-    }
 
     if collect_type == "rewardable":
         rewardable = pmap({collectible_id: Rewardable(amount=10)})
@@ -60,7 +56,6 @@ def make_collectible_state(
         height=1,
         move_fn=lambda s, eid, dir: [Position(pos[eid].x + 1, 0)],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
         collectible=collectible,
@@ -122,19 +117,12 @@ def test_pickup_multiple_collectibles_all_types() -> None:
         rewardable_id: Appearance(name=AppearanceName.CORE),
         required_id: Appearance(name=AppearanceName.CORE),
     }
-    entity = {
-        agent_id: Entity(),
-        item_id: Entity(),
-        rewardable_id: Entity(),
-        required_id: Entity(),
-    }
 
     state = State(
         width=3,
         height=1,
         move_fn=lambda s, eid, dir: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
         collectible=collectible,
@@ -166,17 +154,12 @@ def test_pickup_no_inventory_does_nothing() -> None:
         agent_id: Appearance(name=AppearanceName.HUMAN),
         item_id: Appearance(name=AppearanceName.COIN),
     }
-    entity = {
-        agent_id: Entity(),
-        item_id: Entity(),
-    }
 
     state = State(
         width=2,
         height=1,
         move_fn=lambda s, eid, dir: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
         collectible=collectible,
@@ -194,14 +177,12 @@ def test_pickup_nothing_present_does_nothing() -> None:
     agent = pmap({agent_id: Agent()})
     inventory = pmap({agent_id: Inventory(pset())})
     appearance = {agent_id: Appearance(name=AppearanceName.HUMAN)}
-    entity = {agent_id: Entity()}
 
     state = State(
         width=1,
         height=1,
         move_fn=lambda s, eid, dir: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap({agent_id: Position(0, 0)}),
         agent=agent,
         inventory=inventory,
@@ -223,17 +204,12 @@ def test_pickup_required_collectible() -> None:
         agent_id: Appearance(name=AppearanceName.HUMAN),
         req_id: Appearance(name=AppearanceName.CORE),
     }
-    entity = {
-        agent_id: Entity(),
-        req_id: Entity(),
-    }
 
     state = State(
         width=2,
         height=1,
         move_fn=lambda s, eid, dir: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=agent,
         collectible=collectible,
@@ -253,14 +229,12 @@ def test_pickup_after_collectible_already_removed() -> None:
     agent = pmap({agent_id: Agent()})
     inventory = pmap({agent_id: Inventory(pset([item_id]))})
     appearance = {agent_id: Appearance(name=AppearanceName.HUMAN)}
-    entity = {agent_id: Entity()}
 
     state = State(
         width=1,
         height=1,
         move_fn=lambda s, eid, dir: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap({agent_id: Position(0, 0)}),
         agent=agent,
         inventory=inventory,

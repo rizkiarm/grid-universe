@@ -2,7 +2,6 @@ from dataclasses import replace
 from typing import Any, List, Dict, Tuple
 import pytest
 from pyrsistent import pmap, pset
-from grid_universe.entity import Entity
 from grid_universe.objectives import default_objective_fn
 from grid_universe.state import State
 from grid_universe.actions import Action
@@ -286,7 +285,6 @@ def test_multiple_agents_take_appropriate_damage() -> None:
         health=state1.health.update(state2.health),
         position=state1.position.update(state2.position),
         damage=state1.damage.update(state2.damage),
-        entity=state1.entity.update(state2.entity),
     )
     state = step(state, Action.WAIT, agent_id=agent1)
     state = step(state, Action.WAIT, agent_id=agent2)
@@ -307,7 +305,6 @@ def test_damage_and_collectible_both_apply() -> None:
     collectible_id: EntityID = 333
     state = replace(
         state,
-        entity=state.entity.set(collectible_id, Entity()),
         collectible=state.collectible.set(collectible_id, Collectible()),
         position=state.position.set(collectible_id, Position(1, 0)),
         inventory=state.inventory.set(agent_id, Inventory(pset())),

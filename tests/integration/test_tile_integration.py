@@ -14,7 +14,6 @@ from grid_universe.components import (
     Position,
     Dead,
 )
-from grid_universe.entity import Entity
 from grid_universe.step import step
 
 
@@ -35,30 +34,24 @@ def make_agent_tile_state(
     collectible_map: Dict[EntityID, Collectible] = {}
     inventory: Dict[EntityID, Inventory] = {agent_id: Inventory(pset())}
 
-    entity: Dict[EntityID, Entity] = {}
-    entity[agent_id] = Entity()
     if rewardable:
         for rid, reward in rewardable.items():
             pos[rid] = Position(*agent_pos)
             reward_map[rid] = Rewardable(amount=reward)
-            entity[rid] = Entity()
     if cost:
         for cid, cvalue in cost.items():
             pos[cid] = Position(*agent_pos)
             cost_map[cid] = Cost(amount=cvalue)
-            entity[cid] = Entity()
     if collectible_ids:
         for cid in collectible_ids:
             pos[cid] = Position(*agent_pos)
             collectible_map[cid] = Collectible()
-            entity[cid] = Entity()
 
     state: State = State(
         width=3,
         height=1,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
         collectible=pmap(collectible_map),
@@ -155,8 +148,7 @@ def test_rewardable_at_another_position() -> None:
     rewardable_id: EntityID = 99
     reward_map = state.rewardable.set(rewardable_id, Rewardable(amount=11))
     pos_map = state.position.set(rewardable_id, Position(1, 0))
-    entity_map = state.entity.set(rewardable_id, Entity())
-    state = replace(state, rewardable=reward_map, position=pos_map, entity=entity_map)
+    state = replace(state, rewardable=reward_map, position=pos_map)
     assert agent_step_and_score(state, agent_id) == 0
 
 
@@ -166,8 +158,7 @@ def test_cost_at_another_position() -> None:
     cost_id: EntityID = 77
     cost_map = state.cost.set(cost_id, Cost(amount=6))
     pos_map = state.position.set(cost_id, Position(1, 0))
-    entity_map = state.entity.set(cost_id, Entity())
-    state = replace(state, cost=cost_map, position=pos_map, entity=entity_map)
+    state = replace(state, cost=cost_map, position=pos_map)
     assert agent_step_and_score(state, agent_id) == 0
 
 
@@ -210,18 +201,11 @@ def test_multiple_agents_separate_scores() -> None:
     rewardable = {3: Rewardable(amount=12)}
     cost = {4: Cost(amount=7)}
     inventory = {agent1_id: Inventory(pset()), agent2_id: Inventory(pset())}
-    entity: Dict[EntityID, Entity] = {
-        agent1_id: Entity(),
-        agent2_id: Entity(),
-        3: Entity(),
-        4: Entity(),
-    }
     state: State = State(
         width=2,
         height=1,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
         rewardable=pmap(rewardable),

@@ -32,7 +32,7 @@ from grid_universe.components import (
     UsageLimit,
     Status,
 )
-from grid_universe.entity import new_entity_id, Entity
+from grid_universe.entity import new_entity_id
 from grid_universe.types import EntityID, MoveFn, ObjectiveFn
 from grid_universe.moves import default_move_fn
 
@@ -54,7 +54,6 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
     blocking: Dict[EntityID, Blocking] = {}
     collidable: Dict[EntityID, Collidable] = {}
     appearance: Dict[EntityID, Appearance] = {}
-    entity: Dict[EntityID, Entity] = {}
 
     agent_id = new_entity_id()
     key_id = new_entity_id()
@@ -78,16 +77,12 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
     appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
     appearance[key_id] = Appearance(name=AppearanceName.KEY)
     appearance[door_id] = Appearance(name=AppearanceName.DOOR)
-    entity[agent_id] = Entity()
-    entity[key_id] = Entity()
-    entity[door_id] = Entity()
 
     state = State(
         width=3,
         height=3,
         move_fn=default_move_fn,
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
         locked=pmap(locked),
@@ -103,16 +98,13 @@ def make_minimal_key_door_state() -> Tuple[State, MinimalEntities]:
 
 def make_exit_entity(
     position: Tuple[int, int],
-) -> Tuple[
-    EntityID, Dict[EntityID, Exit], Dict[EntityID, Position], Dict[EntityID, Entity]
-]:
+) -> Tuple[EntityID, Dict[EntityID, Exit], Dict[EntityID, Position]]:
     """Utility to add a single Exit entity at a given position."""
     exit_id = new_entity_id()
     return (
         exit_id,
         {exit_id: Exit()},
         {exit_id: Position(*position)},
-        {exit_id: Entity()},
     )
 
 
@@ -134,7 +126,6 @@ def make_agent_box_wall_state(
     blocking: Dict[EntityID, Blocking] = {}
     collidable: Dict[EntityID, Collidable] = {}
     appearance: Dict[EntityID, Appearance] = {}
-    entity: Dict[EntityID, Entity] = {}
 
     agent_id = new_entity_id()
     pos[agent_id] = Position(*agent_pos)
@@ -142,7 +133,6 @@ def make_agent_box_wall_state(
     inventory[agent_id] = Inventory(pset())
     collidable[agent_id] = Collidable()
     appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
-    entity[agent_id] = Entity()
 
     box_ids: List[EntityID] = []
     if box_positions:
@@ -152,7 +142,6 @@ def make_agent_box_wall_state(
             pushable[bid] = Pushable()
             collidable[bid] = Collidable()
             appearance[bid] = Appearance(name=AppearanceName.BOX)
-            entity[bid] = Entity()
             box_ids.append(bid)
 
     wall_ids: List[EntityID] = []
@@ -163,7 +152,6 @@ def make_agent_box_wall_state(
             blocking[wid] = Blocking()
             collidable[wid] = Collidable()
             appearance[wid] = Appearance(name=AppearanceName.WALL)
-            entity[wid] = Entity()
             wall_ids.append(wid)
 
     state = State(
@@ -171,7 +159,6 @@ def make_agent_box_wall_state(
         height=height,
         move_fn=default_move_fn,
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
         pushable=pmap(pushable),
@@ -227,10 +214,6 @@ def make_agent_state(
     agent_map: Dict[EntityID, Agent] = {agent_id: Agent()}
     inventory: Dict[EntityID, Inventory] = {agent_id: Inventory(pset())}
     dead_map: PMap[EntityID, Dead] = pmap({agent_id: Dead()}) if agent_dead else pmap()
-    entity: Dict[EntityID, Entity] = {agent_id: Entity()}
-    for eid in positions:
-        if eid not in entity:
-            entity[eid] = Entity()
 
     state: State = State(
         width=width,
@@ -239,7 +222,6 @@ def make_agent_state(
         objective_fn=(
             objective_fn if objective_fn is not None else default_objective_fn
         ),
-        entity=pmap(entity),
         position=pmap(positions),
         agent=pmap(agent_map),
         pushable=pmap(filter_component_map(extra_components, "pushable", Pushable)),

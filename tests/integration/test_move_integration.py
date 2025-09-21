@@ -215,10 +215,9 @@ def test_move_onto_exit_triggers_win(agent_speed_multiplier: int) -> None:
         speed = pmap({speed_effect_id: Speed(multiplier=agent_speed_multiplier)})
         status = pmap({agent_id: Status(effect_ids=pset([speed_effect_id]))})
         state = replace(state, speed=speed, status=status)
-    exit_id, exit_map, exit_pos, entity_map = make_exit_entity((1, 0))
+    exit_id, exit_map, exit_pos = make_exit_entity((1, 0))
     pos = state.position.update(exit_pos)
-    entity = state.entity.update(entity_map)
-    state = replace(state, exit=pmap(exit_map), position=pos, entity=entity)
+    state = replace(state, exit=pmap(exit_map), position=pos)
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     assert new_state.win
@@ -388,10 +387,9 @@ def test_push_box_onto_exit_agent_doesnt_win() -> None:
     state, agent_id, box_ids, _ = make_agent_box_wall_state(
         agent_pos=(0, 0), box_positions=[(1, 0)], width=5, height=1
     )
-    exit_id, exit_map, exit_pos, entity_map = make_exit_entity((2, 0))
+    exit_id, exit_map, exit_pos = make_exit_entity((2, 0))
     pos = state.position.update(exit_pos)
-    entity = state.entity.update(entity_map)
-    state = replace(state, exit=pmap(exit_map), position=pos, entity=entity)
+    state = replace(state, exit=pmap(exit_map), position=pos)
     action = Action.RIGHT
     new_state = step(state, action, agent_id=agent_id)
     # Agent should not win

@@ -29,7 +29,6 @@ from dataclasses import dataclass
 from typing import Any, Optional
 from pyrsistent import PMap, PSet, pmap, pset
 
-from grid_universe.entity import Entity
 from grid_universe.components.effects import (
     Immunity,
     Phasing,
@@ -77,7 +76,6 @@ class State:
         height (int): Grid height in tiles.
         move_fn (MoveFn): Movement candidate function used to resolve move actions.
         objective_fn (ObjectiveFn): Predicate evaluated after each step to set ``win``.
-        entity (PMap[EntityID, Entity]): Registry of entity descriptors.
         immunity (PMap[EntityID, Immunity]): Effect component map.
         phasing (PMap[EntityID, Phasing]): Effect component map.
         speed (PMap[EntityID, Speed]): Effect component map.
@@ -123,9 +121,6 @@ class State:
     height: int
     move_fn: "MoveFn"
     objective_fn: "ObjectiveFn"
-
-    # Entity
-    entity: PMap[EntityID, Entity] = pmap()
 
     # Components
     ## Effects

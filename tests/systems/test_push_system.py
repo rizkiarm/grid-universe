@@ -18,7 +18,7 @@ from grid_universe.components import (
     Portal,
 )
 from grid_universe.systems.push import push_system
-from grid_universe.entity import new_entity_id, Entity
+from grid_universe.entity import new_entity_id
 from grid_universe.actions import Action
 
 
@@ -29,7 +29,6 @@ def make_push_state(
     width: int = 5,
     height: int = 5,
 ) -> Tuple[State, EntityID, List[EntityID], List[EntityID]]:
-    entity: Dict[EntityID, Entity] = {}
     pos: Dict[EntityID, Position] = {}
     agent: Dict[EntityID, Agent] = {}
     inventory: Dict[EntityID, Inventory] = {}
@@ -39,7 +38,6 @@ def make_push_state(
     appearance: Dict[EntityID, Appearance] = {}
 
     agent_id: EntityID = new_entity_id()
-    entity[agent_id] = Entity()
     pos[agent_id] = Position(*agent_pos)
     agent[agent_id] = Agent()
     inventory[agent_id] = Inventory(pset())
@@ -50,7 +48,6 @@ def make_push_state(
     if box_positions:
         for bpos in box_positions:
             bid: EntityID = new_entity_id()
-            entity[bid] = Entity()
             pos[bid] = Position(*bpos)
             pushable[bid] = Pushable()
             collidable[bid] = Collidable()
@@ -61,7 +58,6 @@ def make_push_state(
     if wall_positions:
         for wpos in wall_positions:
             wid: EntityID = new_entity_id()
-            entity[wid] = Entity()
             pos[wid] = Position(*wpos)
             blocking[wid] = Blocking()
             collidable[wid] = Collidable()
@@ -80,7 +76,6 @@ def make_push_state(
             )
         ],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent),
         pushable=pmap(pushable),
@@ -164,7 +159,6 @@ def test_push_box_onto_collectible() -> None:
         state,
         collectible=state.collectible.set(collectible_id, Collectible()),
         position=state.position.set(collectible_id, Position(2, 0)),
-        entity=state.entity.set(collectible_id, Entity()),
     )
     next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
@@ -186,7 +180,6 @@ def test_push_box_onto_exit() -> None:
         state,
         exit=state.exit.set(exit_id, Exit()),
         position=state.position.set(exit_id, Position(2, 0)),
-        entity=state.entity.set(exit_id, Entity()),
     )
     next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
@@ -213,7 +206,6 @@ def test_push_box_onto_portal() -> None:
         position=state.position.set(portal_id, Position(2, 0)).set(
             paired_portal_id, Position(4, 0)
         ),
-        entity=state.entity.set(portal_id, Entity()).set(paired_portal_id, Entity()),
     )
     next_state = push_system(state, agent_id, Position(1, 0))
     # Box should land at (2,0) (portal logic would teleport after push_system, not during push_system itself)
@@ -239,7 +231,6 @@ def test_push_box_onto_agent() -> None:
         collidable=state.collidable.set(other_agent_id, Collidable()),
         position=state.position.set(other_agent_id, Position(2, 0)),
         inventory=state.inventory.set(other_agent_id, Inventory(pset())),
-        entity=state.entity.set(other_agent_id, Entity()),
     )
     next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(
@@ -349,7 +340,6 @@ def test_push_box_onto_multiple_collidables() -> None:
         position=state.position.set(collectible_id, Position(2, 0)).set(
             exit_id, Position(2, 0)
         ),
-        entity=state.entity.set(collectible_id, Entity()).set(exit_id, Entity()),
     )
     next_state = push_system(state, agent_id, Position(1, 0))
     check_positions(

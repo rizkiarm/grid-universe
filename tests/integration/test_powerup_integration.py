@@ -19,7 +19,7 @@ from grid_universe.components import (
     Blocking,
     Damage,
 )
-from grid_universe.entity import EntityID, Entity
+from grid_universe.entity import EntityID
 from grid_universe.actions import Action
 from grid_universe.step import step
 
@@ -97,7 +97,6 @@ def make_agent_and_powerup_state(
             )
         ],
         objective_fn=default_objective_fn,
-        entity=pmap({agent_id: Entity(), powerup_id: Entity()}),
         position=pmap(pos),
         agent=pmap(agent),
         collectible=pmap(collectible),
@@ -159,7 +158,6 @@ def test_agent_stacks_same_type_powerup() -> None:
         state,
         collectible=state.collectible.set(powerup2, Collectible()),
         position=state.position.set(powerup2, Position(2, 0)),
-        entity=state.entity.set(powerup2, Entity()),
         immunity=state.immunity.set(powerup2, Immunity()),
         usage_limit=state.usage_limit.set(powerup2, UsageLimit(amount=3)),
     )
@@ -181,7 +179,6 @@ def test_agent_collects_different_effect_powerups() -> None:
         state,
         collectible=state.collectible.set(powerup2, Collectible()),
         position=state.position.set(powerup2, Position(2, 0)),
-        entity=state.entity.set(powerup2, Entity()),
         phasing=state.phasing.set(powerup2, Phasing()),
         time_limit=state.time_limit.set(powerup2, TimeLimit(amount=4)),
     )
@@ -231,7 +228,6 @@ def test_expired_powerup_is_cleaned_from_state() -> None:
     assert powerup_id not in get_agent_status_effects(state, agent_id)
     assert powerup_id not in state.phasing
     assert powerup_id not in state.time_limit
-    assert powerup_id not in state.entity
 
 
 def test_multiple_powerups_tick_independently() -> None:
@@ -243,7 +239,6 @@ def test_multiple_powerups_tick_independently() -> None:
         state,
         collectible=state.collectible.set(p2, Collectible()),
         position=state.position.set(p2, Position(2, 0)),
-        entity=state.entity.set(p2, Entity()),
         phasing=state.phasing.set(p2, Phasing()),
         time_limit=state.time_limit.set(p2, TimeLimit(amount=3)),
     )
@@ -312,7 +307,6 @@ def test_usage_limited_powerup_consumed_on_damage() -> None:
         position=state.position.set(agent_id, Position(2, 0)).set(
             damage_id, Position(2, 0)
         ),
-        entity=state.entity.set(damage_id, Entity()),
         damage=state.damage.set(damage_id, Damage(amount=5)),
     )
     state = step(state, Action.WAIT, agent_id=agent_id)
@@ -335,7 +329,6 @@ def test_immunity_blocks_hazard_functionally() -> None:
         position=state.position.set(agent_id, Position(2, 0)).set(
             damage_id, Position(2, 0)
         ),
-        entity=state.entity.set(damage_id, Entity()),
         damage=state.damage.set(damage_id, Damage(amount=5)),
     )
     # Damage should be blocked, health stays 7
@@ -355,7 +348,6 @@ def test_phasing_allows_movement_through_blocking_functionally() -> None:
         state,
         blocking=state.blocking.set(block_id, Blocking()),
         position=state.position.set(block_id, Position(2, 0)),
-        entity=state.entity.set(block_id, Entity()),
     )
     state = move_and_pickup(
         state, agent_id, Action.RIGHT
@@ -397,7 +389,6 @@ def test_stack_unlimited_and_limited_powerups() -> None:
         state,
         collectible=state.collectible.set(limited_id, Collectible()),
         position=state.position.set(limited_id, Position(2, 0)),
-        entity=state.entity.set(limited_id, Entity()),
         immunity=state.immunity.set(limited_id, Immunity()),
         usage_limit=state.usage_limit.set(limited_id, UsageLimit(amount=2)),
     )
@@ -421,7 +412,6 @@ def test_effect_cleanup_removes_all_components() -> None:
     assert eid not in effect_ids
     assert eid not in state.phasing
     assert eid not in state.time_limit
-    assert eid not in state.entity
 
 
 def test_multi_agent_powerup_isolation() -> None:
@@ -442,7 +432,6 @@ def test_multi_agent_powerup_isolation() -> None:
     )
     state = replace(
         state1,
-        entity=state1.entity.update(state2.entity),
         position=state1.position.update(state2.position),
         agent=state1.agent.update(state2.agent),
         inventory=state1.inventory.update(state2.inventory),
@@ -478,7 +467,6 @@ def test_effect_priority_with_multiple_powerups() -> None:
         position=state.position.set(unlimited_id, Position(2, 0)).set(
             limited_id, Position(3, 0)
         ),
-        entity=state.entity.set(unlimited_id, Entity()).set(limited_id, Entity()),
         immunity=state.immunity.set(unlimited_id, Immunity()).set(
             limited_id, Immunity()
         ),

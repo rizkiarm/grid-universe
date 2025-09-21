@@ -20,7 +20,6 @@ from grid_universe.components import (
 )
 from grid_universe.systems.damage import damage_system
 from grid_universe.types import EntityID
-from grid_universe.entity import Entity
 
 
 def build_agent_with_sources(
@@ -38,7 +37,6 @@ def build_agent_with_sources(
     """
     sources = sources or []
     # ECS maps for agent
-    entity: Dict[EntityID, Entity] = {agent_id: Entity()}
     position: Dict[EntityID, Position] = {agent_id: Position(*agent_pos)}
     agent_map: Dict[EntityID, Agent] = {agent_id: Agent()}
     health: Dict[EntityID, Health] = {
@@ -63,7 +61,6 @@ def build_agent_with_sources(
     source_ids: List[EntityID] = []
     for i, src in enumerate(sources):
         src_id: EntityID = 2 + i
-        entity[src_id] = Entity()
         pos_tuple: Tuple[int, int] = src.get("pos", agent_pos)  # type: ignore
         position[src_id] = Position(*pos_tuple)
         appearance[src_id] = Appearance(name=src.get("appearance", AppearanceName.LAVA))  # type: ignore
@@ -79,7 +76,6 @@ def build_agent_with_sources(
         height=10,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(position),
         agent=pmap(agent_map),
         health=pmap(health),
@@ -236,7 +232,6 @@ def test_damage_component_negative_amount_is_robust() -> None:
 def test_multiple_agents_each_take_appropriate_damage() -> None:
     agent1: EntityID = 1
     agent2: EntityID = 2
-    entity: Dict[EntityID, Entity] = {agent1: Entity(), agent2: Entity(), 3: Entity()}
     position: Dict[EntityID, Position] = {
         agent1: Position(1, 1),
         agent2: Position(2, 2),
@@ -266,7 +261,6 @@ def test_multiple_agents_each_take_appropriate_damage() -> None:
         height=10,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(position),
         agent=pmap(agent_map),
         health=pmap(health),
@@ -296,7 +290,6 @@ def test_damage_and_unrelated_components_do_not_interfere() -> None:
     unrelated_id: EntityID = 99
     state = replace(
         state,
-        entity=state.entity.set(unrelated_id, Entity()),
         position=state.position.set(unrelated_id, Position(0, 0)),
         rewardable=state.rewardable.set(unrelated_id, object()),  # type: ignore
         appearance=state.appearance.set(

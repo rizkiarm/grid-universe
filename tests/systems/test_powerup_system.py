@@ -16,7 +16,7 @@ from grid_universe.components import (
     TimeLimit,
     UsageLimit,
 )
-from grid_universe.entity import Entity, new_entity_id
+from grid_universe.entity import new_entity_id
 from grid_universe.types import EntityID
 from grid_universe.systems.status import status_system
 from grid_universe.utils.status import use_status_effect
@@ -36,7 +36,6 @@ def build_agent_with_effects(
     agent_id: Optional[EntityID] = None,
     effects: Optional[List[EffectSpec]] = None,
 ) -> Tuple[State, EntityID, List[EntityID]]:
-    entity: Dict[EntityID, Entity] = {}
     agent: Dict[EntityID, Agent] = {}
     inventory: Dict[EntityID, Inventory] = {}
     appearance: Dict[EntityID, Appearance] = {}
@@ -50,7 +49,6 @@ def build_agent_with_effects(
 
     if agent_id is None:
         agent_id = new_entity_id()
-    entity[agent_id] = Entity()
     agent[agent_id] = Agent()
     inventory[agent_id] = Inventory(pset())
     appearance[agent_id] = Appearance(name=AppearanceName.HUMAN)
@@ -58,7 +56,6 @@ def build_agent_with_effects(
 
     for eff in effects:
         eid: EntityID = new_entity_id()
-        entity[eid] = Entity()
         eff_type: Literal["immunity", "speed", "phasing"] = eff["type"]
         if eff_type == "immunity":
             immunity[eid] = Immunity()
@@ -87,7 +84,6 @@ def build_agent_with_effects(
         height=1,
         move_fn=lambda s, eid, dir: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap({agent_id: Position(0, 0)}),
         agent=pmap(agent),
         inventory=pmap(inventory),
@@ -211,7 +207,6 @@ def test_multi_agent_effects_are_isolated() -> None:
     )
     state = replace(
         state1,
-        entity=state1.entity.update(state2.entity),
         position=state1.position.update(state2.position),
         agent=state1.agent.update(state2.agent),
         inventory=state1.inventory.update(state2.inventory),
@@ -284,7 +279,6 @@ def test_status_cleanup_for_missing_effect() -> None:
         height=1,
         move_fn=lambda s, eid, dir: [],
         objective_fn=default_objective_fn,
-        entity=pmap({agent_id: Entity()}),
         position=pmap({agent_id: Position(0, 0)}),
         agent=pmap({agent_id: Agent()}),
         status=pmap({agent_id: Status(effect_ids=pset([ghost_effect]))}),

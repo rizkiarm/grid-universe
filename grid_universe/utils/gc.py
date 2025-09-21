@@ -21,7 +21,7 @@ from pyrsistent.typing import PMap
 
 def compute_alive_entities(state: State) -> Set[EntityID]:
     """Return the closure of entity IDs reachable from registries & references."""
-    alive: Set[EntityID] = set(state.entity.keys())
+    alive: Set[EntityID] = set(state.position.keys())
     for stats in state.status.values():
         alive |= set(stats.effect_ids)
     for inv in state.inventory.values():

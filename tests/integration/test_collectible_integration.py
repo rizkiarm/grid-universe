@@ -18,7 +18,6 @@ from grid_universe.components import (
     UsageLimit,
 )
 from grid_universe.types import EntityID
-from grid_universe.entity import Entity
 from grid_universe.actions import Action
 from grid_universe.step import step
 
@@ -67,15 +66,11 @@ def make_agent_with_collectible_state(
         if limit_type == "time" and limit_amount is not None:
             time_limit_map[collectible_id] = TimeLimit(amount=limit_amount)
 
-    # FIX: Always add agent and collectible to entity map using Entity()
-    entity: Dict[EntityID, Entity] = {agent_id: Entity(), collectible_id: Entity()}
-
     state: State = State(
         width=3,
         height=1,
         move_fn=lambda s, eid, dir: [Position(position_map[eid].x + 1, 0)],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(position_map),
         agent=pmap(agent_map),
         collectible=pmap(collectible_map),
@@ -170,7 +165,6 @@ def test_pickup_powerup_stacks_usage() -> None:
         immunity=state.immunity.set(effect_id2, Immunity()),
         status=state.status.set(agent_id, Status(effect_ids=pset([effect_id2]))),
         usage_limit=state.usage_limit.set(effect_id2, UsageLimit(amount=3)),
-        entity=state.entity.set(effect_id2, Entity()),  # Use Entity()
     )
     state2 = move_and_pickup(state, agent_id, Action.RIGHT)
     assert state2.usage_limit[effect_id1].amount == 2
@@ -216,20 +210,11 @@ def test_agent_picks_up_multiple_types() -> None:
     rewardable_map: Dict[EntityID, Rewardable] = {rewardable_id: Rewardable(amount=10)}
     required_map: Dict[EntityID, Required] = {required_id: Required()}
 
-    # ADD all entities to entity map using Entity()
-    entity = {
-        agent_id: Entity(),
-        item_id: Entity(),
-        rewardable_id: Entity(),
-        required_id: Entity(),
-    }
-
     state: State = State(
         width=3,
         height=2,
         move_fn=lambda s, eid, dir: [Position(0, 1)],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
         collectible=pmap(collectible_map),
@@ -311,19 +296,11 @@ def test_pickup_collectible_with_score_cost() -> None:
     rewardable_map: Dict[EntityID, Rewardable] = {collectible_id: Rewardable(amount=15)}
     cost_map: Dict[EntityID, Cost] = {cost_id: Cost(amount=6)}
 
-    # ADD all entities to entity map using Entity()
-    entity = {
-        agent_id: Entity(),
-        collectible_id: Entity(),
-        cost_id: Entity(),
-    }
-
     state: State = State(
         width=2,
         height=1,
         move_fn=lambda s, eid, dir: [Position(1, 0)],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(pos),
         agent=pmap(agent_map),
         collectible=pmap(collectible_map),

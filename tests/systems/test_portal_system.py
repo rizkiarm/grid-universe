@@ -16,7 +16,7 @@ from grid_universe.components import (
     Appearance,
     AppearanceName,
 )
-from grid_universe.entity import Entity, new_entity_id
+from grid_universe.entity import new_entity_id
 from grid_universe.systems.portal import portal_system
 
 
@@ -38,11 +38,6 @@ def make_entity_on_portal_state(
         portal1_id: Portal(pair_entity=portal2_id),
         portal2_id: Portal(pair_entity=portal1_id),
     }
-    entity = {
-        entity_id: Entity(),
-        portal1_id: Entity(),
-        portal2_id: Entity(),
-    }
     collidable = {entity_id: Collidable()}
     appearance = {
         entity_id: Appearance(
@@ -59,7 +54,6 @@ def make_entity_on_portal_state(
         height=10,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(position),
         agent=pmap(agent),
         pushable=pmap(pushable),
@@ -192,7 +186,6 @@ def test_portal_pair_missing_does_not_crash() -> None:
         portal1_id: Position(*portal1_pos),
     }
     portal = {portal1_id: Portal(pair_entity=999)}
-    entity = {agent_id: Entity(), portal1_id: Entity()}
     collidable = {agent_id: Collidable()}
     appearance = {
         agent_id: Appearance(name=AppearanceName.HUMAN),
@@ -203,7 +196,6 @@ def test_portal_pair_missing_does_not_crash() -> None:
         height=5,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(position),
         agent=pmap({agent_id: Agent()}),
         portal=pmap(portal),
@@ -240,12 +232,6 @@ def test_multiple_entities_on_portal_all_blocked() -> None:
         portal1_id: Portal(pair_entity=portal2_id),
         portal2_id: Portal(pair_entity=portal1_id),
     }
-    entity = {
-        agent_id: Entity(),
-        pushable_id: Entity(),
-        portal1_id: Entity(),
-        portal2_id: Entity(),
-    }
     collidable = {agent_id: Collidable(), pushable_id: Collidable()}
     appearance = {
         agent_id: Appearance(name=AppearanceName.HUMAN),
@@ -258,7 +244,6 @@ def test_multiple_entities_on_portal_all_blocked() -> None:
         height=10,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(position),
         prev_position=pmap(prev_position),
         agent=pmap({agent_id: Agent()}),
@@ -280,10 +265,6 @@ def test_entity_chained_portals_no_infinite_teleport() -> None:
         AppearanceName,
         Agent,
     )
-    from grid_universe.entity import Entity, new_entity_id
-    from pyrsistent import pmap
-    from grid_universe.state import State
-    from grid_universe.systems.portal import portal_system
 
     agent_id: EntityID = new_entity_id()
     portal_a: EntityID = new_entity_id()
@@ -311,12 +292,6 @@ def test_entity_chained_portals_no_infinite_teleport() -> None:
         portal_b: Portal(pair_entity=portal_c),
         portal_c: Portal(pair_entity=portal_a),
     }
-    entity = {
-        agent_id: Entity(),
-        portal_a: Entity(),
-        portal_b: Entity(),
-        portal_c: Entity(),
-    }
     collidable = {agent_id: Collidable()}
     appearance = {
         agent_id: Appearance(name=AppearanceName.HUMAN),
@@ -329,7 +304,6 @@ def test_entity_chained_portals_no_infinite_teleport() -> None:
         height=10,
         move_fn=lambda s, eid, d: [],
         objective_fn=default_objective_fn,
-        entity=pmap(entity),
         position=pmap(position),
         prev_position=pmap(prev_position),
         agent=pmap({agent_id: Agent()}),
