@@ -24,6 +24,7 @@ from grid_universe.components import Position
 from grid_universe.actions import Action
 from grid_universe.state import State
 from grid_universe.types import EntityID, MoveFn
+from grid_universe.utils.grid import is_blocked_at
 
 
 def default_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Position]:
@@ -96,12 +97,7 @@ def slippery_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Po
     path: list[Position] = []
     while 0 <= nx < width and 0 <= ny < height:  # Prevents infinite loop at grid edge
         test_pos = Position(nx, ny)
-        blocked = False
-        for oid, o_pos in state.position.items():
-            if o_pos == test_pos and oid in state.blocking:
-                blocked = True
-                break
-        if blocked:
+        if is_blocked_at(state, test_pos, check_collidable=False, check_pushable=False):
             break
         path.append(test_pos)
         nx += dx
@@ -165,9 +161,8 @@ def gravity_move_fn(state: State, eid: EntityID, action: Action) -> Sequence[Pos
         if not (0 <= px < width and 0 <= py < height):
             return False
         test_pos = Position(px, py)
-        for oid, o_pos in state.position.items():
-            if o_pos == test_pos and oid in state.blocking:
-                return False
+        if is_blocked_at(state, test_pos, check_collidable=True, check_pushable=True):
+            return False
         return True
 
     if not can_move(nx, ny):

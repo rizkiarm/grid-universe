@@ -4,10 +4,11 @@ Utility predicates used by movement & push systems. Functions here are pure
 and intentionally lightweight to keep inner loops fast.
 """
 
-from typing import Optional
+from typing import Set
 from grid_universe.components import Position
-from grid_universe.moves import wrap_around_move_fn
 from grid_universe.state import State
+from grid_universe.types import EntityID
+from grid_universe.utils.ecs import entities_at
 
 
 def is_in_bounds(state: State, pos: Position) -> bool:
@@ -20,7 +21,12 @@ def wrap_position(x: int, y: int, width: int, height: int) -> Position:
     return Position(x % width, y % height)
 
 
-def is_blocked_at(state: State, pos: Position, check_collidable: bool = True) -> bool:
+def is_blocked_at(
+    state: State,
+    pos: Position,
+    check_collidable: bool = True,
+    check_pushable: bool = True,
+) -> bool:
     """Return True if any blocking entity occupies ``pos``.
 
     Args:
@@ -29,35 +35,12 @@ def is_blocked_at(state: State, pos: Position, check_collidable: bool = True) ->
         check_collidable (bool): If True, treat ``Collidable`` as blocking (for agent movement);
             pushing may disable this to allow pushing into collidable tiles.
     """
-    for other_id, other_pos in state.position.items():
-        if other_pos == pos and (
+    ids_at_pos: Set[EntityID] = entities_at(state, pos)
+    for other_id in ids_at_pos:
+        if (
             other_id in state.blocking
-            or other_id in state.pushable
+            or (check_pushable and other_id in state.pushable)
             or (check_collidable and other_id in state.collidable)
         ):
             return True
     return False
-
-
-def compute_destination(
-    state: State, current_pos: Position, next_pos: Position
-) -> Optional[Position]:
-    """Compute push destination given current and occupant next positions.
-
-    Returns the square beyond ``next_pos`` in the movement direction, applying
-    wrap logic if the state's move function is the wrapping one. ``None`` if
-    outside bounds and not wrapping.
-    """
-    dx = next_pos.x - current_pos.x
-    dy = next_pos.y - current_pos.y
-    dest_x = next_pos.x + dx
-    dest_y = next_pos.y + dy
-
-    if state.move_fn is wrap_around_move_fn:
-        return wrap_position(dest_x, dest_y, state.width, state.height)
-
-    target_position = Position(dest_x, dest_y)
-    if not is_in_bounds(state, target_position):
-        return None
-
-    return target_position
