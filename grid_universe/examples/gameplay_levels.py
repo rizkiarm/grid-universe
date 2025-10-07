@@ -34,10 +34,14 @@ TILE_COST = 3
 
 # Coin reward acts as per-step cost reduction when stepping on it (non-collectible reward tile).
 # Must satisfy: 0 < COIN_REWARD < TILE_COST.
-COIN_REWARD = 2
+COIN_REWARD = 5
 
 # Required core reward must be 0 (objective only, no scoring bonus).
 CORE_REWARD = 0
+
+HAZARD_DAMAGE = 2
+
+ENEMY_DAMAGE = 1
 
 # -------------------------
 # Constants
@@ -172,16 +176,17 @@ def build_level_optional_coin(seed: int = 102) -> State:
     )
     _floors(lvl)
     _border(lvl)
-    for x in range(2, w - 2):
+    lvl.add((1, 2), create_wall())
+    lvl.add((3, 3), create_wall())
+    for x in range(3, w - 2):
         lvl.add((x, 2), create_wall())
     for x in range(2, w - 2):
         if x != w // 2:
             lvl.add((x, h - 3), create_wall())
     lvl.add((1, 1), create_agent(health=5))
     lvl.add((w - 2, h - 2), create_exit())
-    # Cheaper side path using coin tiles (0 < COIN_REWARD < TILE_COST ⇒ A* prefers this path)
     for x in range(2, w - 2, 2):
-        _place_coin_tile(lvl, (x, 1))
+        _place_coin_tile(lvl, (x, h - 2))
     return to_state(lvl)
 
 
@@ -305,7 +310,7 @@ def build_level_hazard_detour(seed: int = 106) -> State:
     # Central hazard (2 dmg); side wall encourages detour, but cost remains uniform except coin tiles
     lvl.add(
         (w // 2 - 1, h // 2),
-        create_hazard(AppearanceName.SPIKE, damage=2, lethal=False),
+        create_hazard(AppearanceName.SPIKE, damage=HAZARD_DAMAGE, lethal=False),
     )
     for y in range(1, h - 1):
         if y != h // 2:
@@ -397,7 +402,7 @@ def build_level_enemy_patrol(seed: int = 109) -> State:
             lvl.add((w // 2, y), create_wall())
             lvl.add((w // 2 + 1, y), create_wall())
     enemy1 = create_monster(
-        damage=1,
+        damage=ENEMY_DAMAGE,
         lethal=False,
         moving_axis=MovingAxis.VERTICAL,
         moving_direction=1,
@@ -405,7 +410,7 @@ def build_level_enemy_patrol(seed: int = 109) -> State:
         moving_speed=1,
     )
     enemy2 = create_monster(
-        damage=1,
+        damage=ENEMY_DAMAGE,
         lethal=False,
         moving_axis=MovingAxis.VERTICAL,
         moving_direction=1,
@@ -452,7 +457,7 @@ def build_level_power_shield(seed: int = 110) -> State:
     lvl.add((2, h // 2 - 3), create_immunity_effect(usage=5))  # Shield
     lvl.add(
         (w // 2, h // 2),
-        create_hazard(AppearanceName.SPIKE, damage=2, lethal=False),
+        create_hazard(AppearanceName.SPIKE, damage=HAZARD_DAMAGE, lethal=False),
     )
     return to_state(lvl)
 
@@ -520,7 +525,7 @@ def build_level_power_boots(seed: int = 112) -> State:
         (w // 2 - 1, h // 2 + 1), create_speed_effect(multiplier=2, time=5)
     )  # Boots
     enemy1 = create_monster(
-        damage=1,
+        damage=ENEMY_DAMAGE,
         lethal=False,
         moving_axis=MovingAxis.VERTICAL,
         moving_direction=1,
@@ -528,7 +533,7 @@ def build_level_power_boots(seed: int = 112) -> State:
         moving_speed=1,
     )
     enemy2 = create_monster(
-        damage=1,
+        damage=ENEMY_DAMAGE,
         lethal=False,
         moving_axis=MovingAxis.VERTICAL,
         moving_direction=1,
@@ -536,7 +541,7 @@ def build_level_power_boots(seed: int = 112) -> State:
         moving_speed=1,
     )
     enemy3 = create_monster(
-        damage=1,
+        damage=ENEMY_DAMAGE,
         lethal=False,
         moving_axis=MovingAxis.VERTICAL,
         moving_direction=1,
@@ -614,14 +619,14 @@ def build_level_capstone(seed: int = 113) -> State:
     # One hazard (no cost, 2 damage) placed near a tempting shortcut
     lvl.add(
         (w // 2 + 1, h // 2 + 1),
-        create_hazard(AppearanceName.SPIKE, damage=2, lethal=False),
+        create_hazard(AppearanceName.SPIKE, damage=HAZARD_DAMAGE, lethal=False),
     )
 
     # One pushable box blocking a narrow passage (simple push out of the way)
     lvl.add((w // 2 - 1, h // 2), create_box(pushable=True))
 
     # One patrolling enemy (bounce) guarding part of the route
-    enemy = create_monster(damage=1, lethal=False)
+    enemy = create_monster(damage=ENEMY_DAMAGE, lethal=False)
     enemy.moving = Moving(axis=MovingAxis.VERTICAL, direction=1, speed=1, bounce=True)
     lvl.add((w // 2 + 3, h // 2), enemy)
 

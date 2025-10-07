@@ -23,6 +23,14 @@ doc = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocstrings-python"]
 where = ["."]
 include = ["grid_universe*"]
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.data-files]
+"grid_universe_assets" = [
+    "assets/**",
+]
+
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"

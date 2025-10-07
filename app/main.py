@@ -18,7 +18,7 @@ from components import (
     do_action,
 )
 from grid_universe.actions import GymAction
-from grid_universe.gym_env import GridUniverseEnv, ObsType
+from grid_universe.gym_env import GridUniverseEnv, GymObs
 
 script_dir: str = os.path.dirname(os.path.realpath(__file__))
 
@@ -61,7 +61,7 @@ with tab_game:
 
         # Need to put after generate maze
         env: GridUniverseEnv = st.session_state["env"]
-        obs: ObsType = st.session_state["obs"]
+        obs: GymObs = st.session_state["obs"]
         info: Dict[str, object] = st.session_state["info"]
 
         if env.state:
@@ -148,7 +148,10 @@ with tab_game:
             img_compressed = img.convert("P")  # Converts to 8-bit palette mode
             st.image(img_compressed, use_container_width=True)
         if obs:
-            st.json(env.state_info(), expanded=1)
+            # Re-fetch current observation, otherwise info may be stale
+            current_obs = env._get_obs()  # type: ignore
+            if isinstance(current_obs, dict) and "info" in current_obs:
+                st.json(current_obs["info"], expanded=1)
 
 with tab_state:
     if env.state:

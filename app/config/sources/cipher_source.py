@@ -105,13 +105,17 @@ def _make_env(cfg: CipherConfig) -> GridUniverseEnv:
             sample.objective_fn, "__name__", str(sample.objective_fn)
         ),
     }
-    return GridUniverseEnv(
+    env = GridUniverseEnv(
         render_mode="texture",
         initial_state_fn=_initial_state_fn,
         width=sample.width,
         height=sample.height,
         render_texture_map=cfg.render_texture_map,
     )
+
+    cipher_objective_levels.patch_env_redact_objective_fn(env)
+
+    return env
 
 
 def _default_cipher_config() -> CipherConfig:

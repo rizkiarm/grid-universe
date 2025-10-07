@@ -18,6 +18,12 @@ Observation schema (see docs for full details):
     }
 }``
 
+or
+
+``
+Level  # if observation_type="level"
+``
+
 Usage:
 
 ``env = GridUniverseEnv(width=9, height=9, move_fn_name="default")``
@@ -29,14 +35,22 @@ Customization hooks:
 The environment is purposely *not* vectorized; wrap externally if needed.
 """
 
+import string
 import gymnasium as gym
+from gymnasium import spaces
+
 import numpy as np
-from typing import Callable, Optional, Dict, Tuple, Any, List
+from typing import Callable, Optional, Dict, Tuple, Any, List, TypedDict, cast, Union
+from numpy.typing import NDArray
 
 from PIL.Image import Image as PILImage
 
 from grid_universe.state import State
-from grid_universe.actions import Action
+from grid_universe.levels.convert import from_state  # for Level observation type
+from grid_universe.levels.grid import (
+    Level,
+)
+from grid_universe.actions import Action, GymAction
 from grid_universe.examples.maze import generate
 from grid_universe.renderer.texture import (
     DEFAULT_RESOLUTION,
@@ -47,10 +61,86 @@ from grid_universe.renderer.texture import (
 from grid_universe.step import step
 from grid_universe.types import EffectLimit, EffectType, EntityID
 
-# Observation now includes:
-#   - image: np.ndarray (H x W x 4)
-#   - info: dict with agent, status, config
-ObsType = Dict[str, Any]
+
+class EffectEntry(TypedDict):
+    """Single active effect entry.
+
+    Fields use sentinel defaults in the runtime observation:
+      * Empty string ("") for absent text fields.
+      * -1 for numeric fields that are logically None / not applicable.
+    """
+
+    id: int  # Unique effect entity id
+    type: str  # "" | "IMMUNITY" | "PHASING" | "SPEED"
+    limit_type: str  # "" | "TIME" | "USAGE"
+    limit_amount: int  # -1 if no limit
+    multiplier: int  # Speed multiplier (or -1 if not SPEED)
+
+
+class InventoryItem(TypedDict):
+    """Inventory item entry (key / core / coin / generic item)."""
+
+    id: int
+    type: str  # "key" | "core" | "coin" | "item"
+    key_id: str  # "" if not a key
+    appearance_name: str  # "" if not known / provided
+
+
+class HealthInfo(TypedDict):
+    """Health block; -1 indicates missing (agent has no health component)."""
+
+    health: int
+    max_health: int
+
+
+class AgentInfo(TypedDict):
+    """Agent sub‑observation grouping health, effects and inventory."""
+
+    health: HealthInfo
+    effects: List[EffectEntry]
+    inventory: List[InventoryItem]
+
+
+class StatusInfo(TypedDict):
+    """Environment status (score, phase, current turn)."""
+
+    score: int
+    phase: str  # "win" | "lose" | "ongoing"
+    turn: int
+
+
+class ConfigInfo(TypedDict):
+    """Static / semi‑static config describing the active level & functions."""
+
+    move_fn: str
+    objective_fn: str
+    seed: int  # -1 if None
+    width: int
+    height: int
+    turn_limit: int  # -1 if unlimited
+
+
+class InfoDict(TypedDict):
+    """Full structured info payload accompanying every observation."""
+
+    agent: AgentInfo
+    status: StatusInfo
+    config: ConfigInfo
+    message: str  # Narrative / status message ("" if none)
+
+
+ImageArray = NDArray[np.uint8]
+
+
+class GymObs(TypedDict):
+    """Top‑level observation returned by the environment.
+
+    image: RGBA image array (H x W x 4, dtype=uint8)
+    info:  Rich structured dictionaries (see :class:`InfoDict`).
+    """
+
+    image: ImageArray
+    info: InfoDict
 
 
 def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
@@ -64,8 +154,11 @@ def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
         Dict[str, Any]: JSON‑friendly payload with id, type, limit metadata and
             speed multiplier if applicable.
     """
-    effect_type: Optional[str] = None
-    extra: Dict[str, Any] = {}
+    # Start with sentinel defaults to guarantee presence of every field
+    effect_type: str = ""
+    limit_type: str = ""  # TIME | USAGE | ""
+    limit_amount: int = -1
+    multiplier: int = -1
 
     if effect_id in state.immunity:
         effect_type = EffectType.IMMUNITY.name
@@ -73,25 +166,31 @@ def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
         effect_type = EffectType.PHASING.name
     elif effect_id in state.speed:
         effect_type = EffectType.SPEED.name
-        extra["multiplier"] = state.speed[effect_id].multiplier
+        try:
+            multiplier = int(state.speed[effect_id].multiplier)
+        except Exception:
+            multiplier = -1
 
-    # Limits (if any)
-    limit_type = None
-    limit_amount = None
+    # Limits: usage takes precedence if both present
     if effect_id in state.time_limit:
         limit_type = EffectLimit.TIME.name
-        limit_amount = state.time_limit[effect_id].amount
+        try:
+            limit_amount = int(state.time_limit[effect_id].amount)
+        except Exception:
+            limit_amount = -1
     if effect_id in state.usage_limit:
-        # If both exist, report usage, otherwise time
         limit_type = EffectLimit.USAGE.name
-        limit_amount = state.usage_limit[effect_id].amount
+        try:
+            limit_amount = int(state.usage_limit[effect_id].amount)
+        except Exception:
+            limit_amount = -1
 
     return {
         "id": int(effect_id),
         "type": effect_type,
         "limit_type": limit_type,
         "limit_amount": limit_amount,
-        **extra,
+        "multiplier": multiplier,
     }
 
 
@@ -100,11 +199,19 @@ def _serialize_inventory_item(state: State, item_id: EntityID) -> Dict[str, Any]
 
     Returns type categorization plus optional appearance hint.
     """
-    item: Dict[str, Any] = {"id": int(item_id), "type": "item"}
+    item: Dict[str, Any] = {
+        "id": int(item_id),
+        "type": "item",  # default
+        "key_id": "",  # sentinel empty string
+        "appearance_name": "",  # sentinel empty string
+    }
     # Key?
     if item_id in state.key:
         item["type"] = "key"
-        item["key_id"] = state.key[item_id].key_id
+        try:
+            item["key_id"] = str(state.key[item_id].key_id)
+        except Exception:
+            item["key_id"] = ""
     # Collectibles (categorize core vs coin if we can)
     elif item_id in state.collectible:
         if item_id in state.required:
@@ -116,11 +223,11 @@ def _serialize_inventory_item(state: State, item_id: EntityID) -> Dict[str, Any]
         try:
             item["appearance_name"] = state.appearance[item_id].name.name
         except Exception:
-            pass
+            item["appearance_name"] = ""
     return item
 
 
-def agent_observation_dict(state: State, agent_id: EntityID) -> Dict[str, Any]:
+def agent_observation_dict(state: State, agent_id: EntityID) -> AgentInfo:
     """Compose structured agent sub‑observation.
 
     Includes health, list of active effect entries, and inventory items.
@@ -131,8 +238,8 @@ def agent_observation_dict(state: State, agent_id: EntityID) -> Dict[str, Any]:
     # Health
     hp = state.health.get(agent_id)
     health_dict: Dict[str, Any] = {
-        "health": hp.health if hp else None,
-        "max_health": hp.max_health if hp else None,
+        "health": int(hp.health) if hp else -1,
+        "max_health": int(hp.max_health) if hp else -1,
     }
 
     # Active effects (status)
@@ -149,14 +256,17 @@ def agent_observation_dict(state: State, agent_id: EntityID) -> Dict[str, Any]:
         for item_eid in inv.item_ids:
             inv_items.append(_serialize_inventory_item(state, item_eid))
 
-    return {
-        "health": health_dict,
-        "effects": effects,
-        "inventory": inv_items,
-    }
+    return cast(
+        AgentInfo,
+        {
+            "health": health_dict,
+            "effects": tuple(effects),
+            "inventory": tuple(inv_items),
+        },
+    )
 
 
-def env_status_observation_dict(state: State) -> Dict[str, Any]:
+def env_status_observation_dict(state: State) -> StatusInfo:
     """Status portion of observation (score, phase, turn)."""
     # Derive phase for clarity
     phase = "ongoing"
@@ -164,28 +274,34 @@ def env_status_observation_dict(state: State) -> Dict[str, Any]:
         phase = "win"
     elif state.lose:
         phase = "lose"
-    return {
-        "score": int(state.score),
-        "phase": phase,
-        "turn": int(state.turn),
-    }
+    return cast(
+        StatusInfo,
+        {
+            "score": int(state.score),
+            "phase": phase,
+            "turn": int(state.turn),
+        },
+    )
 
 
-def env_config_observation_dict(state: State) -> Dict[str, Any]:
+def env_config_observation_dict(state: State) -> ConfigInfo:
     """Config portion of observation (function names, seed, dimensions)."""
     move_fn_name = getattr(state.move_fn, "__name__", str(state.move_fn))
     objective_fn_name = getattr(state.objective_fn, "__name__", str(state.objective_fn))
-    return {
-        "move_fn": move_fn_name,
-        "objective_fn": objective_fn_name,
-        "seed": state.seed if state.seed is not None else -1,
-        "width": state.width,
-        "height": state.height,
-        "turn_limit": state.turn_limit if state.turn_limit is not None else -1,
-    }
+    return cast(
+        ConfigInfo,
+        {
+            "move_fn": move_fn_name,
+            "objective_fn": objective_fn_name,
+            "seed": state.seed if state.seed is not None else -1,
+            "width": state.width,
+            "height": state.height,
+            "turn_limit": state.turn_limit if state.turn_limit is not None else -1,
+        },
+    )
 
 
-class GridUniverseEnv(gym.Env[ObsType, np.integer]):
+class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
     """Gymnasium ``Env`` implementation for the Grid Universe.
 
     Parameters mirror the procedural level generator plus rendering knobs. The
@@ -200,6 +316,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         render_resolution: int = DEFAULT_RESOLUTION,
         render_texture_map: TextureMap = DEFAULT_TEXTURE_MAP,
         initial_state_fn: Callable[..., State] = generate,
+        observation_type: str = "image",
         **kwargs: Any,
     ):
         """Create a new environment instance.
@@ -211,8 +328,12 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
             initial_state_fn (Callable[..., State]): Callable returning an initial ``State``.
             **kwargs: Forwarded to ``initial_state_fn`` (e.g., size, densities, seed).
         """
-        from gymnasium import spaces  # ensure gymnasium.spaces is available
-        import numpy as np
+        # Observation type: "image" (default behavior) or "level" (returns Level dataclass)
+        if observation_type not in {"image", "level"}:
+            raise ValueError(
+                f"Unsupported observation_type '{observation_type}'. Expected 'image' or 'level'."
+            )
+        self._observation_type = observation_type
 
         # Generator/config kwargs for level creation
         self._initial_state_fn = initial_state_fn
@@ -235,9 +356,18 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         self._texture_renderer: Optional[TextureRenderer] = None
 
         # Observation space helpers (Gymnasium has no Integer/Optional)
-        text_space_short = spaces.Text(max_length=32)  # small enums like type/phase
-        text_space_medium = spaces.Text(max_length=128)  # function names, key ids
-        text_space_long = spaces.Text(max_length=512)  # message / narrative
+        base_chars = (
+            string.ascii_lowercase + string.ascii_uppercase + string.digits + "_"
+        )
+        text_space_short = spaces.Text(
+            max_length=32, min_length=0, charset=base_chars
+        )  # enums
+        text_space_medium = spaces.Text(
+            max_length=128, min_length=0, charset=base_chars
+        )  # fn names
+        text_space_long = spaces.Text(
+            max_length=512, min_length=0, charset=string.printable
+        )
 
         def int_box(low: int, high: int) -> spaces.Box:
             return spaces.Box(
@@ -276,48 +406,57 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
             }
         )
 
-        # Full observation space: image + structured info dict
-        self.observation_space = spaces.Dict(
-            {
-                "image": spaces.Box(
-                    low=0,
-                    high=255,
-                    shape=(render_height, render_width, 4),
-                    dtype=np.uint8,
-                ),
-                "info": spaces.Dict(
+        if self._observation_type == "image":
+            # Full observation space: image + structured info dict
+            self.observation_space = cast(
+                gym.Space[GymObs],
+                spaces.Dict(
                     {
-                        "agent": spaces.Dict(
+                        "image": spaces.Box(
+                            low=0,
+                            high=255,
+                            shape=(render_height, render_width, 4),
+                            dtype=np.uint8,
+                        ),
+                        "info": spaces.Dict(
                             {
-                                "health": health_space,
-                                "effects": spaces.Sequence(effect_space),
-                                "inventory": spaces.Sequence(item_space),
+                                "agent": spaces.Dict(
+                                    {
+                                        "health": health_space,
+                                        "effects": spaces.Sequence(effect_space),
+                                        "inventory": spaces.Sequence(item_space),
+                                    }
+                                ),
+                                "status": spaces.Dict(
+                                    {
+                                        "score": int_box(-1_000_000_000, 1_000_000_000),
+                                        "phase": text_space_short,  # "win" / "lose" / "ongoing"
+                                        "turn": int_box(0, 1_000_000_000),
+                                    }
+                                ),
+                                "config": spaces.Dict(
+                                    {
+                                        "move_fn": text_space_medium,
+                                        "objective_fn": text_space_medium,
+                                        "seed": int_box(
+                                            -1_000_000_000, 1_000_000_000
+                                        ),  # use -1 to represent None if needed
+                                        "width": int_box(1, 10_000),
+                                        "height": int_box(1, 10_000),
+                                        "turn_limit": int_box(-1, 1_000_000_000),
+                                    }
+                                ),
+                                "message": text_space_long,
                             }
                         ),
-                        "status": spaces.Dict(
-                            {
-                                "score": int_box(-1_000_000_000, 1_000_000_000),
-                                "phase": text_space_short,  # "win" / "lose" / "ongoing"
-                                "turn": int_box(0, 1_000_000_000),
-                            }
-                        ),
-                        "config": spaces.Dict(
-                            {
-                                "move_fn": text_space_medium,
-                                "objective_fn": text_space_medium,
-                                "seed": int_box(
-                                    -1_000_000_000, 1_000_000_000
-                                ),  # use -1 to represent None if needed
-                                "width": int_box(1, 10_000),
-                                "height": int_box(1, 10_000),
-                                "turn_limit": int_box(-1, 1_000_000_000),
-                            }
-                        ),
-                        "message": text_space_long,
                     }
                 ),
-            }
-        )
+            )
+        else:
+            # For Level observations we cannot define a strict Gym space (arbitrary Python object).
+            # Provide a placeholder space (Discrete(1)) with documented contract that observations are Level.
+            # Users leveraging RL libraries should stick to observation_type="image".
+            self.observation_space = spaces.Discrete(1)  # type: ignore[assignment]
 
         # Actions
         self.action_space = spaces.Discrete(len(Action))
@@ -327,7 +466,7 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
 
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, object]] = None
-    ) -> Tuple[ObsType, Dict[str, object]]:
+    ) -> Tuple[Union[GymObs, Level], Dict[str, object]]:
         """Start a new episode.
 
         Args:
@@ -335,11 +474,11 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
             options (dict | None): Gymnasium options (unused).
 
         Returns:
-            Tuple[ObsType, dict]: Observation dict and empty info dict per Gymnasium API.
+            Tuple[GymObs, dict]: Observation dict and empty info dict per Gymnasium API.
         """
         self.state = self._initial_state_fn(**self._initial_state_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
-        if self._texture_renderer is None:
+        if self._texture_renderer is None and self._observation_type == "image":
             self._texture_renderer = TextureRenderer(
                 resolution=self._render_resolution, texture_map=self._render_texture_map
             )
@@ -347,21 +486,36 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         return obs, self._get_info()
 
     def step(
-        self, action: np.integer
-    ) -> Tuple[ObsType, float, bool, bool, Dict[str, object]]:
+        self, action: np.integer | int | GymAction
+    ) -> Tuple[Union[GymObs, Level], float, bool, bool, Dict[str, object]]:
         """Apply one environment step.
 
         Args:
-            action (np.integer): Integer index into the ``Action`` enum.
+            action (int | np.integer | GymAction): Integer index (or ``GymAction`` enum
+                member) selecting an action from the discrete action space.
 
         Returns:
-            Tuple[ObsType, float, bool, bool, dict]: ``(observation, reward, terminated, truncated, info)``.
+            Tuple[GymObs, float, bool, bool, dict]: ``(observation, reward, terminated, truncated, info)``.
         """
         assert self.state is not None and self.agent_id is not None
+        # Coerce provided action (GymAction / numpy integer / int) into index
+        if isinstance(action, GymAction):
+            action_index = int(action.value)
+        else:
+            # Try coercing to int (covers plain int and numpy integer). If this fails, raise.
+            try:
+                action_index = int(action)
+            except Exception as exc:
+                raise TypeError(
+                    f"Action must be int-compatible or GymAction; got {type(action)!r}"
+                ) from exc
 
-        if action >= len(Action):
-            raise ValueError("Invalid action:", action)
-        step_action: Action = [a for a in Action][int(action)]
+        if not 0 <= action_index < len(Action):
+            raise ValueError(
+                f"Invalid action index {action_index}; expected 0..{len(Action) - 1}"
+            )
+
+        step_action: Action = list(Action)[action_index]
 
         prev_score = self.state.score
         self.state = step(self.state, step_action, agent_id=self.agent_id)
@@ -394,10 +548,10 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         else:
             raise NotImplementedError(f"Render mode '{render_mode}' not supported.")
 
-    def state_info(self) -> Dict[str, Any]:
+    def state_info(self) -> InfoDict:
         """Return structured ``info`` sub-dict used in observations."""
         assert self.state is not None and self.agent_id is not None
-        info_dict: Dict[str, Any] = {
+        info_dict: InfoDict = {
             "agent": agent_observation_dict(self.state, self.agent_id),
             "status": env_status_observation_dict(self.state),
             "config": env_config_observation_dict(self.state),
@@ -405,18 +559,29 @@ class GridUniverseEnv(gym.Env[ObsType, np.integer]):
         }
         return info_dict
 
-    def _get_obs(self) -> ObsType:
-        """Internal helper constructing the full observation."""
+    def _get_obs(self) -> Union[GymObs, Level]:
+        """Internal helper constructing the observation per observation_type.
+
+        observation_type="image": returns GymObs (dict with image + info)
+        observation_type="level": returns a freshly converted authoring-time Level object
+            produced via levels.convert.from_state(state). This allows algorithms to
+            reason over symbolic grid/entity structures directly. NOTE: This mode is
+            not compatible with typical RL libraries expecting a numeric space.
+        """
         assert self.state is not None and self.agent_id is not None
+        if self._observation_type == "level":
+            # Return authoring-time Level view (lossless reconstruction)
+            return from_state(self.state)
+
+        # Default image observation path
         if self._texture_renderer is None:
             self._texture_renderer = TextureRenderer(
                 resolution=self._render_resolution, texture_map=self._render_texture_map
             )
         img = self._texture_renderer.render(self.state)
-        img_np = np.array(img)
-
-        info_dict = self.state_info()
-        return {"image": img_np, "info": info_dict}
+        img_np: ImageArray = np.array(img)
+        info_dict: InfoDict = self.state_info()
+        return cast(GymObs, {"image": img_np, "info": info_dict})
 
     def _get_info(self) -> Dict[str, object]:
         """Return the step info (empty placeholder for compatibility)."""

@@ -72,7 +72,19 @@ obs, info = env.reset()
 
 ## Observation and action spaces
 
-- Spaces are defined in `__init__`. The observation is a dict with:
+- Spaces are defined in `__init__`.
+
+- You can choose the observation representation via `observation_type` constructor arg:
+    - `observation_type="image"` (default): Observation is a dict with `image` and `info` (described below). This is the RL‑friendly numeric space (Gym `Dict`).
+    - `observation_type="level"`: Observation is a reconstructed authoring‑time `Level` object (see `levels.grid.Level`). This exposes full symbolic structure (entities, nested inventory/effects, wiring refs) each step. The observation space becomes a placeholder (`Discrete(1)`) because Gym cannot natively specify arbitrary Python objects. Use this mode for research / planning algorithms needing structured world models rather than standard deep RL libraries.
+
+    Example:
+    ```python
+    env = GridUniverseEnv(observation_type="level", width=7, height=7)
+    level_obs, _ = env.reset()   # level_obs is a Level instance
+    ```
+
+- With `image` mode the observation is a dict with:
   
     - `image`: `Box(low=0, high=255, shape=(H, W, 4), dtype=uint8)`
   
@@ -279,7 +291,7 @@ env = GridUniverseEnv(
 
     - Use a custom wrapper to replace `obs` with `obs["image"]` or to add embeddings of `info` if your agent expects a simpler observation.
 
-Example wrapper to expose only the image as observation:
+Example wrapper to expose only the image as observation (works only with `observation_type="image"`):
 
 ```python
 import gymnasium as gym

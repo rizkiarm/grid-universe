@@ -1,6 +1,5 @@
 from pyrsistent import PMap
 import streamlit as st
-import numpy as np
 from typing import Dict, List, Optional, Tuple
 from grid_universe.components.effects import (
     Immunity,
@@ -118,7 +117,7 @@ def get_keyboard_action() -> Optional[GymAction]:
 
 
 def do_action(env: GridUniverseEnv, action: GymAction) -> None:
-    obs, reward, terminated, truncated, info = env.step(np.uint(action.value))
+    obs, reward, terminated, truncated, info = env.step(action)
     st.session_state["obs"] = obs
     st.session_state["info"] = info
     st.session_state["total_reward"] = float(st.session_state["total_reward"]) + reward

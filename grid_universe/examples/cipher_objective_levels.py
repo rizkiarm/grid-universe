@@ -3,6 +3,8 @@ from typing import Optional, Iterable, Tuple, List
 import random
 from dataclasses import replace
 
+from grid_universe.gym_env import GridUniverseEnv, GymObs
+from grid_universe.levels.grid import Level
 from grid_universe.state import State
 from grid_universe.objectives import OBJECTIVE_FN_REGISTRY
 from grid_universe.examples import maze
@@ -108,4 +110,22 @@ def generate(
     return to_cipher_level(base, cipher_objective_pairs, seed=seed)
 
 
-__all__ = ["generate", "to_cipher_level"]
+def redact_objective_fn(obs: GymObs | Level) -> GymObs | Level:
+    if isinstance(obs, Level):
+        obs.objective_fn = lambda state, entity: False
+    else:
+        obs["info"]["config"]["objective_fn"] = "<REDACTED>"
+    return obs
+
+
+def patch_env_redact_objective_fn(env: GridUniverseEnv) -> None:
+    _orig_get_obs = env._get_obs
+    env._get_obs = lambda: redact_objective_fn(_orig_get_obs())  # type: ignore
+
+
+__all__ = [
+    "generate",
+    "to_cipher_level",
+    "redact_objective_fn",
+    "patch_env_redact_objective_fn",
+]
