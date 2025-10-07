@@ -27,8 +27,8 @@ include = ["grid_universe*"]
 include-package-data = true
 
 [tool.setuptools.data-files]
-"grid_universe_assets" = [
-    "assets/**",
+"grid_universe/assets" = [
+    "assets/**/*.*",
 ]
 
 [build-system]
