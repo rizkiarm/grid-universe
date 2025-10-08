@@ -34,6 +34,7 @@ Performance Notes
 """
 
 from collections import defaultdict
+from pathlib import Path
 import colorsys
 from dataclasses import dataclass
 from functools import lru_cache
@@ -53,7 +54,7 @@ import random
 
 DEFAULT_RESOLUTION = 640
 DEFAULT_SUBICON_PERCENT = 0.4
-DEFAULT_ASSET_ROOT = "assets"
+DEFAULT_ASSET_ROOT = os.path.join(Path(__file__).parent.parent, "assets")
 
 ObjectAsset = Tuple[AppearanceName, Tuple[str, ...]]
 

@@ -53,6 +53,7 @@ from grid_universe.levels.grid import (
 from grid_universe.actions import Action, GymAction
 from grid_universe.examples.maze import generate
 from grid_universe.renderer.texture import (
+    DEFAULT_ASSET_ROOT,
     DEFAULT_RESOLUTION,
     DEFAULT_TEXTURE_MAP,
     TextureRenderer,
@@ -315,6 +316,7 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         render_mode: str = "texture",
         render_resolution: int = DEFAULT_RESOLUTION,
         render_texture_map: TextureMap = DEFAULT_TEXTURE_MAP,
+        render_asset_root: str = DEFAULT_ASSET_ROOT,
         initial_state_fn: Callable[..., State] = generate,
         observation_type: str = "image",
         **kwargs: Any,
@@ -348,6 +350,7 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         self.height: int = int(kwargs.get("height", 9))
         self._render_resolution = render_resolution
         self._render_texture_map = render_texture_map
+        self._render_asset_root = render_asset_root
         self._render_mode = render_mode
 
         # Rendering setup
@@ -478,10 +481,8 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         """
         self.state = self._initial_state_fn(**self._initial_state_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
-        if self._texture_renderer is None and self._observation_type == "image":
-            self._texture_renderer = TextureRenderer(
-                resolution=self._render_resolution, texture_map=self._render_texture_map
-            )
+        if self._observation_type == "image":
+            self._setup_renderer()
         obs = self._get_obs()
         return obs, self._get_info()
 
@@ -535,10 +536,8 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         """
         render_mode = mode or self._render_mode
         assert self.state is not None
-        if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(
-                resolution=self._render_resolution, texture_map=self._render_texture_map
-            )
+        self._setup_renderer()
+        assert self._texture_renderer is not None
         img = self._texture_renderer.render(self.state)
         if render_mode == "human":
             img.show()
@@ -574,10 +573,8 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
             return from_state(self.state)
 
         # Default image observation path
-        if self._texture_renderer is None:
-            self._texture_renderer = TextureRenderer(
-                resolution=self._render_resolution, texture_map=self._render_texture_map
-            )
+        self._setup_renderer()
+        assert self._texture_renderer is not None
         img = self._texture_renderer.render(self.state)
         img_np: ImageArray = np.array(img)
         info_dict: InfoDict = self.state_info()
@@ -586,6 +583,15 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
     def _get_info(self) -> Dict[str, object]:
         """Return the step info (empty placeholder for compatibility)."""
         return {}
+
+    def _setup_renderer(self) -> None:
+        """(Re)initialize the texture renderer if needed."""
+        if self._texture_renderer is None:
+            self._texture_renderer = TextureRenderer(
+                resolution=self._render_resolution,
+                texture_map=self._render_texture_map,
+                asset_root=self._render_asset_root,
+            )
 
     def close(self) -> None:
         """Release any renderer resources (no-op placeholder)."""
