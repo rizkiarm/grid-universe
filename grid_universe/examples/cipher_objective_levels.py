@@ -3,7 +3,7 @@ from typing import Optional, Iterable, Tuple, List
 import random
 from dataclasses import replace
 
-from grid_universe.gym_env import GridUniverseEnv, GymObs
+from grid_universe.gym_env import GridUniverseEnv, Observation
 from grid_universe.levels.grid import Level
 from grid_universe.state import State
 from grid_universe.objectives import OBJECTIVE_FN_REGISTRY
@@ -110,7 +110,7 @@ def generate(
     return to_cipher_level(base, cipher_objective_pairs, seed=seed)
 
 
-def redact_objective_fn(obs: GymObs | Level) -> GymObs | Level:
+def redact_objective_fn(obs: Observation | Level) -> Observation | Level:
     if isinstance(obs, Level):
         obs.objective_fn = lambda state, entity: False
     else:

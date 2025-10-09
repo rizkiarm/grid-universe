@@ -40,7 +40,7 @@ Contents
 
 ### Actions and types
 
-- `grid_universe.actions`: Agent actions, including movement and non-movement (use key, pick up, wait); includes GymAction index mapping.
+- `grid_universe.actions`: Agent actions, including movement and non-movement (use key, pick up, wait).
 
 - `grid_universe.types`: Core type aliases and enums used across the codebase (`EntityID`, `MoveFn`, `ObjectiveFn`, `EffectType`, `EffectLimit`).
 
@@ -285,7 +285,7 @@ adapted = to_cipher_level(base, [("HELLO","exit")], seed=999)
 
 - Objective registry: Name → `ObjectiveFn`.
 
-- Actions: string enum for core actions; `GymAction` int enum for compatibility.
+- Actions: string enum for core actions;
 
 - `EffectType` and `EffectLimit` enums.
 
@@ -294,12 +294,11 @@ Reference snippets:
 ```python
 from grid_universe.moves import MOVE_FN_REGISTRY
 from grid_universe.objectives import OBJECTIVE_FN_REGISTRY
-from grid_universe.actions import Action, GymAction
+from grid_universe.actions import Action
 
 print(MOVE_FN_REGISTRY.keys())
 print(OBJECTIVE_FN_REGISTRY.keys())
 print(list(Action))
-print(list(GymAction))
 ```
 
 

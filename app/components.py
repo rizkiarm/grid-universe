@@ -9,9 +9,8 @@ from grid_universe.components.effects import (
     UsageLimit,
 )
 from keyup import keyup
-from grid_universe.actions import GymAction
 from grid_universe.components import AppearanceName, Status, Inventory
-from grid_universe.gym_env import GridUniverseEnv
+from grid_universe.gym_env import GridUniverseEnv, Action
 from grid_universe.state import State
 from grid_universe.types import EffectLimit, EffectLimitAmount, EffectType, EntityID
 
@@ -95,19 +94,19 @@ def display_inventory(state: State, inventory: Inventory) -> None:
             st.success(text, icon=icon)
 
 
-def get_keyboard_action() -> Optional[GymAction]:
+def get_keyboard_action() -> Optional[Action]:
     key_map = {
-        "ArrowUp": GymAction.UP,
-        "ArrowDown": GymAction.DOWN,
-        "ArrowLeft": GymAction.LEFT,
-        "ArrowRight": GymAction.RIGHT,
-        "w": GymAction.UP,
-        "s": GymAction.DOWN,
-        "a": GymAction.LEFT,
-        "d": GymAction.RIGHT,
-        "f": GymAction.USE_KEY,
-        "e": GymAction.PICK_UP,
-        "q": GymAction.WAIT,
+        "ArrowUp": Action.UP,
+        "ArrowDown": Action.DOWN,
+        "ArrowLeft": Action.LEFT,
+        "ArrowRight": Action.RIGHT,
+        "w": Action.UP,
+        "s": Action.DOWN,
+        "a": Action.LEFT,
+        "d": Action.RIGHT,
+        "f": Action.USE_KEY,
+        "e": Action.PICK_UP,
+        "q": Action.WAIT,
     }
     value = keyup(
         default_text="Click here to use keyboard",
@@ -116,7 +115,7 @@ def get_keyboard_action() -> Optional[GymAction]:
     return key_map.get(value, None)
 
 
-def do_action(env: GridUniverseEnv, action: GymAction) -> None:
+def do_action(env: GridUniverseEnv, action: Action) -> None:
     obs, reward, terminated, truncated, info = env.step(action)
     st.session_state["obs"] = obs
     st.session_state["info"] = info

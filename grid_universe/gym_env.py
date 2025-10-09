@@ -35,6 +35,7 @@ Customization hooks:
 The environment is purposely *not* vectorized; wrap externally if needed.
 """
 
+from enum import IntEnum, auto
 import string
 import gymnasium as gym
 from gymnasium import spaces
@@ -50,7 +51,7 @@ from grid_universe.levels.convert import from_state  # for Level observation typ
 from grid_universe.levels.grid import (
     Level,
 )
-from grid_universe.actions import Action, GymAction
+from grid_universe.actions import Action as BaseAction
 from grid_universe.examples.maze import generate
 from grid_universe.renderer.texture import (
     DEFAULT_ASSET_ROOT,
@@ -133,7 +134,7 @@ class InfoDict(TypedDict):
 ImageArray = NDArray[np.uint8]
 
 
-class GymObs(TypedDict):
+class Observation(TypedDict):
     """Top‑level observation returned by the environment.
 
     image: RGBA image array (H x W x 4, dtype=uint8)
@@ -142,6 +143,18 @@ class GymObs(TypedDict):
 
     image: ImageArray
     info: InfoDict
+
+
+class Action(IntEnum):
+    """Stable integer mapping for integration with Gymnasium ``Discrete`` spaces."""
+
+    UP = 0  # start at 0 for explicitness
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
+    USE_KEY = auto()
+    PICK_UP = auto()
+    WAIT = auto()
 
 
 def _serialize_effect(state: State, effect_id: EntityID) -> Dict[str, Any]:
@@ -302,11 +315,11 @@ def env_config_observation_dict(state: State) -> ConfigInfo:
     )
 
 
-class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
+class GridUniverseEnv(gym.Env[Union[Observation, Level], np.integer]):
     """Gymnasium ``Env`` implementation for the Grid Universe.
 
     Parameters mirror the procedural level generator plus rendering knobs. The
-    action space is ``Discrete(len(Action))``; see :mod:`grid_universe.actions`.
+    action space is ``Discrete(len(BaseAction))``; see :mod:`grid_universe.actions`.
     """
 
     metadata = {"render_modes": ["human", "texture"]}
@@ -412,7 +425,7 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         if self._observation_type == "image":
             # Full observation space: image + structured info dict
             self.observation_space = cast(
-                gym.Space[GymObs],
+                gym.Space[Observation],
                 spaces.Dict(
                     {
                         "image": spaces.Box(
@@ -462,14 +475,14 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
             self.observation_space = spaces.Discrete(1)  # type: ignore[assignment]
 
         # Actions
-        self.action_space = spaces.Discrete(len(Action))
+        self.action_space = spaces.Discrete(len(BaseAction))
 
         # Initialize first episode
         self.reset()
 
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Dict[str, object]] = None
-    ) -> Tuple[Union[GymObs, Level], Dict[str, object]]:
+    ) -> Tuple[Union[Observation, Level], Dict[str, object]]:
         """Start a new episode.
 
         Args:
@@ -477,7 +490,7 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
             options (dict | None): Gymnasium options (unused).
 
         Returns:
-            Tuple[GymObs, dict]: Observation dict and empty info dict per Gymnasium API.
+            Tuple[Observation, dict]: Observation dict and empty info dict per Gymnasium API.
         """
         self.state = self._initial_state_fn(**self._initial_state_kwargs)
         self.agent_id = next(iter(self.state.agent.keys()))
@@ -487,20 +500,20 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         return obs, self._get_info()
 
     def step(
-        self, action: np.integer | int | GymAction
-    ) -> Tuple[Union[GymObs, Level], float, bool, bool, Dict[str, object]]:
+        self, action: np.integer | int | Action
+    ) -> Tuple[Union[Observation, Level], float, bool, bool, Dict[str, object]]:
         """Apply one environment step.
 
         Args:
-            action (int | np.integer | GymAction): Integer index (or ``GymAction`` enum
+            action (int | np.integer | Action): Integer index (or ``Action`` enum
                 member) selecting an action from the discrete action space.
 
         Returns:
-            Tuple[GymObs, float, bool, bool, dict]: ``(observation, reward, terminated, truncated, info)``.
+            Tuple[Observation, float, bool, bool, dict]: ``(observation, reward, terminated, truncated, info)``.
         """
         assert self.state is not None and self.agent_id is not None
-        # Coerce provided action (GymAction / numpy integer / int) into index
-        if isinstance(action, GymAction):
+        # Coerce provided action (Action / numpy integer / int) into index
+        if isinstance(action, Action):
             action_index = int(action.value)
         else:
             # Try coercing to int (covers plain int and numpy integer). If this fails, raise.
@@ -508,15 +521,15 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
                 action_index = int(action)
             except Exception as exc:
                 raise TypeError(
-                    f"Action must be int-compatible or GymAction; got {type(action)!r}"
+                    f"Action must be int-compatible or Action; got {type(action)!r}"
                 ) from exc
 
-        if not 0 <= action_index < len(Action):
+        if not 0 <= action_index < len(BaseAction):
             raise ValueError(
-                f"Invalid action index {action_index}; expected 0..{len(Action) - 1}"
+                f"Invalid action index {action_index}; expected 0..{len(BaseAction) - 1}"
             )
 
-        step_action: Action = list(Action)[action_index]
+        step_action: BaseAction = list(BaseAction)[action_index]
 
         prev_score = self.state.score
         self.state = step(self.state, step_action, agent_id=self.agent_id)
@@ -558,10 +571,10 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         }
         return info_dict
 
-    def _get_obs(self) -> Union[GymObs, Level]:
+    def _get_obs(self) -> Union[Observation, Level]:
         """Internal helper constructing the observation per observation_type.
 
-        observation_type="image": returns GymObs (dict with image + info)
+        observation_type="image": returns Observation (dict with image + info)
         observation_type="level": returns a freshly converted authoring-time Level object
             produced via levels.convert.from_state(state). This allows algorithms to
             reason over symbolic grid/entity structures directly. NOTE: This mode is
@@ -578,7 +591,7 @@ class GridUniverseEnv(gym.Env[Union[GymObs, Level], np.integer]):
         img = self._texture_renderer.render(self.state)
         img_np: ImageArray = np.array(img)
         info_dict: InfoDict = self.state_info()
-        return cast(GymObs, {"image": img_np, "info": info_dict})
+        return cast(Observation, {"image": img_np, "info": info_dict})
 
     def _get_info(self) -> Dict[str, object]:
         """Return the step info (empty placeholder for compatibility)."""

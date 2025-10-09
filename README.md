@@ -375,7 +375,7 @@ Reward: delta of `state.score` per step.
 
 ```
 grid_universe/
-  actions.py       # Action & GymAction enums
+  actions.py       # Action enums
   state.py         # Immutable ECS world snapshot
   step.py          # Orchestrated reducer
   moves.py         # Movement strategies + registry
@@ -386,9 +386,9 @@ grid_universe/
   levels/          # Authoring model, factories, converters, generators
   renderer/        # TextureRenderer + helpers
   utils/           # ECS, grid, status, inventory, gc, image, trail
+  assets/          # Texture packs (kenney, futurama, ...)
 app/               # Streamlit app
 tests/             # Unit + integration tests
-assets/            # Texture packs (kenney, futurama, ...)
 docs/              # MkDocs site sources
 ```
 

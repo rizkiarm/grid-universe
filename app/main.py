@@ -17,8 +17,7 @@ from components import (
     get_keyboard_action,
     do_action,
 )
-from grid_universe.actions import GymAction
-from grid_universe.gym_env import GridUniverseEnv, GymObs
+from grid_universe.gym_env import GridUniverseEnv, Observation, Action
 
 script_dir: str = os.path.dirname(os.path.realpath(__file__))
 
@@ -61,7 +60,7 @@ with tab_game:
 
         # Need to put after generate maze
         env: GridUniverseEnv = st.session_state["env"]
-        obs: GymObs = st.session_state["obs"]
+        obs: Observation = st.session_state["obs"]
         info: Dict[str, object] = st.session_state["info"]
 
         if env.state:
@@ -90,30 +89,30 @@ with tab_game:
         _, up_col, _ = st.columns([1, 1, 1])
         with up_col:
             if st.button("⬆️", key="up_btn", use_container_width=True):
-                do_action(env, GymAction.UP)
+                do_action(env, Action.UP)
         left_btn, down_btn, right_btn = st.columns([1, 1, 1])
         with left_btn:
             if st.button("⬅️", key="left_btn", use_container_width=True):
-                do_action(env, GymAction.LEFT)
+                do_action(env, Action.LEFT)
         with down_btn:
             if st.button("⬇️", key="down_btn", use_container_width=True):
-                do_action(env, GymAction.DOWN)
+                do_action(env, Action.DOWN)
         with right_btn:
             if st.button("➡️", key="right_btn", use_container_width=True):
-                do_action(env, GymAction.RIGHT)
+                do_action(env, Action.RIGHT)
 
         pickup_btn, usekey_btn, wait_btn = st.columns([1, 1, 1])
         with pickup_btn:
             if st.button("🤲 Pickup", key="pickup_btn", use_container_width=True):
-                do_action(env, GymAction.PICK_UP)
+                do_action(env, Action.PICK_UP)
         with usekey_btn:
             if st.button("🔑 Use", key="usekey_btn", use_container_width=True):
-                do_action(env, GymAction.USE_KEY)
+                do_action(env, Action.USE_KEY)
         with wait_btn:
             if st.button("⏳ Wait", key="wait_btn", use_container_width=True):
-                do_action(env, GymAction.WAIT)
+                do_action(env, Action.WAIT)
 
-        action: Optional[GymAction] = get_keyboard_action()
+        action: Optional[Action] = get_keyboard_action()
         if action is not None:
             do_action(env, action)
 

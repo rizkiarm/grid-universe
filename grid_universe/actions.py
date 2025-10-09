@@ -1,13 +1,11 @@
 """Action enumerations.
 
-Defines both the human readable :class:`Action` (string enum) used internally
-and a stable integer :class:`GymAction` mapping for Gymnasium compatibility.
-
+Defines both the human readable :class:`Action` (string enum) used internally.
 ``MOVE_ACTIONS`` is the canonical ordered list of movement actions; checks like
 ``if action in MOVE_ACTIONS`` are preferred over enum name comparisons.
 """
 
-from enum import IntEnum, StrEnum, auto
+from enum import StrEnum, auto
 
 
 class Action(StrEnum):
@@ -33,15 +31,3 @@ class Action(StrEnum):
 
 
 MOVE_ACTIONS = [Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT]
-
-
-class GymAction(IntEnum):
-    """Stable integer mapping for integration with Gymnasium ``Discrete`` spaces."""
-
-    UP = 0  # start at 0 for explicitness
-    DOWN = auto()
-    LEFT = auto()
-    RIGHT = auto()
-    USE_KEY = auto()
-    PICK_UP = auto()
-    WAIT = auto()
