@@ -439,6 +439,8 @@ def render(
     )
 
     state_rng = random.Random(state.seed)
+    object_seeds = [state_rng.randint(0, 2**31) for _ in range(len(texture_map))]
+    texture_map_values = list(texture_map.values())
     groups = derive_groups(state)
 
     def default_get_tex(
@@ -450,8 +452,9 @@ def render(
 
         asset_path = f"{asset_root}/{path}"
         if os.path.isdir(asset_path):
+            asset_index = texture_map_values.index(path)
             selected_asset_path = select_texture_from_directory(
-                asset_path, state_rng.randint(0, 2**31)
+                asset_path, object_seeds[asset_index]
             )
             if selected_asset_path is None:
                 return None
