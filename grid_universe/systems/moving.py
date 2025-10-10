@@ -75,4 +75,6 @@ def moving_system(state: State) -> State:
             if blocked:
                 break
 
-    return replace(state, position=state_position, moving=state_moving)
+        state = replace(state, position=state_position, moving=state_moving)
+
+    return state
