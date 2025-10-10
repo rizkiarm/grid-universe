@@ -90,6 +90,42 @@ TexLookupFn = Callable[[ObjectRendering, int], Image.Image]
 TextureMap = Dict[ObjectAsset, str]
 
 
+# --- Built-in Texture Maps ---
+
+
+IMAGEN1_TEXTURE_MAP: TextureMap = {
+    (
+        AppearanceName.HUMAN,
+        tuple([]),
+    ): "imagen1/human",
+    (
+        AppearanceName.HUMAN,
+        tuple(["dead"]),
+    ): "imagen1/sleeping",
+    (AppearanceName.COIN, tuple([])): "imagen1/coin",
+    (AppearanceName.CORE, tuple(["required"])): "imagen1/gem",
+    (AppearanceName.BOX, tuple([])): "imagen1/metalbox",
+    (AppearanceName.BOX, tuple(["pushable"])): "imagen1/box",
+    (AppearanceName.MONSTER, tuple([])): "imagen1/robot",
+    (
+        AppearanceName.MONSTER,
+        tuple(["pathfinding"]),
+    ): "imagen1/wolf",
+    (AppearanceName.KEY, tuple([])): "imagen1/key",
+    (AppearanceName.PORTAL, tuple([])): "imagen1/portal",
+    (AppearanceName.DOOR, tuple(["locked"])): "imagen1/locked",
+    (AppearanceName.DOOR, tuple([])): "imagen1/opened",
+    (AppearanceName.SHIELD, tuple(["immunity"])): "imagen1/shield",
+    (AppearanceName.GHOST, tuple(["phasing"])): "imagen1/ghost",
+    (AppearanceName.BOOTS, tuple(["speed"])): "imagen1/boots",
+    (AppearanceName.SPIKE, tuple([])): "imagen1/spike",
+    (AppearanceName.LAVA, tuple([])): "imagen1/lava",
+    (AppearanceName.EXIT, tuple([])): "imagen1/exit",
+    (AppearanceName.WALL, tuple([])): "imagen1/wall",
+    (AppearanceName.FLOOR, tuple([])): "imagen1/floor",
+}
+
+
 KENNEY_TEXTURE_MAP: TextureMap = {
     (
         AppearanceName.HUMAN,
@@ -151,9 +187,10 @@ FUTURAMA_TEXTURE_MAP: TextureMap = {
     (AppearanceName.FLOOR, tuple([])): "futurama/blank.png",
 }
 
-DEFAULT_TEXTURE_MAP: TextureMap = KENNEY_TEXTURE_MAP
+DEFAULT_TEXTURE_MAP: TextureMap = IMAGEN1_TEXTURE_MAP
 
 TEXTURE_MAP_REGISTRY: Dict[str, TextureMap] = {
+    "imagen1": IMAGEN1_TEXTURE_MAP,
     "kenney": KENNEY_TEXTURE_MAP,
     "futurama": FUTURAMA_TEXTURE_MAP,
 }
