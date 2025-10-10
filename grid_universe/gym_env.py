@@ -500,7 +500,7 @@ class GridUniverseEnv(gym.Env[Union[Observation, Level], np.integer]):
         return obs, self._get_info()
 
     def step(
-        self, action: np.integer | int | Action
+        self, action: np.integer | int | Action | BaseAction
     ) -> Tuple[Union[Observation, Level], float, bool, bool, Dict[str, object]]:
         """Apply one environment step.
 
@@ -512,24 +512,30 @@ class GridUniverseEnv(gym.Env[Union[Observation, Level], np.integer]):
             Tuple[Observation, float, bool, bool, dict]: ``(observation, reward, terminated, truncated, info)``.
         """
         assert self.state is not None and self.agent_id is not None
-        # Coerce provided action (Action / numpy integer / int) into index
-        if isinstance(action, Action):
-            action_index = int(action.value)
+
+        step_action: BaseAction = BaseAction.WAIT  # default fallback
+
+        if isinstance(action, BaseAction):
+            step_action = action
         else:
-            # Try coercing to int (covers plain int and numpy integer). If this fails, raise.
-            try:
-                action_index = int(action)
-            except Exception as exc:
-                raise TypeError(
-                    f"Action must be int-compatible or Action; got {type(action)!r}"
-                ) from exc
+            # Coerce provided action (Action / numpy integer / int) into index
+            if isinstance(action, Action):
+                action_index = int(action.value)
+            else:
+                # Try coercing to int (covers plain int and numpy integer). If this fails, raise.
+                try:
+                    action_index = int(action)
+                except Exception as exc:
+                    raise TypeError(
+                        f"Action must be int-compatible or Action; got {type(action)!r}"
+                    ) from exc
 
-        if not 0 <= action_index < len(BaseAction):
-            raise ValueError(
-                f"Invalid action index {action_index}; expected 0..{len(BaseAction) - 1}"
-            )
+            if not 0 <= action_index < len(BaseAction):
+                raise ValueError(
+                    f"Invalid action index {action_index}; expected 0..{len(BaseAction) - 1}"
+                )
 
-        step_action: BaseAction = list(BaseAction)[action_index]
+            step_action = list(BaseAction)[action_index]
 
         prev_score = self.state.score
         self.state = step(self.state, step_action, agent_id=self.agent_id)
