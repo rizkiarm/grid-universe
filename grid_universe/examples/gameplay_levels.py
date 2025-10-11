@@ -177,7 +177,7 @@ def build_level_optional_coin(seed: int = 102) -> State:
             lvl.add((x, h - 3), create_wall())
     lvl.add((1, 1), create_agent(health=5))
     lvl.add((w - 2, h - 2), create_exit())
-    for x in range(2, w - 2, 2):
+    for x in range(1, w - 2, 1):
         lvl.add((x, h - 2), create_coin(reward=COIN_REWARD))
     return to_state(lvl)
 
