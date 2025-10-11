@@ -83,27 +83,6 @@ def _border(level: Level) -> None:
         level.add((level.width - 1, y), create_wall())
 
 
-def _place_coin_tile(
-    level: Level, pos: tuple[int, int], reward: int = COIN_REWARD
-) -> None:
-    """Add a non-collectible coin tile that grants a step reward.
-
-    Converts a normally collectible coin entity into a stationary reward tile so
-    that the net step cost becomes ``TILE_COST - reward`` (still positive) when
-    the agent moves onto it.
-
-    Args:
-        level (Level): Level being authored.
-        pos (tuple[int, int]): Tile coordinate.
-        reward (int): Reward amount (must satisfy ``0 < reward < TILE_COST``).
-    """
-    coin = create_coin(reward=reward)  # factory sets Collectible + Rewardable
-    coin.collectible = (
-        None  # make it non-collectible so reward triggers as tile reward, not pickup
-    )
-    level.add(pos, coin)
-
-
 # -------------------------
 # Levels L0..L9 (mechanic ramp-up)
 # -------------------------
@@ -170,7 +149,7 @@ def build_level_maze_turns(seed: int = 101) -> State:
 def build_level_optional_coin(seed: int = 102) -> State:
     """L2: Optional coin path (Exit).
 
-    Coin tiles reduce net cost along that route encouraging detour.
+    Coin reduce net cost along that route encouraging detour.
 
     Args:
         seed (int): Deterministic seed stored on resulting ``State``.
@@ -199,7 +178,7 @@ def build_level_optional_coin(seed: int = 102) -> State:
     lvl.add((1, 1), create_agent(health=5))
     lvl.add((w - 2, h - 2), create_exit())
     for x in range(2, w - 2, 2):
-        _place_coin_tile(lvl, (x, h - 2))
+        lvl.add((x, h - 2), create_coin(reward=COIN_REWARD))
     return to_state(lvl)
 
 
@@ -910,7 +889,7 @@ def generate_task_suite(
     builders = [
         build_level_basic_movement,  # L0
         build_level_maze_turns,  # L1
-        build_level_optional_coin,  # L2 (coin tiles reduce net step cost)
+        build_level_optional_coin,  # L2
         build_level_required_one,  # L3
         build_level_required_two,  # L4
         build_level_key_door,  # L5
